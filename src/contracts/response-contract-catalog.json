@@ -7,7 +7,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:299",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:300",
     "frontConsumer": null
   },
   {
@@ -31,7 +31,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:169",
+    "evidence": "src/controllers/course.controller.ts:170",
     "frontConsumer": null
   },
   {
@@ -43,7 +43,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:165",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:166",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -67,7 +67,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:362",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:363",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -79,7 +79,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:390",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:391",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -91,7 +91,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:198",
+    "evidence": "src/controllers/products/productProfile.controller.ts:199",
     "frontConsumer": null
   },
   {
@@ -115,7 +115,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:225",
+    "evidence": "src/controllers/sync/history.controller.ts:229",
     "frontConsumer": null
   },
   {
@@ -163,7 +163,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:153",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:156",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -233,7 +233,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:120",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:121",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -280,7 +280,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:23",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:39",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -292,7 +292,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:164",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:180",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -303,7 +303,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:177",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:218",
     "frontConsumer": null
   },
   {
@@ -327,7 +327,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:260",
+    "evidence": "src/controllers/acTags/activeCampaignProductTagQueries.controller.ts:104",
     "frontConsumer": null
   },
   {
@@ -339,7 +339,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:217",
+    "evidence": "src/controllers/acTags/activeCampaignProductTagQueries.controller.ts:61",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -350,7 +350,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:206",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:247",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -433,7 +433,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/cohortAnalytics.controller.ts:57",
+    "evidence": "src/controllers/cohortAnalytics.controller.ts:58",
     "frontConsumer": "src/hooks/useCohortAnalytics.ts"
   },
   {
@@ -516,7 +516,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:21",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:23",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -527,7 +527,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:51",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:53",
     "frontConsumer": null
   },
   {
@@ -539,7 +539,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:93",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:95",
     "frontConsumer": null
   },
   {
@@ -561,7 +561,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:409",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:411",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -573,7 +573,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:258",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:260",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -585,7 +585,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:352",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:354",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -597,7 +597,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:246",
+    "evidence": "src/controllers/clarezaController.ts:247",
     "frontConsumer": null
   },
   {
@@ -605,7 +605,7 @@
     "path": "/api/clareza/carteira/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:235",
+    "evidence": "src/controllers/clarezaController.ts:236",
     "frontConsumer": null
   },
   {
@@ -619,7 +619,7 @@
       "results",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaController.ts:306",
+    "evidence": "src/controllers/clarezaController.ts:307",
     "frontConsumer": null
   },
   {
@@ -627,7 +627,7 @@
     "path": "/api/clareza/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:31",
+    "evidence": "src/controllers/clarezaController.ts:32",
     "frontConsumer": null
   },
   {
@@ -640,7 +640,7 @@
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaController.ts:260",
+    "evidence": "src/controllers/clarezaController.ts:261",
     "frontConsumer": null
   },
   {
@@ -652,7 +652,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:162",
+    "evidence": "src/controllers/clarezaController.ts:163",
     "frontConsumer": null
   },
   {
@@ -665,7 +665,7 @@
       "results",
       "tested"
     ],
-    "evidence": "src/controllers/clarezaController.ts:204",
+    "evidence": "src/controllers/clarezaController.ts:205",
     "frontConsumer": null
   },
   {
@@ -677,7 +677,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:193",
+    "evidence": "src/controllers/clarezaController.ts:194",
     "frontConsumer": null
   },
   {
@@ -685,7 +685,7 @@
     "path": "/api/clareza/raiox/:ticker",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:143",
+    "evidence": "src/controllers/clarezaController.ts:144",
     "frontConsumer": null
   },
   {
@@ -774,7 +774,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:93",
+    "evidence": "src/controllers/clarezaController.ts:94",
     "frontConsumer": null
   },
   {
@@ -857,7 +857,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:78",
+    "evidence": "src/controllers/clarezaController.ts:79",
     "frontConsumer": null
   },
   {
@@ -939,7 +939,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:108",
+    "evidence": "src/controllers/clarezaController.ts:109",
     "frontConsumer": null
   },
   {
@@ -947,7 +947,7 @@
     "path": "/api/clareza/top10",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:66",
+    "evidence": "src/controllers/clarezaController.ts:67",
     "frontConsumer": null
   },
   {
@@ -1114,7 +1114,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:39",
+    "evidence": "src/controllers/courseLessons.controller.ts:63",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -1126,7 +1126,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:35",
+    "evidence": "src/controllers/course.controller.ts:36",
     "frontConsumer": null
   },
   {
@@ -1137,7 +1137,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:64",
+    "evidence": "src/controllers/course.controller.ts:65",
     "frontConsumer": null
   },
   {
@@ -1149,7 +1149,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:23",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:39",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1161,7 +1161,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:164",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:180",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:48",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:49",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:98",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:99",
     "frontConsumer": null
   },
   {
@@ -1253,7 +1253,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:69",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:70",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1265,7 +1265,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:156",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:157",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1277,7 +1277,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts:53",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts:54",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1301,7 +1301,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:13",
     "frontConsumer": null
   },
   {
@@ -1349,7 +1349,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:13",
     "frontConsumer": null
   },
   {
@@ -1371,7 +1371,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:89",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:90",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
   },
   {
@@ -1393,7 +1393,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:45",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:46",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
   },
   {
@@ -1416,7 +1416,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:248",
+    "evidence": "src/controllers/dashboard.controller.ts:263",
     "frontConsumer": null
   },
   {
@@ -1427,7 +1427,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:339",
+    "evidence": "src/controllers/dashboard.controller.ts:354",
     "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx"
   },
   {
@@ -1438,7 +1438,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:190",
+    "evidence": "src/controllers/dashboard.controller.ts:205",
     "frontConsumer": null
   },
   {
@@ -1450,7 +1450,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:200",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:205",
     "frontConsumer": "src/components/dashboard/EngagementHeatmap.tsx"
   },
   {
@@ -1462,7 +1462,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:134",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:142",
     "frontConsumer": "src/components/dashboard/ProductComparison.tsx"
   },
   {
@@ -1474,7 +1474,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:283",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:277",
     "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx"
   },
   {
@@ -1486,7 +1486,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:378",
+    "evidence": "src/controllers/dashboard.controller.ts:393",
     "frontConsumer": null
   },
   {
@@ -1498,7 +1498,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:103",
+    "evidence": "src/controllers/dashboard.controller.ts:109",
     "frontConsumer": null
   },
   {
@@ -1576,7 +1576,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/engagement/details.controller.ts:161",
+    "evidence": "src/controllers/engagement/details.controller.ts:162",
     "frontConsumer": null
   },
   {
@@ -1588,7 +1588,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/engagement/stats.controller.ts:162",
+    "evidence": "src/controllers/engagement/stats.controller.ts:163",
     "frontConsumer": null
   },
   {
@@ -1600,7 +1600,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/engagement/summary.controller.ts:16",
+    "evidence": "src/controllers/engagement/summary.controller.ts:17",
     "frontConsumer": null
   },
   {
@@ -1612,7 +1612,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/engagement/users.controller.ts:226",
+    "evidence": "src/controllers/engagement/users.controller.ts:227",
     "frontConsumer": null
   },
   {
@@ -1691,7 +1691,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:232",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:233",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1702,7 +1702,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:61",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:62",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1713,7 +1713,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:39",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:40",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1735,7 +1735,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/subscriptionRepair.controller.ts:176",
+    "evidence": "src/controllers/guruAnalytics/subscriptionRepair.controller.ts:177",
     "frontConsumer": null
   },
   {
@@ -1746,7 +1746,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:285",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:286",
     "frontConsumer": null
   },
   {
@@ -1757,7 +1757,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sso.controller.ts:268",
+    "evidence": "src/controllers/guru.sso.controller.ts:269",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1798,7 +1798,7 @@
     "path": "/api/guru/myorders",
     "family": "redirect",
     "shapeKeys": [],
-    "evidence": "src/controllers/guru.sso.controller.ts:126",
+    "evidence": "src/controllers/guru.sso.controller.ts:127",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1810,7 +1810,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:300",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:301",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1821,7 +1821,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:331",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:332",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1855,7 +1855,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sso.controller.ts:190",
+    "evidence": "src/controllers/guru.sso.controller.ts:191",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1878,7 +1878,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:44",
+    "evidence": "src/controllers/guru.sync.controller.ts:45",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1889,7 +1889,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:97",
+    "evidence": "src/controllers/guru.sync.controller.ts:98",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1900,7 +1900,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:214",
+    "evidence": "src/controllers/guru.sync.controller.ts:215",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1911,7 +1911,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:165",
+    "evidence": "src/controllers/guru.sync.controller.ts:166",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1922,7 +1922,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:281",
+    "evidence": "src/controllers/guru.sync.controller.ts:282",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1934,7 +1934,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:33",
+    "evidence": "src/controllers/guru.trials.controller.ts:34",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -1945,7 +1945,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:46",
+    "evidence": "src/controllers/guru.trials.controller.ts:47",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -2050,7 +2050,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartUniversalSync.controller.ts:36",
+    "evidence": "src/controllers/hotmart/hotmartUniversalSync.controller.ts:37",
     "frontConsumer": null
   },
   {
@@ -2087,7 +2087,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:177",
+    "evidence": "src/controllers/lessons.controller.ts:178",
     "frontConsumer": null
   },
   {
@@ -2099,7 +2099,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:207",
+    "evidence": "src/controllers/lessons.controller.ts:208",
     "frontConsumer": null
   },
   {
@@ -2111,7 +2111,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:57",
+    "evidence": "src/controllers/lessons.controller.ts:58",
     "frontConsumer": null
   },
   {
@@ -2123,7 +2123,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:136",
+    "evidence": "src/controllers/lessons.controller.ts:137",
     "frontConsumer": null
   },
   {
@@ -2170,7 +2170,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:36",
+    "evidence": "src/controllers/products/productProfile.controller.ts:37",
     "frontConsumer": null
   },
   {
@@ -2181,7 +2181,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:66",
+    "evidence": "src/controllers/products/productProfile.controller.ts:67",
     "frontConsumer": null
   },
   {
@@ -2192,7 +2192,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:322",
+    "evidence": "src/controllers/products/productProfile.controller.ts:323",
     "frontConsumer": null
   },
   {
@@ -2249,7 +2249,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/products.controller.ts:148",
+    "evidence": "src/controllers/products/products.controller.ts:154",
     "frontConsumer": null
   },
   {
@@ -2261,7 +2261,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/products.controller.ts:101",
+    "evidence": "src/controllers/products/products.controller.ts:107",
     "frontConsumer": null
   },
   {
@@ -2328,7 +2328,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/studentOgiSummary.controller.ts:76",
+    "evidence": "src/controllers/studentOgiSummary.controller.ts:77",
     "frontConsumer": null
   },
   {
@@ -2339,7 +2339,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/studentOgiSummary.controller.ts:34",
+    "evidence": "src/controllers/studentOgiSummary.controller.ts:35",
     "frontConsumer": null
   },
   {
@@ -2351,7 +2351,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/studentsController.ts:48",
+    "evidence": "src/controllers/studentsController.ts:49",
     "frontConsumer": "src/hooks/useStudentComplete.ts"
   },
   {
@@ -2363,7 +2363,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/studentHistory.controller.ts:91",
+    "evidence": "src/controllers/studentHistory.controller.ts:94",
     "frontConsumer": "src/components/student/StudentHistoryTimeline.tsx"
   },
   {
@@ -2374,7 +2374,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/studentHistory.controller.ts:186",
+    "evidence": "src/controllers/studentHistory.controller.ts:188",
     "frontConsumer": null
   },
   {
@@ -2386,7 +2386,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:64",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:76",
     "frontConsumer": null
   },
   {
@@ -2398,7 +2398,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:109",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:115",
     "frontConsumer": null
   },
   {
@@ -2410,7 +2410,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:332",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:301",
     "frontConsumer": null
   },
   {
@@ -2422,7 +2422,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:87",
+    "evidence": "src/controllers/sync/history.controller.ts:91",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx"
   },
   {
@@ -2434,7 +2434,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:62",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:66",
     "frontConsumer": null
   },
   {
@@ -2446,7 +2446,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:32",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:44",
     "frontConsumer": "src/pages/gerirAlunos/hotmartSync/hooks/useSyncReports.ts"
   },
   {
@@ -2458,7 +2458,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:60",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:71",
     "frontConsumer": null
   },
   {
@@ -2470,7 +2470,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:82",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:92",
     "frontConsumer": null
   },
   {
@@ -2482,7 +2482,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:105",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:109",
     "frontConsumer": null
   },
   {
@@ -2493,7 +2493,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:179",
+    "evidence": "src/controllers/sync/history.controller.ts:183",
     "frontConsumer": null
   },
   {
@@ -2687,7 +2687,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:28",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:31",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -2698,7 +2698,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:54",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:57",
     "frontConsumer": null
   },
   {
@@ -2709,7 +2709,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:288",
+    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:292",
     "frontConsumer": null
   },
   {
@@ -2793,7 +2793,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/userHistory.controller.ts:140",
+    "evidence": "src/controllers/userHistory.controller.ts:144",
     "frontConsumer": null
   },
   {
@@ -3257,7 +3257,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:178",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:179",
     "frontConsumer": null
   },
   {
@@ -3269,7 +3269,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:274",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:275",
     "frontConsumer": null
   },
   {
@@ -3281,7 +3281,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:230",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:231",
     "frontConsumer": null
   },
   {
@@ -3328,7 +3328,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:113",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:91",
     "frontConsumer": null
   },
   {
@@ -3339,7 +3339,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:176",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:235",
     "frontConsumer": null
   },
   {
@@ -3351,7 +3351,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:325",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:362",
     "frontConsumer": null
   },
   {
@@ -3363,7 +3363,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:139",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:180",
     "frontConsumer": null
   },
   {
@@ -3398,7 +3398,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:156",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:158",
     "frontConsumer": null
   },
   {
@@ -3410,7 +3410,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:108",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:110",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -3465,7 +3465,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:386",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:388",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -3476,7 +3476,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:293",
+    "evidence": "src/controllers/clarezaController.ts:294",
     "frontConsumer": null
   },
   {
@@ -3487,7 +3487,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:341",
+    "evidence": "src/controllers/clarezaController.ts:342",
     "frontConsumer": null
   },
   {
@@ -3498,7 +3498,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:277",
+    "evidence": "src/controllers/clarezaController.ts:278",
     "frontConsumer": null
   },
   {
@@ -3509,7 +3509,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:221",
+    "evidence": "src/controllers/clarezaController.ts:222",
     "frontConsumer": null
   },
   {
@@ -3520,7 +3520,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:48",
+    "evidence": "src/controllers/clarezaController.ts:49",
     "frontConsumer": null
   },
   {
@@ -3531,7 +3531,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:129",
+    "evidence": "src/controllers/clarezaController.ts:130",
     "frontConsumer": null
   },
   {
@@ -3650,7 +3650,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:75",
+    "evidence": "src/controllers/courseLessons.controller.ts:99",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -3661,7 +3661,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:97",
+    "evidence": "src/controllers/course.controller.ts:98",
     "frontConsumer": null
   },
   {
@@ -3672,7 +3672,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:145",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:161",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3683,7 +3683,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:286",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:302",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3707,7 +3707,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:75",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:76",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3719,7 +3719,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:207",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:208",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3731,7 +3731,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:245",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:246",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3743,7 +3743,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:228",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:229",
     "frontConsumer": null
   },
   {
@@ -3755,7 +3755,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:111",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:112",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3766,7 +3766,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:306",
+    "evidence": "src/controllers/dashboard.controller.ts:321",
     "frontConsumer": null
   },
   {
@@ -3867,7 +3867,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:112",
+    "evidence": "src/controllers/discovery.controller.ts:113",
     "frontConsumer": null
   },
   {
@@ -3879,7 +3879,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:68",
+    "evidence": "src/controllers/discovery.controller.ts:69",
     "frontConsumer": null
   },
   {
@@ -3891,7 +3891,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:41",
+    "evidence": "src/controllers/discovery.controller.ts:42",
     "frontConsumer": null
   },
   {
@@ -3903,7 +3903,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/engagement/summary.controller.ts:197",
+    "evidence": "src/controllers/engagement/summary.controller.ts:198",
     "frontConsumer": null
   },
   {
@@ -3961,7 +3961,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationExternal.controller.ts:75",
+    "evidence": "src/controllers/guruInactivationExternal.controller.ts:109",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4072,7 +4072,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationExternal.controller.ts:47",
+    "evidence": "src/controllers/guruInactivationExternal.controller.ts:64",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4084,7 +4084,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:213",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:214",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -4096,7 +4096,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/history.controller.ts:144",
+    "evidence": "src/controllers/guruSnapshots/history.controller.ts:147",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -4107,7 +4107,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:60",
+    "evidence": "src/controllers/guru.trials.controller.ts:61",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4118,7 +4118,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:99",
+    "evidence": "src/controllers/guru.trials.controller.ts:100",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4129,7 +4129,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:129",
+    "evidence": "src/controllers/guru.trials.controller.ts:130",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4140,7 +4140,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:77",
+    "evidence": "src/controllers/guru.trials.controller.ts:78",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4180,7 +4180,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:23",
+    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:34",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -4191,7 +4191,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartUniversalSync.controller.ts:110",
+    "evidence": "src/controllers/hotmart/hotmartUniversalSync.controller.ts:112",
     "frontConsumer": null
   },
   {
@@ -4215,7 +4215,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:92",
+    "evidence": "src/controllers/lessons.controller.ts:93",
     "frontConsumer": null
   },
   {
@@ -4227,7 +4227,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:122",
+    "evidence": "src/controllers/products/productProfile.controller.ts:123",
     "frontConsumer": null
   },
   {
@@ -4239,7 +4239,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:417",
+    "evidence": "src/controllers/products/productProfile.controller.ts:418",
     "frontConsumer": null
   },
   {
@@ -4341,7 +4341,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:312",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:287",
     "frontConsumer": null
   },
   {
@@ -4353,7 +4353,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:167",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:166",
     "frontConsumer": null
   },
   {
@@ -4365,7 +4365,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:270",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:252",
     "frontConsumer": null
   },
   {
@@ -4377,7 +4377,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:223",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:213",
     "frontConsumer": null
   },
   {
@@ -4422,7 +4422,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:300",
+    "evidence": "src/controllers/sync/history.controller.ts:304",
     "frontConsumer": null
   },
   {
@@ -4434,7 +4434,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:266",
+    "evidence": "src/controllers/sync/history.controller.ts:270",
     "frontConsumer": null
   },
   {
@@ -4491,7 +4491,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:87",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:90",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4503,7 +4503,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:183",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:186",
     "frontConsumer": null
   },
   {
@@ -4514,7 +4514,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:111",
+    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:115",
     "frontConsumer": null
   },
   {
@@ -4525,7 +4525,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:196",
+    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:200",
     "frontConsumer": null
   },
   {
@@ -4537,7 +4537,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagEvaluation.controller.ts:304",
+    "evidence": "src/controllers/tagEvaluation.controller.ts:297",
     "frontConsumer": null
   },
   {
@@ -4549,7 +4549,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagEvaluation.controller.ts:432",
+    "evidence": "src/controllers/tagEvaluation.controller.ts:407",
     "frontConsumer": null
   },
   {
@@ -4561,7 +4561,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/populateHistory.controller.ts:302",
+    "evidence": "src/controllers/populateHistory.controller.ts:293",
     "frontConsumer": null
   },
   {
@@ -4573,7 +4573,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testHistory.controller.ts:150",
+    "evidence": "src/controllers/testHistory.controller.ts:157",
     "frontConsumer": null
   },
   {
@@ -4585,7 +4585,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/populateHistory.controller.ts:354",
+    "evidence": "src/controllers/populateHistory.controller.ts:342",
     "frontConsumer": null
   },
   {
@@ -4597,7 +4597,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/populateHistory.controller.ts:242",
+    "evidence": "src/controllers/populateHistory.controller.ts:235",
     "frontConsumer": null
   },
   {
@@ -4609,7 +4609,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testHistory.controller.ts:233",
+    "evidence": "src/controllers/testHistory.controller.ts:240",
     "frontConsumer": null
   },
   {
@@ -4645,7 +4645,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/userHistory.controller.ts:202",
+    "evidence": "src/controllers/userHistory.controller.ts:206",
     "frontConsumer": null
   },
   {
@@ -4739,7 +4739,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/userDiscordImport.controller.ts:47",
+    "evidence": "src/controllers/userDiscordImport.controller.ts:59",
     "frontConsumer": null
   },
   {
@@ -4750,7 +4750,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/webhooks.controller.ts:29",
+    "evidence": "src/controllers/webhooks.controller.ts:30",
     "frontConsumer": null
   },
   {
@@ -4761,7 +4761,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/webhooks.controller.ts:49",
+    "evidence": "src/controllers/webhooks.controller.ts:50",
     "frontConsumer": null
   },
   {
@@ -4785,7 +4785,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:66",
+    "evidence": "src/controllers/courseLessons.controller.ts:90",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -4796,7 +4796,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:130",
+    "evidence": "src/controllers/course.controller.ts:131",
     "frontConsumer": null
   },
   {
@@ -4820,7 +4820,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:133",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:134",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -4878,7 +4878,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:269",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:270",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -4890,7 +4890,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:163",
+    "evidence": "src/controllers/products/productProfile.controller.ts:164",
     "frontConsumer": null
   },
   {
@@ -4913,7 +4913,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:122",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:125",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {

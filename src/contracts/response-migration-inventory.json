@@ -217,7 +217,7 @@
   },
   {
     "identity": "GET /api/activecampaign/product-tags/stats",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "owner": "src/controllers/acTags/activeCampaignProductTagQueries.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -225,7 +225,7 @@
   },
   {
     "identity": "GET /api/activecampaign/products/:productId/tagged",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "owner": "src/controllers/acTags/activeCampaignProductTagQueries.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
