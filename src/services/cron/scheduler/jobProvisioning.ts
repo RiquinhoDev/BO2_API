@@ -88,6 +88,16 @@ const JOBS: readonly SystemJobDefinition[] = [
     updateSchedule: false,
     maxRetries: 1,
     exponentialBackoff: false
+  },
+  {
+    name: 'AcTagWatch',
+    description:
+      'Lê as tags obrigatórias da AC e regista quem as mexeu fora do nosso sistema. NÃO escreve na ActiveCampaign — só lê e grava em actagevents. Trigger próprio, independente do RenewalPipeline/RenewalAcSync. Nasce desligado.',
+    cronExpression: '0 3 * * *',
+    enabled: false,
+    updateSchedule: false,
+    maxRetries: 1,
+    exponentialBackoff: false
   }
 ]
 

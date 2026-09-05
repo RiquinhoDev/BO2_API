@@ -36,6 +36,7 @@ export interface CronDispatchDependencies {
   runScheduledMessages: UnknownRunner
   runDiscordRolesSync: UnknownRunner
   runRenewalAcSync: UnknownRunner
+  runAcTagWatch: UnknownRunner
   evaluateAchievements: UnknownRunner
   executeDailyPipeline: UnknownRunner
   fetchHotmart(): Promise<UniversalSourceItem[]>
@@ -56,7 +57,8 @@ const SPECIFIC_JOB_NAMES = [
   'AchievementEvaluation',
   'RenewalAcSync',
   'DiscordRolesSync',
-  'DiscordScheduledMessages'
+  'DiscordScheduledMessages',
+  'AcTagWatch'
 ] as const
 
 const recordOf = (value: unknown): Record<string, unknown> =>
@@ -135,6 +137,8 @@ const defaultDependencies: CronDispatchDependencies = {
     (await import('../../renewal/discordRolesSync.service')).runDiscordRolesSyncJob(),
   runRenewalAcSync: async () =>
     (await import('../../renewal/renewalAcSync.service')).runRenewalAcSyncJob(),
+  runAcTagWatch: async () =>
+    (await import('../../renewal/acTagWatch.service')).correrAcTagWatch({ dryRun: false, actualizarEspelho: true }),
   evaluateAchievements: async () => evaluateAllAchievements({ backfillUnlockedAsSeen: true }),
   executeDailyPipeline,
   fetchHotmart: () =>
@@ -218,6 +222,24 @@ export class CronJobDispatcher {
       }
       if (job.name.includes('RenewalAcSync')) {
         return this.normalizePlannedExecution(await this.dependencies.runRenewalAcSync(), 'classChangesSeen')
+      }
+      if (job.name.includes('AcTagWatch')) {
+        const report = recordOf(await this.dependencies.runAcTagWatch())
+        const errors = arrayOf(report, 'errors').map(item => {
+          const entry = recordOf(item)
+          return `${String(entry.contexto)}: ${String(entry.error)}`
+        })
+        return {
+          success: errors.length === 0,
+          stats: {
+            total: numberOf(report, 'alunosLidos'),
+            inserted: numberOf(report, 'eventosGravados'),
+            updated: 0,
+            errors: errors.length,
+            skipped: numberOf(report, 'jaExistiam')
+          },
+          errorMessage: errors.join(' | ') || undefined
+        }
       }
       if (job.name.includes('AchievementEvaluation')) {
         const report = recordOf(await this.dependencies.evaluateAchievements())
