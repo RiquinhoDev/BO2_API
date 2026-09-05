@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 17, pending: 7, changed: 13, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 18, pending: 6, changed: 14, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 17 complete / 7 pending')
+  expect(run()).toContain('SCALE-03 18 complete / 6 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(17)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(7)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(13)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(18)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(6)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(14)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -53,6 +53,22 @@ test('SCALE-03 records constrained sequential dispositions with behavioral evide
       expect.stringContaining('N=1/10/100'),
     ]))
   }
+})
+
+test('SCALE-03 records testimonial provider ordering and marker gating', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const testimonial = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'testimonial-tags.ordered-provider')
+
+  expect(testimonial).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(testimonial.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('testimonialTagSync.service.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('partial provider failures'),
+  ]))
 })
 
 test.each([

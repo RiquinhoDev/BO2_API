@@ -150,15 +150,31 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
           }
         }
 
+        let providerFailed = false
         if (tagsToRemove.length > 0) {
           for (const oldTag of tagsToRemove) {
             try {
               const removed = await activeCampaignService.removeTag(email, oldTag)
               if (removed) {
                 logger.info(`   🗑️  Tag antiga "${oldTag}" removida de ${email}`)
+              } else {
+                providerFailed = true
+                result.errors.push({
+                  userId: user._id.toString(),
+                  email,
+                  error: `Tag "${oldTag}" removal: provider não confirmou a remoção`
+                })
+                result.stats.failed++
               }
             } catch (removeError: unknown) {
+              providerFailed = true
               logger.warn(`   ⚠️  Erro ao remover tag antiga "${oldTag}" de ${email}: ${errorMessage(removeError)}`)
+              result.errors.push({
+                userId: user._id.toString(),
+                email,
+                error: `Tag "${oldTag}" removal: ${errorMessage(removeError)}`
+              })
+              result.stats.failed++
             }
           }
         }
@@ -185,6 +201,7 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
             result.stats.synced++
 
           } catch (tagError: unknown) {
+            providerFailed = true
             logger.error(`   ❌ Erro ao aplicar tag "${tagName}" em ${email}: ${errorMessage(tagError)}`)
             result.errors.push({
               userId: user._id.toString(),
@@ -199,17 +216,21 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
         // 5. MARCAR COMO SINCRONIZADO
         // ═══════════════════════════════════════════════════════════
 
-        try {
-          await User.updateOne(
-            { _id: user._id },
-            {
-              $set: {
-                'communicationByCourse.TESTIMONIALS.lastSyncedAt': new Date()
+        if (providerFailed) {
+          logger.warn(`   ⚠️  ${email}: lastSyncedAt não avançado após falha do provider`)
+        } else {
+          try {
+            await User.updateOne(
+              { _id: user._id },
+              {
+                $set: {
+                  'communicationByCourse.TESTIMONIALS.lastSyncedAt': new Date()
+                }
               }
-            }
-          )
-        } catch (updateError: unknown) {
-          logger.warn(`   ⚠️  Erro ao atualizar lastSyncedAt para ${email}: ${errorMessage(updateError)}`)
+            )
+          } catch (updateError: unknown) {
+            logger.warn(`   ⚠️  Erro ao atualizar lastSyncedAt para ${email}: ${errorMessage(updateError)}`)
+          }
         }
 
       } catch (userError: unknown) {

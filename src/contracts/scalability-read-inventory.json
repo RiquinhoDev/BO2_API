@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 17,
-      "pending": 7,
-      "changed": 13,
+      "complete": 18,
+      "pending": 6,
+      "changed": 14,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -829,8 +829,20 @@
         "id": "testimonial-tags.ordered-provider",
         "file": "src/services/activeCampaign/testimonialTagSync.service.ts",
         "start": "export async function syncTestimonialTags",
-        "status": "pending",
-        "reason": "Provider remove/add operations are ordered per user and preserve partial-error aggregation."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: provider remove/add operations and the terminal local marker stay ordered per user",
+        "evidence": [
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:79-130 (N=1/10/100, peak=1, remove -> add -> local marker order)",
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:133-190 (partial provider failures are counted and do not advance the marker)"
+        ],
+        "require": [
+          "for (const user of users)",
+          "await activeCampaignService.removeTag(email, oldTag)",
+          "await activeCampaignService.addTag(email, tagName)",
+          "if (providerFailed)",
+          "communicationByCourse.TESTIMONIALS.lastSyncedAt"
+        ]
       },
       {
         "id": "weekly-tags.snapshot-writes",
