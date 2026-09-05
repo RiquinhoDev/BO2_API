@@ -14,8 +14,18 @@ import { MongooseCoreGenerationStore } from '../../src/services/clareza/core/cor
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import { appForCentralError } from '../support/centralErrorContract'
 
+// carteira/analysis chama a FMP a sério (espelha o clareza-carteira-data.php
+// antigo) em vez de ler a geração publicada, como os restantes endpoints
+// deste ficheiro — por isso é o único que precisa de um mock de rede aqui.
+jest.mock('../../src/services/clareza/fmpJsonRuntime', () => ({
+  clarezaFmpJsonClient: { get: jest.fn() },
+}))
+
 installTestRuntimeConfigHooks()
 import clarezaRouter from '../../src/routes/clareza.routes'
+import { clarezaFmpJsonClient } from '../../src/services/clareza/fmpJsonRuntime'
+
+const fmpGetMock = clarezaFmpJsonClient.get as jest.Mock
 
 let mongoServer: MongoMemoryServer
 
@@ -34,6 +44,14 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  fmpGetMock.mockReset()
+  fmpGetMock.mockImplementation(async ({ path }: { path: string }) => {
+    if (path === '/income-statement') return [{ date: '2025-12-31', revenue: 500 }]
+    if (path === '/income-statement-growth') return [{ date: '2025-12-31', growthRevenue: 0.1 }]
+    if (path === '/earnings') return [{ date: '2026-07-31', epsActual: 2.5 }]
+    return []
+  })
+
   await Promise.all([
     ClarezaCoreGeneration.collection.deleteMany({}),
     ClarezaCorePublication.collection.deleteMany({}),
@@ -123,14 +141,14 @@ describe('Clareza core production mount offline dry-run', () => {
 
     expect(radar.body).toMatchObject({ generationId: 'dry-run-generation', count: 2 })
     expect(carteira.body).toMatchObject({ generationId: 'dry-run-generation', count: 2 })
+    // carteira/analysis não lê a geração publicada: chama a FMP a sério
+    // (mockada acima) e cacheia 6h, como o clareza-carteira-data.php antigo.
     expect(analysis.body).toEqual({
-      generationId: 'dry-run-generation',
       results: { AAPL: {
-        income: [{ date: '2025-12-31', revenue: 100 }],
-        incomeGrowth: [],
-        earnings: [{ date: '2026-07-31', epsActual: 2.1 }],
+        income: [{ date: '2025-12-31', revenue: 500 }],
+        incomeGrowth: [{ date: '2025-12-31', growthRevenue: 0.1 }],
+        earnings: [{ date: '2026-07-31', epsActual: 2.5 }],
       } },
-      missing: [],
     })
     expect(radar.body.stocks[0].evaluation).toEqual(carteira.body.items[0].evaluation)
     expect(search.body).toMatchObject({
