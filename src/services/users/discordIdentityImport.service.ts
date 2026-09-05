@@ -1,5 +1,19 @@
 import type { ImportedUserRecord } from '../../types/ImportedUserRecord'
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
 import type { ImportedIdentityResult } from './userIdentityReconciliation.service'
+
+export const MAX_DISCORD_IDENTITY_IMPORT_ROWS = MAX_BULK_OPERATION_ITEMS
+
+export class DiscordIdentityImportLimitError extends Error {
+  readonly limit: number
+
+  constructor(limit: number) {
+    super(`Discord identity import exceeds the ${limit}-row limit`)
+    this.name = 'DiscordIdentityImportLimitError'
+    this.limit = limit
+    Object.setPrototypeOf(this, new.target.prototype)
+  }
+}
 
 export interface DiscordIdentityImportHistoryRepository {
   start(input: {
@@ -83,6 +97,9 @@ export class DiscordIdentityImportService {
 
     try {
       const records = await this.dependencies.readRecords(input.filePath)
+      if (records.length > MAX_DISCORD_IDENTITY_IMPORT_ROWS) {
+        throw new DiscordIdentityImportLimitError(MAX_DISCORD_IDENTITY_IMPORT_ROWS)
+      }
       let added = 0
       let unmatched = 0
       let errors = 0

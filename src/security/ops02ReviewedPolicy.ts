@@ -1,3 +1,4 @@
+import { MAX_BULK_OPERATION_ITEMS } from './bulkOperationPolicy'
 import { MAX_PROVIDER_READ_ITEMS } from './providerReadBatchPolicy'
 import { REVIEWED_PROTECTION_POLICY_TAIL } from './ops02ReviewedProtectionPolicyTail'
 
@@ -201,6 +202,26 @@ function clarezaStaticUniverseCap(limit: number): ReviewedProtection {
 }
 
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
+  [
+    'POST /api/guru/webhooks/migrate-source',
+    {
+      cap: {
+        status: 'verified',
+        reason: 'guru-webhook-source-migration-max-items',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
+    },
+  ],
+  [
+    'POST /api/users/syncDiscordAndHotmart',
+    {
+      cap: {
+        status: 'verified',
+        reason: 'discord-identity-import-max-records',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
+    },
+  ],
   [
     'POST /api/cron/jobs/:id/trigger',
     {

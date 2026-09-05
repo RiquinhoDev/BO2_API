@@ -168,3 +168,24 @@ test('import reconciliation records an unmatched identity instead of guessing a 
     },
   ])
 })
+
+test('replaying an imported identity converges without duplicate Discord IDs', async () => {
+  const repository = new InMemoryIdentityRepository()
+  repository.users.set('user-1', {
+    id: 'user-1',
+    email: 'student@example.test',
+    discordIds: [],
+  })
+  const service = new UserIdentityReconciliationService(repository)
+
+  await expect(service.reconcileImportedIdentity({
+    discordId: 'discord-1',
+    email: 'student@example.test',
+  })).resolves.toBe('added')
+  await expect(service.reconcileImportedIdentity({
+    discordId: 'discord-1',
+    email: 'STUDENT@example.test',
+  })).resolves.toBe('unchanged')
+
+  expect(repository.users.get('user-1')?.discordIds).toEqual(['discord-1'])
+})

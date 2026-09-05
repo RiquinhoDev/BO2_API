@@ -10,6 +10,10 @@ import type {
   DiscordIdentityImportService,
 } from '../../src/services/users/discordIdentityImport.service'
 import { createErrorHandling } from '../../src/security/errorHandling'
+import {
+  DiscordIdentityImportLimitError,
+  MAX_DISCORD_IDENTITY_IMPORT_ROWS,
+} from '../../src/services/users/discordIdentityImport.service'
 
 type ImportService = Pick<DiscordIdentityImportService, 'execute'>
 
@@ -131,6 +135,32 @@ test('cleans the upload and forwards a stable error after service failure', asyn
       success: false,
       code: 'USER_IMPORT_FAILED',
       message: 'Erro na sincronização',
+      correlationId: 'discord-import-test',
+    })
+    expect(fs.existsSync(filePath)).toBe(false)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('returns a bounded-import error and cleans the upload', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'discord-import-'))
+  const filePath = path.join(directory, 'too-many-users.csv')
+  fs.writeFileSync(filePath, 'User ID,email')
+  const execute = jest.fn<
+    Promise<DiscordIdentityImportResult>,
+    [DiscordIdentityImportInput]
+  >().mockRejectedValue(new DiscordIdentityImportLimitError(MAX_DISCORD_IDENTITY_IMPORT_ROWS))
+
+  try {
+    const response = await request(buildApp({ execute }, uploadedFile(filePath)))
+      .post('/import?__bo2_offline_loopback=1')
+      .expect(413)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'USER_IMPORT_LIMIT_EXCEEDED',
+      message: `Importação limitada a ${MAX_DISCORD_IDENTITY_IMPORT_ROWS} registos`,
       correlationId: 'discord-import-test',
     })
     expect(fs.existsSync(filePath)).toBe(false)

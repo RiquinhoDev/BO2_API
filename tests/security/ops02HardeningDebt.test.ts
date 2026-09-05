@@ -13,16 +13,13 @@ describe('OPS-02 hardening debt ratchet', () => {
     }
 
     expect(summary).toEqual({
-      total: 20,
+      total: 18,
       mixed: 6,
       provider: 12,
-      internal: 2,
-      bulk: 15,
+      internal: 0,
+      bulk: 13,
     })
 
-    expect(internal.map((decision) => `${decision.method} ${decision.path}`).sort()).toEqual([
-      'POST /api/guru/webhooks/migrate-source',
-      'POST /api/users/syncDiscordAndHotmart',
-    ])
+    expect(internal).toEqual([])
   })
 })

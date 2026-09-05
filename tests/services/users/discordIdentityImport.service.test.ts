@@ -1,7 +1,9 @@
 import type { ImportedUserRecord } from '../../../src/types/ImportedUserRecord'
 import {
   type DiscordIdentityImportHistoryRepository,
+  DiscordIdentityImportLimitError,
   DiscordIdentityImportService,
+  MAX_DISCORD_IDENTITY_IMPORT_ROWS,
 } from '../../../src/services/users/discordIdentityImport.service'
 
 class InMemoryImportHistory implements DiscordIdentityImportHistoryRepository {
@@ -146,4 +148,35 @@ test('does not record failure when history creation itself fails', async () => {
   expect(readRecords).not.toHaveBeenCalled()
   expect(history.completed).toEqual([])
   expect(history.failed).toEqual([])
+})
+
+test('rejects imports above the finite row cap before reconciliation', async () => {
+  const history = new InMemoryImportHistory()
+  let reconciled = 0
+  const rows = Array.from({ length: MAX_DISCORD_IDENTITY_IMPORT_ROWS + 1 }, (_value, index) => (
+    importedRecord(`discord-${index}`, `student-${index}@example.test`)
+  ))
+  const service = new DiscordIdentityImportService({
+    readRecords: async () => rows,
+    reconcile: async () => {
+      reconciled += 1
+      return 'added'
+    },
+    history,
+    now: () => new Date('2026-07-29T15:00:00.000Z'),
+    logRecordError: () => undefined,
+  })
+
+  await expect(service.execute({
+    filePath: 'C:\\tmp\\too-many-users.csv',
+    originalName: 'too-many-users.csv',
+    actorEmail: 'admin@example.test',
+  })).rejects.toBeInstanceOf(DiscordIdentityImportLimitError)
+
+  expect(reconciled).toBe(0)
+  expect(history.completed).toEqual([])
+  expect(history.failed).toEqual([{
+    syncId: 'sync-1',
+    completedAt: new Date('2026-07-29T15:00:00.000Z'),
+  }])
 })

@@ -3,11 +3,23 @@ import { successResponse } from '../contracts/responseContract'
 import { HttpError } from '../security/errorHandling'
 import { withUploadedFileCleanup } from '../security/usersImportUpload'
 import { discordIdentityImportService } from '../services/users/discordIdentityImport.runtime'
-import type { DiscordIdentityImportService } from '../services/users/discordIdentityImport.service'
+import {
+  DiscordIdentityImportLimitError,
+  MAX_DISCORD_IDENTITY_IMPORT_ROWS,
+  type DiscordIdentityImportService,
+} from '../services/users/discordIdentityImport.service'
 
 type ImportService = Pick<DiscordIdentityImportService, 'execute'>
 
 function importFailure(error: unknown): HttpError {
+  if (error instanceof DiscordIdentityImportLimitError) {
+    return new HttpError({
+      status: 413,
+      code: 'USER_IMPORT_LIMIT_EXCEEDED',
+      publicMessage: `Importação limitada a ${MAX_DISCORD_IDENTITY_IMPORT_ROWS} registos`,
+      cause: error,
+    })
+  }
   return error instanceof HttpError
     ? error
     : new HttpError({

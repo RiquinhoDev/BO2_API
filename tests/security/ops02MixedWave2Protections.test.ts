@@ -48,7 +48,7 @@ describe('OPS-02 mixed provider-read wave two protections', () => {
     },
   )
 
-  test('POST /api/users/syncDiscordAndHotmart is an internal high-impact file reconciliation', () => {
+  test('POST /api/users/syncDiscordAndHotmart is a bounded internal high-impact file reconciliation', () => {
     const result = decision('POST', '/api/users/syncDiscordAndHotmart')
 
     expect(result.scope).toBe('internal')
@@ -56,13 +56,14 @@ describe('OPS-02 mixed provider-read wave two protections', () => {
     expect(result.authorization).toBe('super-admin')
     expect(result.bulk).toBe(true)
     expect(result.cap).toEqual({
-      status: 'required',
-      reason: 'finite-cap-unverified',
+      status: 'verified',
+      reason: 'discord-identity-import-max-records',
+      limit: 200,
     })
     expect(result.idempotency).toEqual({
       status: 'not-applicable',
       reason: 'internal-write',
     })
-    expect(result.status).toBe('needs-hardening')
+    expect(result.status).toBe('reviewed')
   })
 })
