@@ -237,6 +237,11 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
         }
       }
 
+      if (stats.failed > 0) {
+        result.success = false
+        errors.push(`Tag Rules: ${stats.failed} UserProducts falharam`)
+      }
+
       result.summary.tagsApplied = tagsApplied
 
       logStep(5, 'Tag Rules', 'DONE', `+${tagsApplied} tags, -${tagsRemoved} tags, ${result.steps.evaluateTagRules.duration}s`)

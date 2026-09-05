@@ -257,13 +257,14 @@ export class CronJobDispatcher {
     const anomalyAborted = booleanOf(plan, 'anomalyAborted') === true
     const blocked = totalKey === 'classChangesSeen' ? numberOf(plan, 'blocked') : 0
     const notInGuild = totalKey === 'accountsDesired' ? numberOf(execution, 'notInGuild') : 0
+    const failed = numberOf(execution, 'failed')
     return {
-      success: !anomalyAborted,
+      success: !anomalyAborted && failed === 0,
       stats: {
         total: numberOf(plan, totalKey),
         inserted: numberOf(plan, 'planned'),
         updated: numberOf(execution, 'applied'),
-        errors: numberOf(execution, 'failed') + (anomalyAborted ? 1 : 0),
+        errors: failed + (anomalyAborted ? 1 : 0),
         skipped: blocked + numberOf(plan, 'skippedDuplicates') + notInGuild
       },
       errorMessage: stringOf(plan, 'anomalyDetail')
@@ -332,15 +333,26 @@ export class CronJobDispatcher {
       Promise.resolve(this.executeDiscordSync())
     ])
     const stats = { ...EMPTY_STATS }
+    const errorMessages: string[] = []
     for (const result of results) {
-      if (result.status !== 'fulfilled') continue
+      if (result.status !== 'fulfilled') {
+        stats.errors += 1
+        errorMessages.push(errorMessageOf(result.reason))
+        continue
+      }
       stats.total += result.value.stats.total
       stats.inserted += result.value.stats.inserted
       stats.updated += result.value.stats.updated
       stats.errors += result.value.stats.errors
       stats.skipped += result.value.stats.skipped
+      if (!result.value.success && result.value.stats.errors === 0) stats.errors += 1
+      if (result.value.errorMessage) errorMessages.push(result.value.errorMessage)
     }
-    return { success: results.every(result => result.status === 'fulfilled' && result.value.success), stats }
+    return {
+      success: results.every(result => result.status === 'fulfilled' && result.value.success),
+      stats,
+      errorMessage: errorMessages.length > 0 ? errorMessages.join('; ') : undefined,
+    }
   }
 
   private readStats(result: Record<string, unknown>): ILastRunStats {

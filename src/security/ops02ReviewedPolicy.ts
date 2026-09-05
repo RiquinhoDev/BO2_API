@@ -202,6 +202,24 @@ function clarezaStaticUniverseCap(limit: number): ReviewedProtection {
 
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
+    'POST /api/cron/jobs/:id/trigger',
+    {
+      cap: { status: 'required', reason: 'cron-trigger-no-aggregate-finite-cap' },
+      idempotency: { status: 'required', reason: 'cron-trigger-no-run-lock' },
+      killSwitch: { status: 'required', reason: 'cron-trigger-no-unified-kill-switch' },
+      dryRun: { status: 'required', reason: 'cron-trigger-no-unified-dry-run' },
+    },
+  ],
+  [
+    'POST /api/sync/execute-pipeline',
+    {
+      cap: { status: 'required', reason: 'sync-pipeline-no-finite-cap' },
+      idempotency: { status: 'required', reason: 'sync-pipeline-no-run-lock' },
+      killSwitch: { status: 'required', reason: 'sync-pipeline-no-unified-kill-switch' },
+      dryRun: { status: 'required', reason: 'sync-pipeline-no-dry-run' },
+    },
+  ],
+  [
     'POST /api/activecampaign/test-cron',
     {
       cap: { status: 'required', reason: 'activecampaign-test-cron-no-finite-cap' },

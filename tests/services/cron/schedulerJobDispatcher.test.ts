@@ -87,16 +87,16 @@ describe('CronJobDispatcher', () => {
     })
   })
 
-  it('normalizes Discord roles, renewal AC and achievements', async () => {
+  it('normalizes Discord roles, renewal AC and achievements as partial failures', async () => {
     const dependencies = createDependencies()
     const dispatcher = new CronJobDispatcher(dependencies)
 
     await expect(dispatcher.execute(job('DiscordRolesSync'))).resolves.toMatchObject({
-      success: true,
+      success: false,
       stats: { total: 5, inserted: 3, updated: 2, errors: 1, skipped: 2 }
     })
     await expect(dispatcher.execute(job('RenewalAcSync'))).resolves.toMatchObject({
-      success: true,
+      success: false,
       stats: { total: 5, inserted: 3, updated: 2, errors: 1, skipped: 2 }
     })
     await expect(dispatcher.execute(job('AchievementEvaluation'))).resolves.toMatchObject({
@@ -137,7 +137,7 @@ describe('CronJobDispatcher', () => {
     })
   })
 
-  it('aggregates fulfilled all-sync results and ignores rejected stats', async () => {
+  it('aggregates fulfilled and rejected all-sync results with failure stats', async () => {
     const dependencies = createDependencies()
     dependencies.executeUniversalSync
       .mockResolvedValueOnce({ success: true, stats: { total: 3, inserted: 1, updated: 2, errors: 0, skipped: 0 } })
@@ -146,8 +146,46 @@ describe('CronJobDispatcher', () => {
 
     await expect(dispatcher.execute(job('AllSync', 'all'))).resolves.toEqual({
       success: false,
-      stats: { total: 203, inserted: 21, updated: 182, errors: 0, skipped: 0 }
+      stats: { total: 203, inserted: 21, updated: 182, errors: 1, skipped: 0 },
+      errorMessage: 'curseduca failed'
     })
+  })
+
+  it('passes the complete provider result set because the composed runner has no aggregate cap', async () => {
+    const dependencies = createDependencies()
+    const sourceData = Array.from({ length: 201 }, (_value, index) => ({ email: `user-${index}@example.test` }))
+    dependencies.fetchHotmart.mockResolvedValue(sourceData)
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await dispatcher.execute(job('AllSync', 'all'))
+
+    expect(dependencies.executeUniversalSync).toHaveBeenCalledWith(expect.objectContaining({
+      syncType: 'hotmart',
+      sourceData,
+    }))
+  })
+
+  it('allows concurrent composed executions to enter the same pipeline runner', async () => {
+    const dependencies = createDependencies()
+    let started = 0
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    dependencies.executeDailyPipeline.mockImplementation(async () => {
+      started += 1
+      if (started === 2) release()
+      await gate
+      return { success: true, summary: {}, errors: [] }
+    })
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    const first = dispatcher.execute(job('Daily', 'pipeline'))
+    const second = dispatcher.execute(job('Daily', 'pipeline'))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(started).toBe(2)
+    release()
+    await Promise.all([first, second])
   })
 
   it('normalizes the daily pipeline result', async () => {
