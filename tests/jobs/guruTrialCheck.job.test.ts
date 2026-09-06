@@ -1,9 +1,11 @@
 const mockSyncTrialsFromGuru = jest.fn()
 const mockCheckExpiredTrials = jest.fn()
+const mockRunGuruTrialCheck = jest.fn()
 
 jest.mock('../../src/services/guru/guruTrialService', () => ({
   syncTrialsFromGuru: mockSyncTrialsFromGuru,
   checkExpiredTrials: mockCheckExpiredTrials,
+  runGuruTrialCheck: mockRunGuruTrialCheck,
 }))
 
 import guruTrialCheckJob from '../../src/jobs/guruTrialCheck.job'
@@ -11,6 +13,7 @@ import guruTrialCheckJob from '../../src/jobs/guruTrialCheck.job'
 describe('guruTrialCheckJob', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockRunGuruTrialCheck.mockReset()
     jest.spyOn(console, 'log').mockImplementation(() => undefined)
     jest.spyOn(console, 'error').mockImplementation(() => undefined)
   })
@@ -20,7 +23,7 @@ describe('guruTrialCheckJob', () => {
   })
 
   it('returns the stable failure contract when Guru rejects with null', async () => {
-    mockSyncTrialsFromGuru.mockRejectedValueOnce(null)
+    mockRunGuruTrialCheck.mockRejectedValueOnce(null)
 
     await expect(guruTrialCheckJob.run()).resolves.toEqual({
       success: false,
@@ -32,22 +35,24 @@ describe('guruTrialCheckJob', () => {
       converted: 0,
       error: 'Execução Guru TrialCheck falhou',
     })
+    expect(mockSyncTrialsFromGuru).not.toHaveBeenCalled()
     expect(mockCheckExpiredTrials).not.toHaveBeenCalled()
   })
 
   it('forwards manual options and reports a merged read-only plan', async () => {
-    mockSyncTrialsFromGuru.mockResolvedValueOnce({ synced: 2, errors: 0 })
-    mockCheckExpiredTrials.mockResolvedValueOnce({
+    mockRunGuruTrialCheck.mockResolvedValueOnce({
       checked: 1,
+      synced: 2,
       markedForInactivation: 1,
       converted: 0,
       stillInTrial: 0,
       errors: 0,
+      dryRun: true,
       plan: {
         operation: 'guru-trial-check',
         dryRun: true,
         candidates: 1,
-        synced: 0,
+        synced: 2,
         markedForInactivation: 1,
         converted: 0,
         stillInTrial: 0,
@@ -70,7 +75,8 @@ describe('guruTrialCheckJob', () => {
       success: true,
       plan: { operation: 'guru-trial-check', dryRun: true, synced: 2 },
     })
-    expect(mockSyncTrialsFromGuru).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
-    expect(mockCheckExpiredTrials).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+    expect(mockRunGuruTrialCheck).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+    expect(mockSyncTrialsFromGuru).not.toHaveBeenCalled()
+    expect(mockCheckExpiredTrials).not.toHaveBeenCalled()
   })
 })

@@ -124,6 +124,8 @@ interface GuruListResponse {
 export interface GuruPaginationLimits {
   readonly maxPages?: number
   readonly maxItems?: number
+  readonly beforeRequest?: () => void
+  readonly requestSucceeded?: () => void
 }
 
 const DEFAULT_GURU_MAX_PAGES = 400
@@ -293,24 +295,44 @@ export async function fetchAllSubscriptionsPaginated(
 
       logger.info(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)
 
+      limits.beforeRequest?.()
       const response = await guruApi.get<GuruListResponse>('/subscriptions', {
         params: requestParams
       })
 
-      const data = response.data?.data || []
-      const hasMorePages = response.data?.has_more_pages === 1
-      const nextCursor = typeof response.data?.next_cursor === 'string'
-        ? response.data.next_cursor
-        : undefined
-      const totalRows = response.data?.total_rows
-      const onLastPage = response.data?.on_last_page === 1
+      const rawEnvelope: unknown = response.data
+      if (!rawEnvelope || typeof rawEnvelope !== 'object' || Array.isArray(rawEnvelope)) {
+        throw new Error('GURU_PAGINATION_ENVELOPE_INVALID')
+      }
+      const envelope = rawEnvelope as Record<string, unknown>
+      const data = envelope.data
+      const hasMoreRaw = envelope.has_more_pages
+      const onLastRaw = envelope.on_last_page
+      const totalRows = envelope.total_rows
+      const nextCursorRaw = envelope.next_cursor
+      if (!Array.isArray(data)
+        || typeof hasMoreRaw !== 'number' || !Number.isInteger(hasMoreRaw) || ![0, 1].includes(hasMoreRaw)
+        || typeof onLastRaw !== 'number' || !Number.isInteger(onLastRaw) || ![0, 1].includes(onLastRaw)
+        || typeof totalRows !== 'number' || !Number.isInteger(totalRows) || totalRows < 0
+        || (nextCursorRaw !== undefined && (typeof nextCursorRaw !== 'string' || !nextCursorRaw.trim()))) {
+        throw new Error('GURU_PAGINATION_ENVELOPE_INVALID')
+      }
+      const hasMorePages = hasMoreRaw === 1
+      const onLastPage = onLastRaw === 1
+      const nextCursor = nextCursorRaw as string | undefined
+      if (hasMorePages === onLastPage || (!hasMorePages && nextCursor !== undefined)) {
+        throw new Error('GURU_PAGINATION_ENVELOPE_CONTRADICTORY')
+      }
+      if (pageNumber > 1 && totalRows !== totalExpected) {
+        throw new Error('GURU_PAGINATION_TOTAL_MISMATCH')
+      }
+      if (pageNumber === 1 && (totalRows as number) > maxItems) {
+        throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${totalRows}:${maxItems}`)
+      }
 
       // Guardar total na primeira página
-      if (pageNumber === 1 && typeof totalRows === 'number') {
-        totalExpected = totalRows
-        if (totalRows > maxItems) {
-          throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${totalRows}:${maxItems}`)
-        }
+      if (pageNumber === 1) {
+        totalExpected = totalRows as number
         logger.info(`📊 [GURU SYNC] Total esperado: ${totalRows} subscrições`)
       }
 
@@ -321,7 +343,19 @@ export async function fetchAllSubscriptionsPaginated(
       }
 
       // Adicionar dados ao array only after the bounded page check.
-      allSubscriptions.push(...data)
+      for (const item of data) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          throw new Error('GURU_PAGINATION_ITEM_INVALID')
+        }
+      }
+      allSubscriptions.push(...data as GuruSubscription[])
+      if (allSubscriptions.length > (totalExpected as number)) {
+        throw new Error('GURU_PAGINATION_TOTAL_MISMATCH')
+      }
+      if (!hasMorePages && allSubscriptions.length !== totalExpected) {
+        throw new Error('GURU_PAGINATION_FINAL_COUNT_MISMATCH')
+      }
+      limits.requestSucceeded?.()
       onProgress?.(allSubscriptions.length, totalExpected)
 
       // Verificar se há mais páginas usando os flags da API
@@ -392,10 +426,22 @@ export async function fetchAllSubscriptionsComplete(
 /**
  * Buscar subscrição por ID
  */
-export async function fetchSubscriptionById(subscriptionId: string): Promise<GuruSubscription | null> {
+export async function fetchSubscriptionById(
+  subscriptionId: string,
+  options: { beforeRequest?: () => void; requestSucceeded?: () => void } = {},
+): Promise<GuruSubscription | null> {
   try {
+    options.beforeRequest?.()
     const response = await guruApi.get<GuruSubscriptionResponse | GuruSubscription>(`/subscriptions/${subscriptionId}`)
-    return 'id' in response.data ? response.data : response.data.data || null
+    if (!response.data || typeof response.data !== 'object') throw new Error('GURU_SUBSCRIPTION_ENVELOPE_INVALID')
+    const payload = 'id' in response.data
+      ? response.data
+      : response.data.data
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error('GURU_SUBSCRIPTION_ENVELOPE_INVALID')
+    }
+    options.requestSucceeded?.()
+    return payload as GuruSubscription
   } catch (error: unknown) {
     if (guruApiErrorDetails(error).status === 404) {
       return null

@@ -110,7 +110,7 @@ describe('CronJobDispatcher', () => {
 
     await expect(dispatcher.execute(job('GuruTrialCheck', 'guru'), { dryRun: true })).resolves.toEqual({
       success: true,
-      stats: { total: 2, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+      stats: { total: 2, inserted: 0, updated: 1, errors: 0, skipped: 0 },
       dryRun: true,
       plan: {
         operation: 'guru-trial-check',
@@ -121,6 +121,39 @@ describe('CronJobDispatcher', () => {
         truncated: false,
         anomaly: false,
       },
+    })
+  })
+
+  it('drops an invalid Guru operation without exposing raw plan fields', async () => {
+    const dependencies = createDependencies()
+    dependencies.guruTrialCheck.mockResolvedValueOnce({
+      success: true,
+      total: 2,
+      synced: 1,
+      errors: 0,
+      dryRun: true,
+      plan: {
+        operation: 'other-job',
+        email: 'private@example.test',
+        token: 'private-token',
+      },
+    })
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('GuruTrialCheck', 'guru'))).resolves.toEqual({
+      success: true,
+      stats: { total: 2, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+      dryRun: true,
+      errorMessage: undefined,
+    })
+  })
+
+  it('redacts thrown Guru runner details to a fixed public error', async () => {
+    const dependencies = createDependencies()
+    dependencies.guruTrialCheck.mockRejectedValueOnce(new Error('provider-token-and-email'))
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('GuruTrialCheck', 'guru'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução Guru TrialCheck falhou',
     })
   })
 

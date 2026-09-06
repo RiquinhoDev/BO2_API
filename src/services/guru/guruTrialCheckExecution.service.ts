@@ -15,6 +15,7 @@ import type {
   GuruTrialPlan,
   GuruTrialRunOptions,
 } from './guruTrial.types'
+export { runGuruTrialCheck } from './guruTrialCheckPlan.service'
 
 const TRIAL_WINDOW_DAYS = 7
 const DAY_MS = 86400000

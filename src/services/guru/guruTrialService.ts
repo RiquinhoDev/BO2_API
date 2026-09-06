@@ -2,6 +2,7 @@ import logger from '../../utils/logger'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { runCheckExpiredTrials, runSyncTrialsFromGuru } from './guruTrialCheckExecution.service'
+import { runGuruTrialCheck } from './guruTrialCheckPlan.service'
 import type { GuruTrialCheckResult, GuruTrialRunOptions } from './guruTrial.types'
 import { TrialNotEndedError, TrialUserNotFoundError } from './guruTrialErrors'
 
@@ -95,6 +96,8 @@ export async function checkExpiredTrials(options: GuruTrialRunOptions = {}): Pro
 export async function syncTrialsFromGuru(options: GuruTrialRunOptions = {}): Promise<{ synced: number; errors: number }> {
   return runSyncTrialsFromGuru(options)
 }
+
+export { runGuruTrialCheck }
 
 async function markUserProductsForInactivation(
   userId: string | import('mongoose').Types.ObjectId,

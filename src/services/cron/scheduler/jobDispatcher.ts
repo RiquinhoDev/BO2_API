@@ -131,7 +131,9 @@ function sanitizeGuruTrialPlan(value: unknown): Record<string, unknown> | undefi
     anomaly: plan.anomaly === true,
   }
   for (const key of numericKeys) {
-    if (typeof plan[key] === 'number' && Number.isFinite(plan[key])) safe[key] = plan[key]
+    if (plan[key] === undefined) continue
+    if (typeof plan[key] !== 'number' || !Number.isSafeInteger(plan[key]) || plan[key] < 0) return undefined
+    safe[key] = plan[key]
   }
   return safe
 }
@@ -321,9 +323,20 @@ export class CronJobDispatcher {
       if (job.name === 'GuruTrialCheck') {
         const report = recordOf(await this.dependencies.guruTrialCheck(options))
         const plan = sanitizeGuruTrialPlan(report.plan)
+        const normalized = normalizeGenericResult({
+          ...report,
+          plan: undefined,
+          ...(plan ? { updated: numberOf(report, 'updated') || numberOf(report, 'synced') } : {}),
+          error: booleanOf(report, 'success') === false ? 'Execução Guru TrialCheck falhou' : undefined,
+        })
+        const withoutRawPlan = { ...normalized }
+        const errorMessage = withoutRawPlan.errorMessage
+        delete withoutRawPlan.plan
+        delete withoutRawPlan.errorMessage
         return {
-          ...normalizeGenericResult(report),
+          ...withoutRawPlan,
           ...(plan ? { plan: plan as never } : {}),
+          ...(errorMessage ? { errorMessage } : {}),
           ...(booleanOf(report, 'dryRun') === true ? { dryRun: true } : {}),
         }
       }
@@ -341,7 +354,9 @@ export class CronJobDispatcher {
       return {
         success: false,
         stats: { ...EMPTY_STATS, errors: 1 },
-        errorMessage: job.name === 'RenewalAcSync'
+        errorMessage: job.name === 'GuruTrialCheck'
+          ? 'Execução Guru TrialCheck falhou'
+          : job.name === 'RenewalAcSync'
           ? 'Execução Renewal AC falhou'
           : job.name === 'DiscordRolesSync'
             ? 'Execução Discord falhou'

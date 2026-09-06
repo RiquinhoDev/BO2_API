@@ -3,15 +3,13 @@ import logger from '../utils/logger'
 // 📁 src/jobs/guruTrialCheck.job.ts
 // Cron job — verificação diária de trials Guru
 //
-// Fluxo:
-//   1. syncTrialsFromGuru() → buscar/actualizar trials da API Guru
-//   2. checkExpiredTrials() → marcar PARA_INATIVAR os expirados sem conversão
+// Fluxo: plano bounded único (sync + expiry) → validar tudo → aplicar efeitos
 //
 // IMPORTANTE: NÃO inativa no CursEduca. Apenas MARCA PARA_INATIVAR.
 // A inativação real continua manual (Gerir Subscrições / Inativação).
 // ════════════════════════════════════════════════════════════
 
-import { syncTrialsFromGuru, checkExpiredTrials } from '../services/guru/guruTrialService'
+import { runGuruTrialCheck } from '../services/guru/guruTrialService'
 import type { GuruTrialRunOptions } from '../services/guru/guruTrial.types'
 
 const guruTrialCheckJob = {
@@ -31,36 +29,24 @@ const guruTrialCheckJob = {
     const startTime = Date.now()
 
     try {
-      // 1. Sincronizar trials da API Guru (apanha novos + actualiza datas)
-      const syncResult = await syncTrialsFromGuru(options)
-      logger.info(`⏳ [GuruTrialCheck] Sync: ${syncResult.synced} trials sincronizados`)
-
-      // 2. Verificar expirados → marcar PARA_INATIVAR (NÃO inativa)
-      const checkResult = await checkExpiredTrials(options)
+      const result = await runGuruTrialCheck(options)
       logger.info(
-        `⏳ [GuruTrialCheck] Check: ${checkResult.markedForInactivation} marcados, ` +
-        `${checkResult.converted} convertidos, ${checkResult.stillInTrial} ainda em trial`
+        `⏳ [GuruTrialCheck] Check: ${result.markedForInactivation} marcados, ` +
+        `${result.converted} convertidos, ${result.stillInTrial} ainda em trial`
       )
 
       const duration = Math.round((Date.now() - startTime) / 1000)
       logger.info(`✅ [GuruTrialCheck] Concluído em ${duration}s`)
 
       return {
-        success: syncResult.errors === 0 && checkResult.errors === 0,
-        total: syncResult.synced + checkResult.checked,
-        updated: checkResult.converted,
-        errors: syncResult.errors + checkResult.errors,
-        synced: syncResult.synced,
-        markedForInactivation: checkResult.markedForInactivation,
-        converted: checkResult.converted,
-        ...(options.dryRun === true
-          ? {
-              dryRun: true as const,
-              plan: checkResult.plan
-                ? { ...checkResult.plan, synced: syncResult.synced }
-                : undefined,
-            }
-          : {}),
+        success: result.errors === 0,
+        total: result.synced + result.checked,
+        updated: result.converted,
+        errors: result.errors,
+        synced: result.synced,
+        markedForInactivation: result.markedForInactivation,
+        converted: result.converted,
+        ...(result.dryRun === true ? { dryRun: true as const, plan: result.plan } : {}),
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido'
