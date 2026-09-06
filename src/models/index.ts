@@ -21,6 +21,7 @@ import './ActiveCampaignProductTagReceipt'
 import './GuruCurseducaInactivationReceipt'
 import './DiscordMessageExecutionReceipt'
 import './ClarezaRefreshExecutionReceipt'
+import './CompositeExecutionReceipt'
 import './HotmartWebhook'
 import './IdsDiferentes'
 import './InactivationList'
@@ -65,6 +66,7 @@ export { default as ActiveCampaignProductTagReceipt } from './ActiveCampaignProd
 export { default as GuruCurseducaInactivationReceipt } from './GuruCurseducaInactivationReceipt'
 export { default as DiscordMessageExecutionReceipt } from './DiscordMessageExecutionReceipt'
 export { default as ClarezaRefreshExecutionReceipt } from './ClarezaRefreshExecutionReceipt'
+export { default as CompositeExecutionReceipt } from './CompositeExecutionReceipt'
 export { default as HotmartWebhook } from './HotmartWebhook'
 export { default as IdsDiferentes } from './IdsDiferentes'
 export { default as InactivationList } from './InactivationList'
@@ -127,6 +129,7 @@ const modelsToCheck = [
   'GuruCurseducaInactivationReceipt',
   'DiscordMessageExecutionReceipt',
   'ClarezaRefreshExecutionReceipt',
+  'CompositeExecutionReceipt',
   'TagRule',
   'UserAction',
   'UserHistory',

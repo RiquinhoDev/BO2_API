@@ -198,6 +198,44 @@ describe('CronJobDispatcher', () => {
     })
   })
 
+  it('passes dry-run and phase options only to the shared pipeline runner', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+    dependencies.executeDailyPipeline.mockResolvedValueOnce({
+      dryRun: true,
+      success: true,
+      summary: { totalUsers: 0, totalUserProducts: 0 },
+      errors: [],
+      plan: { operation: 'daily-pipeline', dryRun: true, withinLimit: true, limit: 20_000 },
+    })
+
+    await expect(dispatcher.execute(job('DryRun', 'pipeline'), { dryRun: true, phaseHooks })).resolves.toMatchObject({
+      success: true,
+      dryRun: true,
+      plan: { operation: 'daily-pipeline' },
+    })
+    expect(dependencies.executeDailyPipeline).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+  })
+
+  it('passes dry-run and phase options to the scheduled Discord messages runner', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+
+    await dispatcher.execute(job('DiscordScheduledMessages', 'discord'), { dryRun: true, phaseHooks })
+
+    expect(dependencies.runScheduledMessages).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+  })
+
   it('fails closed for an unsupported sync type', async () => {
     const dispatcher = new CronJobDispatcher(createDependencies())
 

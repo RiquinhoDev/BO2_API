@@ -6,6 +6,35 @@ import type { SyncType } from '../../../models/SyncModels/CronJobConfig'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import { internalError } from '../../../security/errorHandling'
 import { type JobIdParams, type LegacyCronConfig, type SystemJob, errorMessage } from '../../../services/cron/controllerSupport'
+import {
+  cronManualExecutionView,
+  getCronManualCapability,
+  type CronManualCapabilityJob,
+} from '../../../services/cron/scheduler/manualCapabilities'
+import { isSyncMutableExecutionEnabled } from '../../../services/requestDrivenRuntimeConfig'
+import { isScheduledMessagesEnabled } from '../../../services/renewal/discordScheduledMessages.service'
+
+function manualMutableEnabled(job: CronManualCapabilityJob): boolean {
+  const capability = getCronManualCapability(job)
+  if (capability.id === 'daily-pipeline') return isSyncMutableExecutionEnabled()
+  if (capability.id === 'discord-scheduled-messages') return isScheduledMessagesEnabled()
+  return false
+}
+
+function withManualExecutionView(job: CronManualCapabilityJob): Record<string, unknown> {
+  if (typeof job.name !== 'string' || typeof job.syncType !== 'string' || !job._id
+    || typeof job._id.toString !== 'function') {
+    return job as unknown as Record<string, unknown>
+  }
+  const jobWithToObject = job as unknown as { toObject?: () => unknown }
+  const plain = typeof jobWithToObject.toObject === 'function'
+    ? jobWithToObject.toObject()
+    : job
+  return {
+    ...(plain as Record<string, unknown>),
+    manualExecution: cronManualExecutionView(job, manualMutableEnabled(job)),
+  }
+}
 
 export const getAllJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -48,7 +77,7 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
 
     res.status(200).json(successResponse({
         total: jobs.length,
-        jobs,
+        jobs: jobs.map(job => withManualExecutionView(job)),
         systemJobs
       }, { message: 'Jobs recuperados com sucesso' }))
 
@@ -96,7 +125,11 @@ export const getJobById = async (
       5
     )
 
-    res.status(200).json(successResponse({ job, nextExecutions, successRate: job.getSuccessRate() }, { message: 'Job recuperado com sucesso' }))
+    res.status(200).json(successResponse({
+      job: withManualExecutionView(job),
+      nextExecutions,
+      successRate: job.getSuccessRate(),
+    }, { message: 'Job recuperado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar job', 'CRON_JOB_READ_FAILED', error))

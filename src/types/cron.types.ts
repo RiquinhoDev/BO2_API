@@ -5,6 +5,7 @@ import type {
   ILastRunStats,
   SyncType
 } from '../models/SyncModels/CronJobConfig'
+import type { CronExecutionPhaseHooks } from '../services/cron/scheduler/executionPhases'
 
 export interface CronSyncConfigDTO {
   fullSync?: boolean
@@ -66,6 +67,28 @@ export interface CronExecutionResult {
   duration: number
   stats: ILastRunStats
   errorMessage?: string
+  dryRun?: boolean
+  plan?: DailyPipelinePlan
+}
+
+export interface DailyPipelinePlan {
+  operation: 'daily-pipeline'
+  dryRun: true
+  limit: number
+  withinLimit: boolean
+  activeUserProducts: number
+  testimonialUsers: number
+  activeTagRules: number
+  configuredProducts: {
+    hotmart: number
+    curseduca: number
+  }
+  steps: readonly string[]
+}
+
+export interface DailyPipelineOptions {
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 /**
@@ -112,6 +135,8 @@ export interface DailyPipelineResult {
     engagementUpdated: number
     tagsApplied: number
   }
+  dryRun?: boolean
+  plan?: DailyPipelinePlan
 }
 
 export type { ICronJobConfig, ILastRunStats, SyncType }

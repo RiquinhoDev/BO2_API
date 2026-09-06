@@ -179,6 +179,12 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
   ).toThrow('ENABLE_DEBUG_ROUTES')
 })
 
+test('execução mutável dos composites fica desligada por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).core.syncMutableExecutionEnabled).toBe(false)
+  expect(loadConfig({ ...VALID_ENV, SYNC_MUTABLE_EXECUTION_ENABLED: 'true' }).core.syncMutableExecutionEnabled)
+    .toBe(true)
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -212,6 +218,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     acWebhookSecret: STRONG_AC_WEBHOOK_SECRET,
     authEnforce: true,
     enableDebugRoutes: false,
+    syncMutableExecutionEnabled: false,
     allowedOrigins: config.allowedOrigins,
     port: 3001,
   })

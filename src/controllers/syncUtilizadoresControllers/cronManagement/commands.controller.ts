@@ -4,9 +4,11 @@ import mongoose from 'mongoose'
 import { TagRule } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronJobIdInput } from '../../../security/cronDestructiveInput'
-import { internalError } from '../../../security/errorHandling'
+import { HttpError, internalError } from '../../../security/errorHandling'
 import { successResponse } from '../../../contracts/responseContract'
 import { type JobIdParams } from '../../../services/cron/controllerSupport'
+import { requestIdFrom } from '../../../services/activeCampaign/activeCampaignExecution.service'
+import type { ValidatedRequest } from '../../../security/validatedInput'
 
 export const createJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -219,6 +221,7 @@ export const toggleJob = async (
 
 export const triggerJob = async (
   input: CronJobIdInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
@@ -233,19 +236,39 @@ export const triggerJob = async (
       return
     }
 
-    // TODO: Pegar user ID do token JWT
-    const triggeredBy = new mongoose.Types.ObjectId('000000000000000000000001')
+    const actorId = req.user?.id ?? 'system'
+    const triggeredBy = mongoose.Types.ObjectId.isValid(actorId)
+      ? new mongoose.Types.ObjectId(actorId)
+      : new mongoose.Types.ObjectId('000000000000000000000001')
+    const dryRun = input.body.dryRun === true
 
     logger.info(`▶�? Executando job manualmente: ${id}`)
 
     const result = await syncSchedulerService.executeJobManually(
       new mongoose.Types.ObjectId(id),
-      triggeredBy
+      triggeredBy,
+      {
+        actorId,
+        dryRun,
+        requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+      },
     )
 
-    res.status(200).json(successResponse({ executionSucceeded: result.success, duration: result.duration, stats: result.stats, errorMessage: result.errorMessage }, { message: result.success ? 'Job executado com sucesso' : 'Job executado com erros' }))
+    res.status(200).json(successResponse({
+      executionSucceeded: result.success,
+      duration: result.duration,
+      stats: result.stats,
+      errorMessage: result.errorMessage,
+      ...(result.dryRun === true ? { dryRun: true, plan: result.plan } : {}),
+    }, { message: result.dryRun === true
+      ? 'Plano do job calculado sem efeitos'
+      : result.success ? 'Job executado com sucesso' : 'Job executado com erros' }))
 
   } catch (error: unknown) {
+    if (error instanceof HttpError) {
+      next(error)
+      return
+    }
     next(internalError('Erro ao executar job', 'CRON_JOB_TRIGGER_FAILED', error))
   }
 }
@@ -254,4 +277,3 @@ export const triggerJob = async (
 // GET JOB EXECUTION HISTORY
 // GET /api/cron/jobs/:id/history
 // �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
-

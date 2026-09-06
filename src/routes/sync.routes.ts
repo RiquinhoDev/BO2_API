@@ -26,8 +26,8 @@ const router = Router()
 // Pipeline completo (4 steps: Sync Hotmart → Sync CursEduca → Recalc Engagement → Tag Rules)
 router.post(
   '/execute-pipeline',
-  withValidatedInput(syncExecutePipelineInput, (input, _req, res, next) =>
-    syncController.executePipeline(input, res, next)),
+  withValidatedInput(syncExecutePipelineInput, (input, req, res, next) =>
+    syncController.executePipeline(input, req, res, next)),
 )
 
 // Hotmart sync

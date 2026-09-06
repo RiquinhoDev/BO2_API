@@ -1,6 +1,8 @@
 import { ILastRunStats } from '../../../models/SyncModels/CronJobConfig'
 import { CronExecutionResult } from '../../../types/cron.types'
 import { CronDispatchJob, CronDispatchResult } from './jobDispatcher'
+import type { CronDispatchOptions } from './jobDispatcher'
+import type { CronExecutionPhaseHooks } from './executionPhases'
 import { CronNotificationJob } from './notificationPort'
 
 export type CronTrigger = 'CRON' | 'MANUAL'
@@ -27,10 +29,12 @@ export interface CronHistoryEntry {
 export interface CronExecutionContext {
   triggeredBy: CronTrigger
   isolateRecordFailure: boolean
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 export interface CronExecutionDependencies {
-  dispatch(job: CronExecutionJob): Promise<CronDispatchResult>
+  dispatch(job: CronExecutionJob, options?: CronDispatchOptions): Promise<CronDispatchResult>
   saveHistory(entry: CronHistoryEntry): Promise<void>
   notify(
     job: CronNotificationJob,
@@ -63,8 +67,22 @@ export class CronJobExecutor {
     const startedAt = this.dependencies.now()
 
     try {
-      const result = await this.dependencies.dispatch(job)
+      const result = await this.dependencies.dispatch(job, {
+        dryRun: context.dryRun,
+        phaseHooks: context.phaseHooks,
+      })
       const duration = this.durationSince(startedAt)
+
+      if (context.dryRun === true) {
+        return {
+          success: result.success,
+          duration,
+          stats: result.stats,
+          errorMessage: result.errorMessage,
+          dryRun: true,
+          ...(result.plan ? { plan: result.plan } : {}),
+        }
+      }
 
       await this.record(
         job,
@@ -89,6 +107,16 @@ export class CronJobExecutor {
     } catch (error) {
       const duration = this.durationSince(startedAt)
       const errorMessage = messageOf(error)
+
+      if (context.dryRun === true) {
+        return {
+          success: false,
+          duration,
+          stats: FAILED_STATS,
+          errorMessage,
+          dryRun: true,
+        }
+      }
 
       await this.record(
         job,

@@ -15,7 +15,7 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import { expectCentralError, type ExpectedCentralError } from '../support/centralErrorContract'
 
-installTestRuntimeConfigHooks()
+installTestRuntimeConfigHooks({ syncMutableExecutionEnabled: true })
 
 const secretError = new Error('secret alice@example.test token=hidden')
 const secretValue = 'secret alice@example.test token=hidden'
@@ -67,6 +67,22 @@ jest.mock('../../src/security/asyncRoute', () => {
 jest.mock('../../src/services/cron/dailyPipeline.service', () => ({
   executeDailyPipeline: mockExecuteDailyPipeline,
 }))
+
+jest.mock('../../src/services/cron/compositeExecution.service', () => {
+  const actual = jest.requireActual<typeof import('../../src/services/cron/compositeExecution.service')>(
+    '../../src/services/cron/compositeExecution.service',
+  )
+  return {
+    ...actual,
+    runCompositeExecutionWithReceipt: jest.fn(async (options: {
+      run: (hooks: { providerStarted(): void; providerSucceeded(): void; localMutationStarted(): void }) => Promise<unknown>
+    }) => options.run({
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    })),
+  }
+})
 
 jest.mock('../../src/services/syncUtilizadoresServices/universalSync', () => ({
   __esModule: true,

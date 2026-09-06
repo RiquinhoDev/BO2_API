@@ -36,6 +36,7 @@ import {
 import {
   executeDiscordMessageReceipt,
 } from './discord/discordMessageExecution.service'
+import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
 import {
   normalizeDiscordActor,
   performDiscordMessage,
@@ -151,6 +152,7 @@ export type ScheduledMessagesExecutionResult =
 export interface ScheduledMessagesRunOptions {
   dryRun?: boolean
   now?: () => Date
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 async function readScheduledRulesWithinCap(): Promise<IDiscordScheduledRule[]> {
@@ -182,6 +184,7 @@ async function runScheduledMessagesCore(
     if (rules.length + missingDefaultRules(rules) > MAX_SCHEDULED_MESSAGE_RULES) {
       throw new DiscordScheduledMessagesLimitError()
     }
+    options.phaseHooks?.localMutationStarted()
     await ensureDefaultScheduledRules()
     rules = await readScheduledRulesWithinCap()
   }
@@ -206,6 +209,7 @@ async function runScheduledMessagesCore(
     const skip = async (reason: string) => {
       report.skipped.push({ rule: rule.key, reason })
       if (dryRun) return
+      options.phaseHooks?.localMutationStarted()
       rule.lastRunAt = now
       rule.lastResult = reason
       await rule.save()
@@ -243,6 +247,7 @@ async function runScheduledMessagesCore(
       continue
     }
 
+    options.phaseHooks?.providerStarted()
     const result = await sendDiscordMessage({
       content: template.content,
       mentionRoleIds: [target.roleId],
@@ -260,6 +265,7 @@ async function runScheduledMessagesCore(
       now: options.now,
       afterProviderSuccess: async (context) => {
         context.lease.assertOwnership()
+        options.phaseHooks?.localMutationStarted()
         rule.lastRunAt = now
         rule.lastSentMonth = target.monthKey
         rule.lastResult = `enviada a ${target.roleName} (${members} membros)`
@@ -268,6 +274,7 @@ async function runScheduledMessagesCore(
     })
 
     if (result.success) {
+      options.phaseHooks?.providerSucceeded()
       report.sent++
       logger.info(`📨 [ScheduledMessages] ${rule.key} → ${target.roleName} (${members} membros): OK`)
     } else if (result.kind === 'in-progress') {

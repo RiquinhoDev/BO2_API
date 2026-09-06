@@ -142,6 +142,44 @@ describe('CronJobExecutor', () => {
 
     expect(dependencies.notify).not.toHaveBeenCalled()
   })
+
+  it('keeps dry-run execution free of job, history and notification writes', async () => {
+    const events: string[] = []
+    const dependencies = createDependencies(events)
+    const job = createJob(events)
+    const executor = new CronJobExecutor(dependencies)
+
+    const result = await executor.execute(job, {
+      triggeredBy: 'MANUAL',
+      isolateRecordFailure: true,
+      dryRun: true,
+    })
+
+    expect(result).toMatchObject({ success: true, dryRun: true, duration: 2, stats })
+    expect(dependencies.dispatch).toHaveBeenCalledWith(job, {
+      dryRun: true,
+      phaseHooks: undefined,
+    })
+    expect(job.recordExecution).not.toHaveBeenCalled()
+    expect(dependencies.saveHistory).not.toHaveBeenCalled()
+    expect(dependencies.notify).not.toHaveBeenCalled()
+  })
+
+  it('keeps dry-run failures free of compensating writes', async () => {
+    const dependencies = createDependencies()
+    dependencies.dispatch.mockRejectedValueOnce(new Error('preview failed'))
+    const job = createJob()
+    const executor = new CronJobExecutor(dependencies)
+
+    await expect(executor.execute(job, {
+      triggeredBy: 'MANUAL',
+      isolateRecordFailure: true,
+      dryRun: true,
+    })).resolves.toMatchObject({ success: false, dryRun: true, errorMessage: 'preview failed' })
+    expect(job.recordExecution).not.toHaveBeenCalled()
+    expect(dependencies.saveHistory).not.toHaveBeenCalled()
+    expect(dependencies.notify).not.toHaveBeenCalled()
+  })
 })
 
 describe('logging cron notification', () => {

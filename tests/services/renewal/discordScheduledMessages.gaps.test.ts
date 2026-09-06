@@ -88,10 +88,6 @@ function setupJob(currentRule: FakeRule) {
   })
 }
 
-async function flushMicrotasks(): Promise<void> {
-  for (let i = 0; i < 100; i += 1) await Promise.resolve()
-}
-
 beforeEach(() => {
   jest.useFakeTimers()
   jest.setSystemTime(new Date('2026-08-08T09:00:00.000Z'))
@@ -125,7 +121,24 @@ describe('Discord scheduled message write-path characterization', () => {
     ])
   })
 
-  test('concurrent replay can pass the non-atomic month check twice before either save', async () => {
+  test('manual execution receives phase transitions from the concrete Discord runner', async () => {
+    const currentRule = rule()
+    setupJob(currentRule)
+    const phaseHooks = {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+
+    const report = await runScheduledMessagesJob(undefined, { phaseHooks })
+
+    expect(report.sent).toBe(1)
+    expect(phaseHooks.providerStarted).toHaveBeenCalledTimes(1)
+    expect(phaseHooks.providerSucceeded).toHaveBeenCalledTimes(1)
+    expect(phaseHooks.localMutationStarted).toHaveBeenCalledTimes(2)
+  })
+
+  test('concurrent core runs pass the same rule-month receipt identity to the sender', async () => {
     const currentRule = rule()
     setupJob(currentRule)
     let started = 0
@@ -138,12 +151,23 @@ describe('Discord scheduled message write-path characterization', () => {
     })
 
     const first = runScheduledMessagesJob()
-    await flushMicrotasks()
+    while (started < 1) await Promise.resolve()
     const second = runScheduledMessagesJob()
-    await flushMicrotasks()
+    while (started < 2) await Promise.resolve()
 
-    expect(started).toBe(2)
     expect(mockSendDiscordMessage).toHaveBeenCalledTimes(2)
+    const firstCall = mockSendDiscordMessage.mock.calls[0]
+    const secondCall = mockSendDiscordMessage.mock.calls[1]
+    expect(firstCall[1]).toBe('cron:DiscordScheduledMessages:lembrete-dia-8:2026-08')
+    expect(secondCall[1]).toBe(firstCall[1])
+    expect(firstCall[2]).toEqual(expect.objectContaining({
+      operation: 'scheduled-rule',
+      identity: 'rule:lembrete-dia-8:2026-08',
+    }))
+    expect(secondCall[2]).toEqual(expect.objectContaining({
+      operation: 'scheduled-rule',
+      identity: 'rule:lembrete-dia-8:2026-08',
+    }))
 
     release()
     await Promise.all([first, second])

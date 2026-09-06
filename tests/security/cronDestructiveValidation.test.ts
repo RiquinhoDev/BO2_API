@@ -25,7 +25,9 @@ jest.mock('../../src/controllers/syncUtilizadoresControllers/cronManagement.cont
     __esModule: true,
     ...Object.fromEntries(names.map((name) => [
       name,
-      name === 'triggerTagRulesOnly'
+      name === 'triggerJob'
+        ? jest.fn((_input, _req, res) => res.status(204).end())
+        : name === 'triggerTagRulesOnly'
         ? jest.fn((_input, _req, res) => res.status(204).end())
         : jest.fn((_input, res) => res.status(204).end()),
     ])),
@@ -86,6 +88,10 @@ function callRoute(route: DestructiveRoute, body: Record<string, unknown>) {
 
 test.each(routes)('$name accepts its explicit DTO and real path params', async (route) => {
   await callRoute(route, route.body).expect(204)
+})
+
+test('trigger a cron job accepts the explicit dryRun control', async () => {
+  await callRoute(routes[1], { dryRun: true }).expect(204)
 })
 
 test('tag rules only accepts the optional dryRun control', async () => {

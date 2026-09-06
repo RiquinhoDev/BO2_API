@@ -1,6 +1,24 @@
 import type mongoose from 'mongoose'
-import { Product } from '../../models'
+import { Product, TagRule, User, UserProduct } from '../../models'
 import logger from '../../utils/logger'
+import { HttpError } from '../../security/errorHandling'
+import { MAX_PROVIDER_READ_ITEMS } from '../../security/providerReadBatchPolicy'
+
+export const DAILY_PIPELINE_MAX_ITEMS = MAX_PROVIDER_READ_ITEMS
+
+export class DailyPipelineCapacityError extends HttpError {
+  constructor(observed: number) {
+    super({
+      status: 413,
+      code: 'SYNC_PIPELINE_CAP_EXCEEDED',
+      publicMessage: `Pipeline limitado a ${DAILY_PIPELINE_MAX_ITEMS} itens; detetados ${observed}`,
+    })
+  }
+}
+
+export function assertDailyPipelinePayloadCapacity(observed: number): void {
+  if (observed > DAILY_PIPELINE_MAX_ITEMS) throw new DailyPipelineCapacityError(observed)
+}
 
 export type PipelineUser = {
   _id: mongoose.Types.ObjectId
@@ -55,6 +73,57 @@ export async function getProductsConfig() {
       products: curseducaProducts
     }
   }
+}
+
+export async function getDailyPipelinePlan() {
+  const config = await getProductsConfig()
+  const [activeUserProducts, testimonialUsers, activeTagRules] = await Promise.all([
+    UserProduct.countDocuments({ status: 'ACTIVE' }),
+    User.countDocuments({
+      'communicationByCourse.TESTIMONIALS.currentTags': { $exists: true, $ne: [] },
+    }),
+    TagRule.countDocuments({ isActive: true }),
+  ])
+  const observed = Math.max(activeUserProducts, testimonialUsers, activeTagRules)
+
+  return {
+    config,
+    plan: {
+      operation: 'daily-pipeline' as const,
+      dryRun: true as const,
+      limit: DAILY_PIPELINE_MAX_ITEMS,
+      withinLimit: observed <= DAILY_PIPELINE_MAX_ITEMS,
+      activeUserProducts,
+      testimonialUsers,
+      activeTagRules,
+      configuredProducts: {
+        hotmart: config.hotmart.products.length,
+        curseduca: config.curseduca.products.length,
+      },
+      steps: [
+        'syncHotmart',
+        'syncCursEduca',
+        'preCreateTags',
+        'recalcEngagement',
+        'evaluateTagRules',
+        'syncTestimonialTags',
+      ] as const,
+    },
+  }
+}
+
+export function assertDailyPipelineCapacity(plan: {
+  withinLimit: boolean
+  activeUserProducts: number
+  testimonialUsers: number
+  activeTagRules: number
+}): void {
+  if (plan.withinLimit) return
+  throw new DailyPipelineCapacityError(Math.max(
+    plan.activeUserProducts,
+    plan.testimonialUsers,
+    plan.activeTagRules,
+  ))
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

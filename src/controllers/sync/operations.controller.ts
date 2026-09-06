@@ -5,8 +5,15 @@ import universalSyncService from '../../services/syncUtilizadoresServices/univer
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
-import { internalError } from '../../security/errorHandling'
+import { HttpError, internalError } from '../../security/errorHandling'
 import type { SyncExecutePipelineInput } from '../../security/syncDestructiveInput'
+import type { ValidatedRequest } from '../../security/validatedInput'
+import { requestIdFrom } from '../../services/activeCampaign/activeCampaignExecution.service'
+import { isSyncMutableExecutionEnabled } from '../../services/requestDrivenRuntimeConfig'
+import {
+  compositeExecutionFingerprint,
+  runCompositeExecutionWithReceipt,
+} from '../../services/cron/compositeExecution.service'
 
 function forwardSyncFailure(
   error: unknown,
@@ -18,6 +25,10 @@ function forwardSyncFailure(
     next(error)
     return
   }
+  if (error instanceof HttpError) {
+    next(error)
+    return
+  }
   next(internalError(publicMessage, code, error))
 }
 /**
@@ -25,12 +36,50 @@ function forwardSyncFailure(
  * Executar pipeline diário completo
  */
 export const executePipeline = async (
-  _input: SyncExecutePipelineInput,
+  input: SyncExecutePipelineInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const result = await executeDailyPipeline()
+    const dryRun = input.body.dryRun === true
+    if (!dryRun && !isSyncMutableExecutionEnabled()) {
+      throw new HttpError({
+        status: 503,
+        code: 'SYNC_PIPELINE_EXECUTION_DISABLED',
+        publicMessage: 'Execução mutável do pipeline desativada',
+      })
+    }
+
+    const requestId = requestIdFrom(req.get('x-request-id') || res.locals.correlationId)
+    const actorId = req.user?.id ?? 'system'
+    const result = dryRun
+      ? await executeDailyPipeline({ dryRun: true })
+      : await runCompositeExecutionWithReceipt({
+        operation: 'sync-pipeline',
+        identity: 'daily-pipeline',
+        actorId,
+        fingerprint: compositeExecutionFingerprint(actorId, {
+          entryPoint: 'sync-execute-pipeline',
+          resultContract: 'daily-pipeline',
+          dryRun: false,
+        }),
+        requestId,
+        run: hooks => executeDailyPipeline({ phaseHooks: hooks }),
+      })
+
+    if (result.dryRun === true) {
+      res.json(operationalSuccessResponse({
+        completed: false,
+        dryRun: true,
+        duration: result.duration,
+        plan: result.plan,
+        summary: result.summary,
+        steps: result.steps,
+        message: 'Plano do pipeline calculado sem efeitos',
+      }))
+      return
+    }
     
     if (result.success) {
       res.json(operationalSuccessResponse({

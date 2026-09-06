@@ -448,6 +448,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const authEnforce = parseBooleanFlag(env.AUTH_ENFORCE, 'AUTH_ENFORCE', true)
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
+  const syncMutableExecutionEnabled = parseBooleanFlag(
+    env.SYNC_MUTABLE_EXECUTION_ENABLED,
+    'SYNC_MUTABLE_EXECUTION_ENABLED',
+  )
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
@@ -469,6 +473,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     acWebhookSecret,
     authEnforce,
     enableDebugRoutes,
+    syncMutableExecutionEnabled,
     allowedOrigins,
     port,
   }

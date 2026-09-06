@@ -1,4 +1,6 @@
 import { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
+import type { DailyPipelinePlan } from '../../../types/cron.types'
+import type { CronExecutionPhaseHooks } from './executionPhases'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
 import { executeDailyPipeline } from '../dailyPipeline.service'
@@ -20,9 +22,16 @@ export interface CronDispatchResult {
   success: boolean
   stats: ILastRunStats
   errorMessage?: string
+  dryRun?: boolean
+  plan?: DailyPipelinePlan
 }
 
-type UnknownRunner = () => Promise<unknown>
+export interface CronDispatchOptions {
+  phaseHooks?: CronExecutionPhaseHooks
+  dryRun?: boolean
+}
+
+type UnknownRunner = (options?: CronDispatchOptions) => Promise<unknown>
 
 export interface CronDispatchDependencies {
   evaluateRules: UnknownRunner
@@ -37,7 +46,7 @@ export interface CronDispatchDependencies {
   runDiscordRolesSync: UnknownRunner
   runRenewalAcSync: UnknownRunner
   evaluateAchievements: UnknownRunner
-  executeDailyPipeline: UnknownRunner
+  executeDailyPipeline: (options?: CronDispatchOptions) => Promise<unknown>
   fetchHotmart(): Promise<UniversalSourceItem[]>
   fetchCurseduca(): Promise<UniversalSourceItem[]>
   executeUniversalSync(request: UniversalSyncRequest): Promise<unknown>
@@ -129,8 +138,11 @@ const defaultDependencies: CronDispatchDependencies = {
   clarezaRefresh: async () => (await import('../../../jobs/clareza.job')).default.run(),
   guruTrialCheck: async () => (await import('../../../jobs/guruTrialCheck.job')).default.run(),
   syncRenewalOffers,
-  runScheduledMessages: async () =>
-    (await import('../../renewal/discordScheduledMessages.service')).runScheduledMessagesJob(),
+  runScheduledMessages: async (options) =>
+    (await import('../../renewal/discordScheduledMessages.service')).runScheduledMessagesJob(undefined, {
+      dryRun: options?.dryRun,
+      phaseHooks: options?.phaseHooks,
+    }),
   runDiscordRolesSync: async () =>
     (await import('../../renewal/discordRolesSync.service')).runDiscordRolesSyncJob(),
   runRenewalAcSync: async () =>
@@ -156,9 +168,9 @@ const defaultDependencies: CronDispatchDependencies = {
 export class CronJobDispatcher {
   constructor(private readonly dependencies: CronDispatchDependencies = defaultDependencies) {}
 
-  async execute(job: CronDispatchJob): Promise<CronDispatchResult> {
+  async execute(job: CronDispatchJob, options: CronDispatchOptions = {}): Promise<CronDispatchResult> {
     if (SPECIFIC_JOB_NAMES.some(name => job.name.includes(name))) {
-      return this.executeSpecific(job)
+      return this.executeSpecific(job, options)
     }
 
     switch (job.syncType) {
@@ -171,16 +183,16 @@ export class CronJobDispatcher {
       case 'all':
         return this.executeAllSyncs(job)
       case 'pipeline':
-        return this.executePipeline()
+        return this.executePipeline(options)
       default:
         throw new Error(`Tipo de sync desconhecido: ${job.syncType}`)
     }
   }
 
-  private async executeSpecific(job: CronDispatchJob): Promise<CronDispatchResult> {
+  private async executeSpecific(job: CronDispatchJob, options: CronDispatchOptions): Promise<CronDispatchResult> {
     try {
       if (job.name.includes('RenewalOfferSync')) {
-        const report = recordOf(await this.dependencies.syncRenewalOffers())
+        const report = recordOf(await this.dependencies.syncRenewalOffers(options))
         return {
           success: true,
           stats: {
@@ -195,7 +207,7 @@ export class CronJobDispatcher {
       }
 
       if (job.name.includes('DiscordScheduledMessages')) {
-        const report = recordOf(await this.dependencies.runScheduledMessages())
+        const report = recordOf(await this.dependencies.runScheduledMessages(options))
         const skipped = arrayOf(report, 'skipped').map(item => {
           const entry = recordOf(item)
           return `${String(entry.rule)}: ${String(entry.reason)}`
@@ -214,13 +226,13 @@ export class CronJobDispatcher {
       }
 
       if (job.name.includes('DiscordRolesSync')) {
-        return this.normalizePlannedExecution(await this.dependencies.runDiscordRolesSync(), 'accountsDesired')
+        return this.normalizePlannedExecution(await this.dependencies.runDiscordRolesSync(options), 'accountsDesired')
       }
       if (job.name.includes('RenewalAcSync')) {
-        return this.normalizePlannedExecution(await this.dependencies.runRenewalAcSync(), 'classChangesSeen')
+        return this.normalizePlannedExecution(await this.dependencies.runRenewalAcSync(options), 'classChangesSeen')
       }
       if (job.name.includes('AchievementEvaluation')) {
-        const report = recordOf(await this.dependencies.evaluateAchievements())
+        const report = recordOf(await this.dependencies.evaluateAchievements(options))
         const total = numberOf(report, 'total')
         const evaluated = numberOf(report, 'evaluated')
         const errors = numberOf(report, 'errors')
@@ -232,7 +244,7 @@ export class CronJobDispatcher {
 
       const runner = this.specificRunner(job.name)
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)
-      return normalizeGenericResult(await runner())
+      return normalizeGenericResult(await runner(options))
     } catch (error) {
       logger.error('Erro ao executar job específico', error)
       return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: errorMessageOf(error) }
@@ -271,11 +283,12 @@ export class CronJobDispatcher {
     }
   }
 
-  private async executePipeline(): Promise<CronDispatchResult> {
+  private async executePipeline(options: CronDispatchOptions): Promise<CronDispatchResult> {
     try {
-      const result = recordOf(await this.dependencies.executeDailyPipeline())
+      const result = recordOf(await this.dependencies.executeDailyPipeline(options))
       const summary = nestedRecordOf(result, 'summary')
       const errors = arrayOf(result, 'errors').map(String)
+      const plan = result.plan
       return {
         success: booleanOf(result, 'success') === true,
         stats: {
@@ -285,7 +298,9 @@ export class CronJobDispatcher {
           errors: errors.length,
           skipped: 0
         },
-        errorMessage: errors.length > 0 ? errors.join('; ') : undefined
+        errorMessage: errors.length > 0 ? errors.join('; ') : undefined,
+        ...(booleanOf(result, 'dryRun') === true ? { dryRun: true } : {}),
+        ...(plan && typeof plan === 'object' ? { plan: plan as DailyPipelinePlan } : {}),
       }
     } catch (error) {
       return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: errorMessageOf(error) }

@@ -76,8 +76,8 @@ router.post('/jobs/:id/toggle', cronController.toggleJob)
  */
 router.post(
   '/jobs/:id/trigger',
-  withValidatedInput(cronJobIdInput, (input, _req, res, next) =>
-    cronController.triggerJob(input, res, next)),
+  withValidatedInput(cronJobIdInput, (input, req, res, next) =>
+    cronController.triggerJob(input, req, res, next)),
 )
 
 /**

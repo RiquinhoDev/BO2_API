@@ -1,17 +1,26 @@
 import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'
+import type { CronExecutionPhaseHooks } from './scheduler/executionPhases'
 import logger from '../../utils/logger'
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
-import { getProductsConfig, logStep } from './dailyPipelineSupport'
+import {
+  DAILY_PIPELINE_MAX_ITEMS,
+  assertDailyPipelinePayloadCapacity,
+  DailyPipelineCapacityError,
+  getProductsConfig,
+  logStep,
+} from './dailyPipelineSupport'
 
 export async function executeSyncAndPreparationSteps(
   result: DailyPipelineResult,
   errors: string[],
+  phaseHooks?: CronExecutionPhaseHooks,
+  suppliedConfig?: Awaited<ReturnType<typeof getProductsConfig>>,
 ): Promise<void> {
-    const config = await getProductsConfig()
+    const config = suppliedConfig ?? await getProductsConfig()
     // STEP 1/5: SYNC HOTMART
     const step1Start = Date.now()
     logStep(1, 'Sync Hotmart', 'START')
@@ -24,9 +33,13 @@ export async function executeSyncAndPreparationSteps(
         for (let idx = 0; idx < hotmartProductsCount; idx++) {
           const product = config.hotmart.products[idx]
 
+          phaseHooks?.providerStarted()
           const hotmartData = await hotmartAdapter.fetchHotmartDataForSync()
+          assertDailyPipelinePayloadCapacity(hotmartData.length)
+          phaseHooks?.providerSucceeded()
           if (hotmartData.length === 0) continue
 
+          phaseHooks?.localMutationStarted()
           const syncResult = await universalSyncService.executeUniversalSync({
             syncType: 'hotmart',
             jobName: `Daily Pipeline - Hotmart ${product.code}`,
@@ -55,6 +68,7 @@ export async function executeSyncAndPreparationSteps(
 
       logStep(1, 'Sync Hotmart', 'DONE', `${totalStats.total} users, ${result.steps.syncHotmart.duration}s`)
     } catch (err: unknown) {
+      if (err instanceof DailyPipelineCapacityError) throw err
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Sync Hotmart: ${message}`)
 
@@ -76,13 +90,17 @@ export async function executeSyncAndPreparationSteps(
       let totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
 
       if (config.curseduca.products.length > 0) {
+        phaseHooks?.providerStarted()
         const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
           includeProgress: true,
           includeGroups: true,
           enrichWithDetails: true
         })
+        assertDailyPipelinePayloadCapacity(curseducaData.length)
+        phaseHooks?.providerSucceeded()
 
         if (curseducaData.length > 0) {
+          phaseHooks?.localMutationStarted()
           const syncResult = await universalSyncService.executeUniversalSync({
             syncType: 'curseduca',
             jobName: `Daily Pipeline - CursEduca`,
@@ -108,6 +126,7 @@ export async function executeSyncAndPreparationSteps(
 
       logStep(2, 'Sync CursEduca', 'DONE', `${totalStats.total} users, ${result.steps.syncCursEduca.duration}s`)
     } catch (err: unknown) {
+      if (err instanceof DailyPipelineCapacityError) throw err
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Sync CursEduca: ${message}`)
 
@@ -128,7 +147,10 @@ export async function executeSyncAndPreparationSteps(
 
     try {
       logger.info('   ðŸ“¦ Chamando tagPreCreationService.preCreateBOTags()...')
+      phaseHooks?.providerStarted()
+      phaseHooks?.localMutationStarted()
       const preCreateResult = await tagPreCreationService.preCreateBOTags()
+      phaseHooks?.providerSucceeded()
 
       result.steps.preCreateTags = {
         success: preCreateResult.success,
@@ -167,7 +189,8 @@ export async function executeSyncAndPreparationSteps(
     logStep(4, 'Recalc Engagement', 'START')
 
     try {
-      const recalcResult = await recalculateAllEngagementMetrics()
+      phaseHooks?.localMutationStarted()
+      const recalcResult = await recalculateAllEngagementMetrics(DAILY_PIPELINE_MAX_ITEMS)
 
       result.steps.recalcEngagement = {
         success: recalcResult.success,

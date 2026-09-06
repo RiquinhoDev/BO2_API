@@ -4,7 +4,7 @@ import { validatedSchema } from './validatedInput'
 export const syncExecutePipelineInput = validatedSchema({
   params: {},
   query: {},
-  body: {},
+  body: { dryRun: z.boolean().optional() },
 })
 
 export const syncCleanHistoryInput = validatedSchema({

@@ -2,12 +2,22 @@ import { Product, UserProduct, PipelineExecution } from '../../models'
 import logger from '../../utils/logger'
 import testimonialTagSyncService from '../activeCampaign/testimonialTagSync.service'
 import pipelineSnapshotService, { type PipelineSnapshot, type SnapshotComparison } from '../activeCampaign/pipelineSnapshot.service'
-import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'
+import { DailyPipelineResult, DailyPipelineOptions, PipelineStepResult } from '../../types/cron.types'
 import tagOrchestratorV2, { type OrchestrationResult } from '../activeCampaign/tagOrchestrator.service'
-import { hasPipelineReferences, logStep, type PipelineUserProduct } from './dailyPipelineSupport'
+import {
+  DAILY_PIPELINE_MAX_ITEMS,
+  assertDailyPipelineCapacity,
+  DailyPipelineCapacityError,
+  getDailyPipelinePlan,
+  hasPipelineReferences,
+  logStep,
+  type PipelineUserProduct,
+} from './dailyPipelineSupport'
 import { executeSyncAndPreparationSteps } from './dailyPipelineSyncSteps'
 
-export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
+export async function executeDailyPipeline(
+  options: DailyPipelineOptions = {},
+): Promise<DailyPipelineResult> {
   const startTime = Date.now()
   const errors: string[] = []
 
@@ -41,7 +51,24 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
   }
 
   try {
-    await executeSyncAndPreparationSteps(result, errors)
+    const preflight = await getDailyPipelinePlan()
+    result.plan = preflight.plan
+
+    if (options.dryRun === true) {
+      result.dryRun = true
+      result.success = preflight.plan.withinLimit
+      result.errors = preflight.plan.withinLimit
+        ? []
+        : [`Pipeline limitado a ${DAILY_PIPELINE_MAX_ITEMS} itens; detetados ${Math.max(
+          preflight.plan.activeUserProducts,
+          preflight.plan.testimonialUsers,
+        )}`]
+      result.completedAt = new Date()
+      return result
+    }
+
+    assertDailyPipelineCapacity(preflight.plan)
+    await executeSyncAndPreparationSteps(result, errors, options.phaseHooks, preflight.config)
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // ðŸ“¸ SNAPSHOT PRE (antes de aplicar tags)
@@ -53,6 +80,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     let preSnapshot: PipelineSnapshot | null = null
     try {
       preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
+      options.phaseHooks?.localMutationStarted()
       await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_latest.json')
       logger.info(`   âœ… Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
     } catch (error: unknown) {
@@ -162,6 +190,15 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
           productId: up.productId._id.toString()
         }))
 
+      if (items.length > DAILY_PIPELINE_MAX_ITEMS) {
+        throw new DailyPipelineCapacityError(items.length)
+      }
+
+      if (items.length > 0) {
+        options.phaseHooks?.providerStarted()
+        options.phaseHooks?.localMutationStarted()
+      }
+
       // Processamento sequencial (evita race conditions no rate limiting)
       const orchestrationResults: OrchestrationResult[] = []
       let lastLoggedPercent = 0
@@ -210,6 +247,8 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
           lastLoggedPercent = percentage
         }
       }
+
+      if (items.length > 0) options.phaseHooks?.providerSucceeded()
 
       logger.info(`   âœ… Processamento completo: ${items.length} UserProducts em ${Math.floor((Date.now() - step5Start) / 1000)}s`)
 
@@ -277,6 +316,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
     try {
       postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
+      options.phaseHooks?.localMutationStarted()
       await pipelineSnapshotService.saveSnapshot(postSnapshot, 'snapshot_POST_latest.json')
       logger.info(`   âœ… Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
 
@@ -307,7 +347,10 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     logStep(6, 'Sync Testimonial Tags', 'START')
 
     try {
+      options.phaseHooks?.providerStarted()
+      options.phaseHooks?.localMutationStarted()
       const syncResult = await testimonialTagSyncService.syncTestimonialTags()
+      options.phaseHooks?.providerSucceeded()
 
       result.steps.syncTestimonialTags = {
         success: syncResult.success,
@@ -372,6 +415,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
     // Salvar histÃ³rico de execuÃ§Ã£o
     try {
+      options.phaseHooks?.localMutationStarted()
       await PipelineExecution.create({
         executionType: 'automatic',
         status: result.success ? 'success' : (errors.length > 0 ? 'partial' : 'failed'),
@@ -391,6 +435,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
     return result
   } catch (err: unknown) {
+    if (err instanceof DailyPipelineCapacityError) throw err
     const message = err instanceof Error ? err.message : String(err)
 
     result.success = false

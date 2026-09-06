@@ -1,6 +1,9 @@
 const productFindOne = jest.fn()
 const productFind = jest.fn()
 const userProductFind = jest.fn()
+const userProductCountDocuments = jest.fn()
+const userCountDocuments = jest.fn()
+const tagRuleCountDocuments = jest.fn()
 const pipelineExecutionCreate = jest.fn()
 const executeSyncAndPreparationSteps = jest.fn()
 const captureSnapshot = jest.fn()
@@ -14,16 +17,24 @@ const syncTestimonialTags = jest.fn()
 
 jest.mock('../../../src/models', () => ({
   Product: { findOne: productFindOne, find: productFind },
-  UserProduct: { find: userProductFind },
+  User: { countDocuments: userCountDocuments },
+  UserProduct: { find: userProductFind, countDocuments: userProductCountDocuments },
+  TagRule: { countDocuments: tagRuleCountDocuments },
   PipelineExecution: { create: pipelineExecutionCreate },
 }))
 jest.mock('../../../src/services/cron/dailyPipelineSyncSteps', () => ({
   executeSyncAndPreparationSteps,
 }))
-jest.mock('../../../src/services/cron/dailyPipelineSupport', () => ({
-  hasPipelineReferences: jest.fn(() => true),
-  logStep: jest.fn(),
-}))
+jest.mock('../../../src/services/cron/dailyPipelineSupport', () => {
+  const actual = jest.requireActual<typeof import('../../../src/services/cron/dailyPipelineSupport')>(
+    '../../../src/services/cron/dailyPipelineSupport',
+  )
+  return {
+    ...actual,
+    hasPipelineReferences: jest.fn(() => true),
+    logStep: jest.fn(),
+  }
+})
 jest.mock('../../../src/services/activeCampaign/testimonialTagSync.service', () => ({
   __esModule: true,
   default: { syncTestimonialTags },
@@ -94,6 +105,9 @@ beforeEach(() => {
   productFindOne.mockReturnValue(query(null))
   productFind.mockReturnValue(query([]))
   userProductFind.mockReturnValue(query([]))
+  userProductCountDocuments.mockResolvedValue(0)
+  userCountDocuments.mockResolvedValue(0)
+  tagRuleCountDocuments.mockResolvedValue(0)
   pipelineExecutionCreate.mockResolvedValue(undefined)
   captureSnapshot.mockResolvedValue(snapshot)
   saveSnapshot.mockResolvedValue('')
@@ -111,13 +125,48 @@ beforeEach(() => {
   syncTestimonialTags.mockResolvedValue({ success: true, stats: { synced: 0 } })
 })
 
-test('processes every active UserProduct because the full pipeline has no aggregate cap', async () => {
+test('processes every active UserProduct within the reviewed finite cap', async () => {
   userProductFind.mockReturnValue(query(userProducts(201)))
 
   const result = await executeDailyPipeline()
 
   expect(result.steps.evaluateTagRules.stats).toMatchObject({ total: 201, failed: 0 })
   expect(orchestrateUserProduct).toHaveBeenCalledTimes(201)
+})
+
+test('fails closed before effects when the preflight universe exceeds the cap', async () => {
+  userProductCountDocuments.mockResolvedValue(20_001)
+
+  await expect(executeDailyPipeline()).rejects.toMatchObject({
+    code: 'SYNC_PIPELINE_CAP_EXCEEDED',
+    status: 413,
+  })
+  expect(executeSyncAndPreparationSteps).not.toHaveBeenCalled()
+  expect(orchestrateUserProduct).not.toHaveBeenCalled()
+})
+
+test('dryRun returns a plan without provider, mutation, snapshot or history effects', async () => {
+  userProductCountDocuments.mockResolvedValue(12)
+  userCountDocuments.mockResolvedValue(3)
+
+  const result = await executeDailyPipeline({ dryRun: true })
+
+  expect(result).toMatchObject({
+    dryRun: true,
+    success: true,
+    plan: {
+      operation: 'daily-pipeline',
+      dryRun: true,
+      withinLimit: true,
+      activeUserProducts: 12,
+      testimonialUsers: 3,
+    },
+  })
+  expect(executeSyncAndPreparationSteps).not.toHaveBeenCalled()
+  expect(captureSnapshot).not.toHaveBeenCalled()
+  expect(orchestrateUserProduct).not.toHaveBeenCalled()
+  expect(syncTestimonialTags).not.toHaveBeenCalled()
+  expect(pipelineExecutionCreate).not.toHaveBeenCalled()
 })
 
 test('marks the full pipeline partial when one provider orchestration fails', async () => {

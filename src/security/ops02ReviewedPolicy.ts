@@ -239,10 +239,17 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
     'POST /api/sync/execute-pipeline',
     {
-      cap: { status: 'required', reason: 'sync-pipeline-no-finite-cap' },
-      idempotency: { status: 'required', reason: 'sync-pipeline-no-run-lock' },
-      killSwitch: { status: 'required', reason: 'sync-pipeline-no-unified-kill-switch' },
-      dryRun: { status: 'required', reason: 'sync-pipeline-no-dry-run' },
+      cap: {
+        status: 'verified',
+        reason: 'daily-pipeline-preflight-and-provider-max-items',
+        limit: MAX_PROVIDER_READ_ITEMS,
+      },
+      idempotency: {
+        status: 'verified',
+        reason: 'composite-execution-durable-receipt-and-owner-fence',
+      },
+      killSwitch: { status: 'verified', reason: 'SYNC_MUTABLE_EXECUTION_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
     },
   ],
   [

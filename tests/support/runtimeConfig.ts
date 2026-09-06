@@ -10,6 +10,7 @@ export function createTestRuntimeConfig(options: {
   serverVersion?: string
   metricsEnabled?: boolean
   activeCampaignProductTagsEnabled?: boolean
+  syncMutableExecutionEnabled?: boolean
 } = {}): AppConfig {
   const nodeEnv = options.nodeEnv ?? 'test'
   const core = {
@@ -22,6 +23,7 @@ export function createTestRuntimeConfig(options: {
     acWebhookSecret: 'test-only-ac-webhook-secret-at-least-32-characters',
     authEnforce: true,
     enableDebugRoutes: false,
+    syncMutableExecutionEnabled: options.syncMutableExecutionEnabled ?? false,
     allowedOrigins: ['http://localhost:3000'],
     port: 3001,
   }

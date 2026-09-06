@@ -5,6 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
+import { randomUUID } from 'node:crypto'
 import schedule from 'node-schedule'
 import CronJobConfig, {
   ICronJobConfig,
@@ -16,9 +17,21 @@ import { SchedulerRegistry } from './registry'
 import { cronExpressionService } from './cronExpression'
 import { cronJobDispatcher } from './jobDispatcher'
 import { CronJobExecutor } from './jobExecution'
+import type { CronExecutionPhaseHooks } from './executionPhases'
 import { createLoggingCronNotification } from './notificationPort'
 import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
+import { isSyncMutableExecutionEnabled } from '../../requestDrivenRuntimeConfig'
+import { isScheduledMessagesEnabled } from '../../renewal/discordScheduledMessages.service'
+import { HttpError } from '../../../security/errorHandling'
+import {
+  compositeExecutionFingerprint,
+  runCompositeExecutionWithReceipt,
+} from '../compositeExecution.service'
+import {
+  cronManualFingerprintPayload,
+  getCronManualCapability,
+} from './manualCapabilities'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 
@@ -29,7 +42,7 @@ const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const registry = new SchedulerRegistry()
 const notificationPort = createLoggingCronNotification(logger)
 const defaultCronJobExecutor = new CronJobExecutor({
-  dispatch: job => cronJobDispatcher.execute(job),
+  dispatch: (job, options) => cronJobDispatcher.execute(job, options),
   saveHistory: async entry => {
     const completedAt = new Date()
     const startedAt = new Date(completedAt.getTime() - entry.duration * 1000)
@@ -264,18 +277,64 @@ const job = await CronJobConfig.create({
 
   async executeJobManually(
     jobId: mongoose.Types.ObjectId,
-    _triggeredBy: mongoose.Types.ObjectId
+    triggeredBy: mongoose.Types.ObjectId,
+    options: {
+      actorId?: string
+      requestId?: string
+      dryRun?: boolean
+    } = {},
   ): Promise<CronExecutionResult> {
-    void _triggeredBy
     const job = await CronJobConfig.findById(jobId)
     if (!job) throw new Error('Job não encontrado')
     if (this.isProtectedJob(job)) {
       throw new Error('Job protegido: ClarezaRefresh nao permite execucao manual')
     }
 
-    return this.jobExecutor.execute(job, {
-      triggeredBy: 'MANUAL',
-      isolateRecordFailure: true
+    const capability = getCronManualCapability(job)
+    if (capability.status === 'blocked') {
+      throw new HttpError({
+        status: 503,
+        code: 'CRON_JOB_CAPABILITY_BLOCKED',
+        publicMessage: capability.blockedReason || `Capability manual ${capability.id} bloqueada`,
+      })
+    }
+
+    if (options.dryRun === true) {
+      return this.jobExecutor.execute(job, {
+        triggeredBy: 'MANUAL',
+        isolateRecordFailure: true,
+        dryRun: true,
+      })
+    }
+
+    if (capability.id === 'daily-pipeline' && !isSyncMutableExecutionEnabled()) {
+      throw new HttpError({
+        status: 503,
+        code: 'SYNC_PIPELINE_EXECUTION_DISABLED',
+        publicMessage: 'Execução mutável do pipeline desativada',
+      })
+    }
+    if (capability.id === 'discord-scheduled-messages' && !isScheduledMessagesEnabled()) {
+      throw new HttpError({
+        status: 503,
+        code: 'CRON_DISCORD_SCHEDULED_MESSAGES_DISABLED',
+        publicMessage: 'Mensagens Discord agendadas desativadas',
+      })
+    }
+
+    const actorId = options.actorId ?? triggeredBy.toString()
+    const requestId = options.requestId ?? randomUUID()
+    return runCompositeExecutionWithReceipt({
+      operation: capability.operation,
+      identity: capability.identity(job),
+      actorId,
+      fingerprint: compositeExecutionFingerprint(actorId, cronManualFingerprintPayload(job)),
+      requestId,
+      run: (phaseHooks: CronExecutionPhaseHooks) => this.jobExecutor.execute(job, {
+        triggeredBy: 'MANUAL',
+        isolateRecordFailure: true,
+        phaseHooks,
+      }),
     })
   }
   // GET JOBS

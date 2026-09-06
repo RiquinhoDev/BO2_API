@@ -43,7 +43,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:166",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:168",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:49",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:78",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:99",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:128",
     "frontConsumer": null
   },
   {
@@ -3708,7 +3708,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:76",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:78",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3720,7 +3720,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:208",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:210",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3732,7 +3732,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:246",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:257",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -4389,7 +4389,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/operations.controller.ts:229",
+    "evidence": "src/controllers/sync/operations.controller.ts:278",
     "frontConsumer": null
   },
   {
@@ -4400,7 +4400,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/operations.controller.ts:256",
+    "evidence": "src/controllers/sync/operations.controller.ts:305",
     "frontConsumer": null
   },
   {
@@ -4411,7 +4411,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/operations.controller.ts:36",
+    "evidence": "src/controllers/sync/operations.controller.ts:72",
     "frontConsumer": null
   },
   {
@@ -4446,7 +4446,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/operations.controller.ts:116",
+    "evidence": "src/controllers/sync/operations.controller.ts:165",
     "frontConsumer": null
   },
   {
@@ -4457,7 +4457,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/sync/operations.controller.ts:146",
+    "evidence": "src/controllers/sync/operations.controller.ts:195",
     "frontConsumer": null
   },
   {
@@ -4821,7 +4821,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:134",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:136",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {

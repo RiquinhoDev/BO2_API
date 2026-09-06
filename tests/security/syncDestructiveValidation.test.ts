@@ -24,7 +24,9 @@ jest.mock('../../src/controllers/sync.controller', () => {
     __esModule: true,
     ...Object.fromEntries(names.map((name) => [
       name,
-      jest.fn((_input, res) => res.status(204).end()),
+      name === 'executePipeline'
+        ? jest.fn((_input, _req, res) => res.status(204).end())
+        : jest.fn((_input, res) => res.status(204).end()),
     ])),
   }
 })
@@ -79,6 +81,10 @@ function callRoute(
 
 test.each(routes)('$name accepts its explicit DTO', async (route) => {
   await callRoute(route).expect(204)
+})
+
+test('execute the sync pipeline accepts the explicit dryRun control', async () => {
+  await callRoute(routes[0], { dryRun: true }).expect(204)
 })
 
 test.each(routes)('$name rejects an extra role field', async (route) => {

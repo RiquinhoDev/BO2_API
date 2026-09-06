@@ -38,6 +38,10 @@ export function isActiveCampaignTagMutationEnabled(): boolean {
   return integration.configured && integration.value.tagApplyEnabled === true
 }
 
+export function isSyncMutableExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.syncMutableExecutionEnabled === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

@@ -17,6 +17,7 @@ export interface CoreConfig {
   readonly acWebhookSecret: string
   readonly authEnforce: boolean
   readonly enableDebugRoutes: boolean
+  readonly syncMutableExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }
