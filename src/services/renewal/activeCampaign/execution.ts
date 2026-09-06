@@ -23,6 +23,7 @@ import {
 } from '../hotmartRefunds.service'
 import {
   APPROVED_TTL_HOURS,
+  assertPlanInputsWithinCap,
   expireStaleChanges,
   expiryFieldId,
   generatePlan,
@@ -101,7 +102,6 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
   const statuses = options.includePlanned ? ['APPROVED', 'PLANNED'] : ['APPROVED']
   const query: RenewalChangeQuery = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
-
   const cap = maxChangesPerRun()
   const readCandidates = () => RenewalAcChange.find(query)
     .sort({ status: 1, plannedAt: 1, _id: 1 })
@@ -109,7 +109,7 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
     .exec() as Promise<IRenewalAcChange[]>
   if (options.strictCap) {
     options.phaseHooks?.assertOwnership?.()
-    await preflightExecutionCapacity()
+    await preflightExecutionCapacity(query)
   }
   await expireStaleChanges(options.phaseHooks)
 
@@ -448,7 +448,6 @@ export async function runRenewalAcSyncJob(options: RenewalAcJobOptions = {}): Pr
       publicMessage: 'Plano Renewal AC excede o limite de leitura permitido',
     })
   }
-
   let refundDetection: RefundDetectionReport | null = null
   let preparedRefundDetection: PreparedRefundDetection | null = null
   if (isProcessRefundsEnabled()) {
@@ -463,15 +462,16 @@ export async function runRenewalAcSyncJob(options: RenewalAcJobOptions = {}): Pr
       logger.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', errorText(error))
     }
   }
-
   const planInputs = preparedRefundDetection
     ? mergePreparedRefunds(preparedInputs, preparedRefundDetection.refundedUps)
     : preparedInputs
+  assertPlanInputsWithinCap(planInputs)
   if (options.strictCap) {
     const previewPlan = await generatePlan(26, { dryRun: true, preparedInputs: planInputs })
-    if (!previewPlan.anomalyAborted) await preflightExecutionCapacity(previewPlan.planned)
+    if (!previewPlan.anomalyAborted) {
+      await preflightExecutionCapacity({ status: { $in: ['APPROVED', 'PLANNED'] } }, previewPlan.planned)
+    }
   }
-
   if (preparedRefundDetection) {
     refundDetection = await applyHotmartRefunds(preparedRefundDetection, { phaseHooks: options.phaseHooks })
   }

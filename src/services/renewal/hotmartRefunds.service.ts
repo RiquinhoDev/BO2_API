@@ -247,7 +247,6 @@ export async function prepareHotmartRefunds(windowDays: number = 30): Promise<Pr
       userId: { $in: userIds },
       productId: ogiObjectId,
       platform: 'hotmart',
-      'platformData.renewalAc.appliedTurmaTag': { $exists: true, $ne: null },
     })
       .sort({ 'metadata.refundedAt': 1, _id: 1 })
       .limit(MAX_RENEWAL_REFUND_SALES + 1)

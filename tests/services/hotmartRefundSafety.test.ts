@@ -139,3 +139,37 @@ test('refund preparation exposes newly detected UserProducts before apply', asyn
   await applyHotmartRefunds(prepared)
   expect(mockUserProductUpdateOne).toHaveBeenCalledTimes(1)
 })
+
+test('refund preparation marks eligible UserProducts even without a prior AC tag', async () => {
+  mockAxiosGet.mockResolvedValue({
+    data: {
+      items: [{
+        purchase: {
+          product: { id: 'hotmart-product' },
+          buyer: { email: 'buyer@example.test' },
+          transaction: 'transaction-no-tag',
+          approved_date: 1_700_000_000_000,
+        },
+      }],
+    },
+  })
+  mockUserFind.mockReturnValue(query([{ _id: 'user-id', email: 'buyer@example.test' }]))
+  const userProduct = {
+    _id: 'up-no-tag',
+    userId: 'user-id',
+    metadata: { refunded: false },
+    platformData: { renewalAc: {} },
+  }
+  mockUserProductFind.mockImplementation((filter: Record<string, unknown>) =>
+    filter['platformData.renewalAc.appliedTurmaTag'] ? query([]) : query([userProduct]))
+
+  const prepared = await prepareHotmartRefunds()
+
+  expect(prepared.refundedUps).toHaveLength(1)
+  expect(prepared.report.newlyMarked).toBe(1)
+  await applyHotmartRefunds(prepared)
+  expect(mockUserProductUpdateOne).toHaveBeenCalledWith(
+    expect.objectContaining({ userId: 'user-id' }),
+    expect.objectContaining({ $set: expect.objectContaining({ 'metadata.refunded': true }) }),
+  )
+})

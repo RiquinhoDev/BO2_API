@@ -2,9 +2,17 @@ import RenewalAcChange from '../../../models/RenewalAcChange'
 import { HttpError } from '../../../security/errorHandling'
 import { maxChangesPerRun } from './planning'
 
-export async function preflightExecutionCapacity(projectedPlanned = 0): Promise<void> {
+export interface ExecutionCapacityQuery {
+  status: { $in: string[] }
+  planBatchId?: string
+}
+
+export async function preflightExecutionCapacity(
+  query: ExecutionCapacityQuery,
+  projectedPlanned = 0,
+): Promise<void> {
   const cap = maxChangesPerRun()
-  const candidates = await RenewalAcChange.find({ status: { $in: ['APPROVED', 'PLANNED'] } })
+  const candidates = await RenewalAcChange.find(query)
     .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(cap + 1)
     .exec()

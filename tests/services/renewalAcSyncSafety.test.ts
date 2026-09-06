@@ -47,7 +47,11 @@ jest.mock('../../src/config/runtimeConfig', () => ({
   }),
 }))
 
-import { generatePlan } from '../../src/services/renewal/activeCampaign/planning'
+import {
+  generatePlan,
+  mergePreparedRefunds,
+  type PlanInput,
+} from '../../src/services/renewal/activeCampaign/planning'
 
 function query<T>(result: T) {
   const chain = {
@@ -103,6 +107,39 @@ test('live planning rejects the history sentinel before any local mutation', asy
   await expect(generatePlan(26)).rejects.toMatchObject({
     status: 413,
     code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
+  })
+  expect(mockRenewalAcChange.create).not.toHaveBeenCalled()
+})
+
+test('mergePreparedRefunds deduplicates and re-caps combined bounded inputs', async () => {
+  const refund = (index: number) => ({
+    userId: `user-${index}` as never,
+    metadata: { refunded: true, refundedAt: new Date(1_700_000_000_000 + index) },
+    platformData: { renewalAc: { appliedTurmaTag: `Aluno OGI${index} - Turma 10` } },
+  })
+  const inputs: PlanInput = {
+    ogiId: null,
+    changes: [],
+    refundedUps: Array.from({ length: MAX_PROVIDER_READ_ITEMS }, (_, index) => refund(index)),
+    refundedUserIds: Array.from({ length: MAX_PROVIDER_READ_ITEMS }, (_, index) => `user-${index}`),
+    truncated: false,
+    remaining: 0,
+  }
+  const additional = Array.from({ length: MAX_PROVIDER_READ_ITEMS }, (_, index) => refund(index + MAX_PROVIDER_READ_ITEMS / 2))
+
+  const merged = mergePreparedRefunds(inputs, additional)
+
+  expect(merged.refundedUps).toHaveLength(MAX_PROVIDER_READ_ITEMS)
+  expect(merged.truncated).toBe(true)
+  expect(merged.remaining).toBeGreaterThanOrEqual(1)
+  await expect(generatePlan(26, { preparedInputs: merged })).rejects.toMatchObject({
+    status: 413,
+    code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
+  })
+  await expect(generatePlan(26, { dryRun: true, preparedInputs: merged })).resolves.toMatchObject({
+    dryRun: true,
+    truncated: true,
+    remaining: expect.any(Number),
   })
   expect(mockRenewalAcChange.create).not.toHaveBeenCalled()
 })

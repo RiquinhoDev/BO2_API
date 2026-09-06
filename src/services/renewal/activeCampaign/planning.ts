@@ -201,23 +201,46 @@ export interface PlanInput {
   truncated: boolean
   remaining: number
 }
-
 export function mergePreparedRefunds(
   inputs: PlanInput,
   additionalRefundedUps: PlanInput['refundedUps'],
 ): PlanInput {
-  const seen = new Set(inputs.refundedUps.map((up) => String(up.userId)))
-  const merged = [...inputs.refundedUps]
-  const refundedUserIds = new Set(inputs.refundedUserIds)
-  for (const refundedUp of additionalRefundedUps) {
-    if (seen.has(String(refundedUp.userId))) continue
-    seen.add(String(refundedUp.userId))
-    refundedUserIds.add(String(refundedUp.userId))
-    merged.push(refundedUp)
+  const candidates = [...inputs.refundedUps, ...additionalRefundedUps].sort((left, right) => {
+    const leftTime = left.metadata?.refundedAt?.getTime() || 0
+    const rightTime = right.metadata?.refundedAt?.getTime() || 0
+    if (leftTime !== rightTime) return leftTime - rightTime
+    const leftId = String(left.userId)
+    const rightId = String(right.userId)
+    if (leftId !== rightId) return leftId < rightId ? -1 : 1
+    const leftTag = left.platformData?.renewalAc?.appliedTurmaTag || ''
+    const rightTag = right.platformData?.renewalAc?.appliedTurmaTag || ''
+    return leftTag < rightTag ? -1 : leftTag > rightTag ? 1 : 0
+  })
+  const byUserId = new Map<string, PlanInput['refundedUps'][number]>()
+  for (const refundedUp of candidates) {
+    const userId = String(refundedUp.userId)
+    if (!byUserId.has(userId)) byUserId.set(userId, refundedUp)
   }
-  return { ...inputs, refundedUps: merged, refundedUserIds: [...refundedUserIds] }
+  const merged = [...byUserId.values()]
+  const allRefundedUserIds = [...new Set([
+    ...inputs.refundedUserIds,
+    ...merged.map((refundedUp) => String(refundedUp.userId)),
+  ])].sort()
+  const truncated = inputs.truncated
+    || merged.length > MAX_RENEWAL_PLAN_INPUTS
+    || allRefundedUserIds.length > MAX_RENEWAL_PLAN_INPUTS
+  const overflow = Math.max(
+    merged.length - MAX_RENEWAL_PLAN_INPUTS,
+    allRefundedUserIds.length - MAX_RENEWAL_PLAN_INPUTS,
+  )
+  return {
+    ...inputs,
+    refundedUps: merged.slice(0, MAX_RENEWAL_PLAN_INPUTS),
+    refundedUserIds: allRefundedUserIds.slice(0, MAX_RENEWAL_PLAN_INPUTS),
+    truncated,
+    remaining: truncated ? Math.max(1, inputs.remaining, overflow) : 0,
+  }
 }
-
 export interface GeneratePlanOptions {
   dryRun?: boolean
   phaseHooks?: CronExecutionPhaseHooks
@@ -230,6 +253,10 @@ function capExceeded(): HttpError {
     code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
     publicMessage: 'Plano Renewal AC excede o limite de leitura permitido',
   })
+}
+
+export function assertPlanInputsWithinCap(inputs: PlanInput): void {
+  if (inputs.truncated) throw capExceeded()
 }
 
 export async function preparePlanInputs(windowHours: number): Promise<PlanInput> {
@@ -250,7 +277,6 @@ export async function preparePlanInputs(windowHours: number): Promise<PlanInput>
       productId: ogiId,
       platform: 'hotmart',
       'metadata.refunded': true,
-      'platformData.renewalAc.appliedTurmaTag': { $exists: true, $ne: null }
     })
       .sort({ 'metadata.refundedAt': 1, _id: 1 })
       .limit(MAX_RENEWAL_PLAN_INPUTS + 1)
@@ -278,7 +304,7 @@ export async function generatePlan(
   const batchId = `plan-${new Date().toISOString().replace(/[:.]/g, '-')}`
   const dryRun = options.dryRun === true
   const inputs = options.preparedInputs ?? await preparePlanInputs(windowHours)
-  if (inputs.truncated && !dryRun) throw capExceeded()
+  if (inputs.truncated && !dryRun) assertPlanInputsWithinCap(inputs)
   const { ogiId } = inputs
 
   const report: PlanReport = {

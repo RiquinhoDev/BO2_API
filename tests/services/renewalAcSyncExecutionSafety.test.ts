@@ -83,6 +83,7 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
 }))
 
 import { executeManualPlan, executePlan, runRenewalAcSyncJob } from '../../src/services/renewal/activeCampaign/execution'
+import { MAX_PROVIDER_READ_ITEMS } from '../../src/security/providerReadBatchPolicy'
 
 function query<T>(result: T) {
   const chain = {
@@ -191,6 +192,32 @@ test('strict manual execution rejects an over-cap candidate sentinel before expi
   expect(mockUpdateContactField).not.toHaveBeenCalled()
 })
 
+test('strict direct execution scopes preflight to effective status and batch filters', async () => {
+  const selected = {
+    _id: 'selected-change',
+    email: 'student@example.test',
+    action: 'UPDATE_EXPIRY',
+    status: 'APPROVED',
+    planBatchId: 'batch-safe',
+    payload: { fieldId: 332, after: '2026-10-01' },
+  }
+  const unrelated = Array.from({ length: 50 }, (_, index) => ({
+    ...selected,
+    _id: `unrelated-${index}`,
+    status: 'PLANNED',
+    planBatchId: 'other-batch',
+  }))
+  mockChange.find.mockImplementation((filter: { planBatchId?: string }) =>
+    query(filter.planBatchId ? [selected] : [...unrelated, selected]))
+
+  await expect(executePlan({
+    includePlanned: false,
+    batchId: 'batch-safe',
+    executedBy: 'manual@example.test',
+    strictCap: true,
+  })).resolves.toMatchObject({ attempted: 1 })
+})
+
 test('strict Renewal AC job preflights existing and projected candidates before any mutation', async () => {
   autoExecuteEnabled = true
   const overCap = Array.from({ length: 50 }, (_, index) => ({
@@ -259,6 +286,28 @@ test('prepared refunds participate in the same Renewal AC plan before persistenc
     source: 'REFUND',
     action: 'REMOVE_TAG',
   }))
+})
+
+test('scheduled Renewal AC rejects an over-cap merged refund input before local writes', async () => {
+  processRefundsEnabled = true
+  mockPrepareHotmartRefunds.mockResolvedValue({
+    report: { windowDays: 30, salesChecked: 1, refundsFound: MAX_PROVIDER_READ_ITEMS + 1, newlyMarked: 0, alreadyMarked: 0, usersNotFound: 0, refunds: [] },
+    ogiObjectId: 'ogi-id',
+    refundedUps: Array.from({ length: MAX_PROVIDER_READ_ITEMS + 1 }, (_, index) => ({
+      userId: `refund-user-${index}`,
+      metadata: { refunded: true, refundedAt: new Date(1_700_000_000_000 + index) },
+      platformData: { renewalAc: {} },
+    })),
+    pendingMarks: [],
+  })
+
+  await expect(runRenewalAcSyncJob()).rejects.toMatchObject({
+    status: 413,
+    code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
+  })
+  expect(mockApplyHotmartRefunds).not.toHaveBeenCalled()
+  expect(mockChange.updateMany).not.toHaveBeenCalled()
+  expect(mockChange.create).not.toHaveBeenCalled()
 })
 
 test('APPLY_TAG fences both local bookkeeping writes', async () => {
