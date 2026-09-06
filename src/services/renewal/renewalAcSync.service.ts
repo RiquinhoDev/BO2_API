@@ -6,6 +6,7 @@ import {
   approveChanges,
   executePlan,
   executeManualPlan,
+  getRenewalAcManualExecution,
   getRenewalAcStatus,
   revertChange,
   runRenewalAcSyncJob
@@ -20,5 +21,6 @@ export default {
   revertChange,
   expireStaleChanges,
   getRenewalAcStatus,
+  getRenewalAcManualExecution,
   runRenewalAcSyncJob
 }

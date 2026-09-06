@@ -9,6 +9,7 @@ import {
 } from '../../cron/compositeExecution.service'
 import {
   cronManualFingerprintPayload,
+  cronManualExecutionView,
   getCronManualCapability,
   type CronManualCapabilityJob,
 } from '../../cron/scheduler/manualCapabilities'
@@ -414,6 +415,14 @@ export async function getRenewalAcStatus() {
     lastPlanBatchId: lastPlanned?.planBatchId || null,
     lastPlannedAt: lastPlanned?.plannedAt || null
   }
+}
+
+export function getRenewalAcManualExecution() {
+  return cronManualExecutionView({
+    _id: { toString: () => 'renewal-ac-sync-status' },
+    name: 'RenewalAcSync',
+    syncType: 'hotmart',
+  }, isManualExecutionEnabled())
 }
 
 export interface RenewalAcCronReport {

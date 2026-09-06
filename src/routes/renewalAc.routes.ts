@@ -24,7 +24,7 @@ import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service
 import {
   approveChanges,
   executeManualPlan,
-  generatePlan,
+  generatePlan, getRenewalAcManualExecution,
   getRenewalAcStatus,
   revertChange
 } from '../services/renewal/renewalAcSync.service'
@@ -46,7 +46,7 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
     .lean()
     .exec()
 
-  res.json({ success: true, data: { ...status, cronJob: cronJob || null } })
+  res.json({ success: true, data: { ...status, cronJob: cronJob || null, manualExecution: getRenewalAcManualExecution() } })
 }))
 
 /**

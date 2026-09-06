@@ -4,6 +4,19 @@ import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
+const mockCronFindOne = jest.fn()
+const mockManualExecution = {
+  capability: 'renewal-ac-sync',
+  status: 'implemented',
+  cap: {
+    status: 'verified',
+    reason: 'renewal-ac-sync-max-planning-and-refund-inputs',
+    limit: 20_000,
+  },
+  dryRunSupported: true,
+  mutableEnabled: false,
+  blockedReason: 'Execução mutável desativada pelo backend',
+}
 
 jest.mock('../../src/services/renewal/renewalAcSync.service', () => ({
   approveChanges: jest.fn(async () => 0),
@@ -17,7 +30,9 @@ jest.mock('../../src/services/renewal/renewalAcSync.service', () => ({
     masterEnabled: true,
   })),
   generatePlan: jest.fn(async () => ({ anomalyAborted: false })),
+  getRenewalAcManualExecution: jest.fn(() => mockManualExecution),
   getRenewalAcStatus: jest.fn(async () => ({})),
+  isManualExecutionEnabled: jest.fn(() => false),
   revertChange: jest.fn(async () => ({
     success: true,
     message: 'reverted offline',
@@ -35,7 +50,7 @@ jest.mock('../../src/models/RenewalAcChange', () => ({
 
 jest.mock('../../src/models/SyncModels/CronJobConfig', () => ({
   __esModule: true,
-  default: {},
+  default: { findOne: mockCronFindOne },
 }))
 
 import renewalAcRouter from '../../src/routes/renewalAc.routes'
@@ -49,6 +64,20 @@ const renewalAcService = jest.requireMock(
 
 const marker = { __bo2_offline_loopback: '1' }
 const objectId = '507f1f77bcf86cd799439011'
+
+function nullCronQuery() {
+  return {
+    select: () => ({
+      lean: () => ({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    }),
+  }
+}
+
+beforeEach(() => {
+  mockCronFindOne.mockReturnValue(nullCronQuery())
+})
 
 type DestructiveRoute = {
   name: string
@@ -145,4 +174,24 @@ test('revert rejects an invalid ObjectId at the boundary', async () => {
     .query(marker)
     .send({ actor: 'reviewer@example.test' })
     .expect(400)
+})
+
+test('renewal AC status exposes canonical backend-owned manual execution metadata', async () => {
+  const response = await request(buildApp())
+    .get('/api/renewal-ac/status')
+    .query(marker)
+    .expect(200)
+
+  expect(response.body.data.manualExecution).toEqual({
+    capability: 'renewal-ac-sync',
+    status: 'implemented',
+    cap: {
+      status: 'verified',
+      reason: 'renewal-ac-sync-max-planning-and-refund-inputs',
+      limit: 20_000,
+    },
+    dryRunSupported: true,
+    mutableEnabled: false,
+    blockedReason: 'Execução mutável desativada pelo backend',
+  })
 })
