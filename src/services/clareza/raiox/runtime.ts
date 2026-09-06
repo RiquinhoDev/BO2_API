@@ -26,8 +26,12 @@ import {
   RAIOX_UNIVERSE,
   sleep
 } from './data'
-export async function refreshClarezaRaioxData(): Promise<{ total: number; errors: number }> {
+import type { ClarezaRefreshPhaseHooks } from '../clarezaRefreshExecution.service'
+export async function refreshClarezaRaioxData(
+  hooks?: ClarezaRefreshPhaseHooks,
+): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
+  hooks?.providerStarted()
 
   logger.info(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
 
@@ -40,6 +44,7 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
   })
   const spyHist = compressHist(spyRaw ?? [])
 
+  hooks?.localMutationStarted()
   await cacheService.set(RAIOX_SECTORPE_KEY, sectorPe, RAIOX_TTL)
   await cacheService.set(RAIOX_SPY_KEY, spyHist, RAIOX_TTL)
 
@@ -77,6 +82,7 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
       logger.error(`❌ [Raiox] Erro em ${stock.ticker}:`, errorMessage(error))
     }
   }
+  hooks?.providerSucceeded()
 
   await cacheService.set(RAIOX_INDEX_KEY, index, RAIOX_TTL)
 

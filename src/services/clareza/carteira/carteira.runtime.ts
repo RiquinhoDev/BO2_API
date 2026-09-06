@@ -5,6 +5,7 @@ import { AxiosFmpCarteiraClient } from './fmpCarteiraClient'
 import { CarteiraMetricsFetcher, type Clock } from './carteiraMetrics'
 import { RedisMongoCarteiraStore } from './carteiraStore'
 import { ClarezaCarteiraService } from './carteira.service'
+import type { ClarezaRefreshPhaseHooks } from '../clarezaRefreshExecution.service'
 
 export const CLAREZA_CARTEIRA_CACHE_KEY = 'clareza:carteira-data'
 export const CLAREZA_CARTEIRA_CACHE_TTL = 28800 // 8 hours
@@ -31,8 +32,10 @@ function getService(): ClarezaCarteiraService {
   return service
 }
 
-export function refreshClarezaCarteiraData(): Promise<{ total: number; errors: number }> {
-  return getService().refresh()
+export function refreshClarezaCarteiraData(
+  hooks?: ClarezaRefreshPhaseHooks,
+): Promise<{ total: number; errors: number }> {
+  return getService().refresh(hooks)
 }
 
 export function getClarezaCarteiraData(): Promise<IClarezaCarteiraItem[] | null> {

@@ -23,6 +23,8 @@
 - [ ] Discord bot token válido
 - [ ] Em BD/domínio Railway de teste isolados, validar os receipts Discord: replay canónico por `X-Request-ID`, payload/actor diferente rejeitado, concorrência/fence por regra+mês, lease expirado e falha pós-provider em `indeterminate`; validar `scheduled/run` com cap 50 antes de provider/seed e `dryRun` sem provider/receipts/seed/save
 - [ ] Redis URL configurado (se aplicável)
+- [ ] FMP API key válido; em domínio Railway + BD de teste isolados validar os seis receipts Clareza (`refresh`, `top10`, `raiox`, `carteira`, `earnings`, `comparador`): replay canónico, `X-Request-ID` reutilizado com payload diferente rejeitado, concorrência/fence, lease expirado, falha FMP antes da primeira escrita como retryable e falha local/settlement depois da escrita como `indeterminate`
+- [ ] Confirmar os hooks reais Clareza/FMP: a fence começa na primeira mutação local; os serviços mantêm a ordem existente (Raio-X escreve sector/SPY e caches por ticker enquanto ainda lê FMP) e snapshots Mongo são best-effort. Settlement do receipt só fecha o resultado conhecido; `killSwitch`/`dryRun` ficam `not-applicable` porque FMP é read-only
 
 ### Segurança
 - [ ] Rate limiting ativo

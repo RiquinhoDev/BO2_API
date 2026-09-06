@@ -3,6 +3,7 @@ import type { IClarezaCarteiraItem } from '../../../models/ClarezaCarteiraData'
 import type { CarteiraItem, CarteiraKind } from './carteiraUniverse'
 import type { CarteiraMetricsFetcher, Clock } from './carteiraMetrics'
 import type { CarteiraStore } from './carteiraStore'
+import type { ClarezaRefreshPhaseHooks } from '../clarezaRefreshExecution.service'
 
 interface CarteiraSearchResult {
   ticker: string
@@ -56,11 +57,12 @@ export class ClarezaCarteiraService {
     private readonly config: CarteiraServiceConfig,
   ) {}
 
-  async refresh(): Promise<{ total: number; errors: number }> {
+  async refresh(hooks?: ClarezaRefreshPhaseHooks): Promise<{ total: number; errors: number }> {
     // Fail-closed on missing canonical FMP config — never a real-key fallback.
     if (!this.config.fmpConfigured) {
       throw new Error('FMP_API_KEY nao configurada')
     }
+    hooks?.providerStarted()
 
     let errors = 0
     const results = await runWithConcurrency<IClarezaCarteiraItem>(
@@ -76,7 +78,9 @@ export class ClarezaCarteiraService {
       }),
       this.config.concurrency,
     )
+    hooks?.providerSucceeded()
 
+    hooks?.localMutationStarted()
     await this.store.writeCache(results, this.config.cacheTtl)
 
     try {

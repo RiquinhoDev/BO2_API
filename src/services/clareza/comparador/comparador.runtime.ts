@@ -10,6 +10,7 @@ import {
 } from './comparadorFmpClient'
 import { MongooseComparadorSnapshotRepository, RedisMongoComparadorStore } from './comparadorStore'
 import { createComparadorService } from './comparador.service'
+import type { ClarezaRefreshPhaseHooks } from '../clarezaRefreshExecution.service'
 
 const COMPARADOR_CACHE_KEY = 'clareza:comparador:v1'
 const COMPARADOR_CACHE_TTL_SECONDS = 90000
@@ -52,5 +53,9 @@ const service = createComparadorService({
 
 export const getComparadorSymbols = service.getComparadorSymbols
 export const searchComparador = service.searchComparador
-export const refreshComparadorSymbols = service.refreshComparadorSymbols
-export const refreshClarezaComparadorData = service.refreshClarezaComparadorData
+export const refreshComparadorSymbols = (
+  rawSymbols: string,
+  hooks?: ClarezaRefreshPhaseHooks,
+) => service.refreshComparadorSymbols(rawSymbols, hooks)
+export const refreshClarezaComparadorData = (hooks?: ClarezaRefreshPhaseHooks) =>
+  service.refreshClarezaComparadorData(hooks)

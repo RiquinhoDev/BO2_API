@@ -597,7 +597,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:247",
+    "evidence": "src/controllers/clarezaController.ts:302",
     "frontConsumer": null
   },
   {
@@ -605,7 +605,7 @@
     "path": "/api/clareza/carteira/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:236",
+    "evidence": "src/controllers/clarezaController.ts:291",
     "frontConsumer": null
   },
   {
@@ -619,7 +619,7 @@
       "results",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaController.ts:307",
+    "evidence": "src/controllers/clarezaController.ts:372",
     "frontConsumer": null
   },
   {
@@ -627,7 +627,7 @@
     "path": "/api/clareza/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:32",
+    "evidence": "src/controllers/clarezaController.ts:72",
     "frontConsumer": null
   },
   {
@@ -640,7 +640,7 @@
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaController.ts:261",
+    "evidence": "src/controllers/clarezaController.ts:316",
     "frontConsumer": null
   },
   {
@@ -652,7 +652,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:163",
+    "evidence": "src/controllers/clarezaController.ts:213",
     "frontConsumer": null
   },
   {
@@ -665,7 +665,7 @@
       "results",
       "tested"
     ],
-    "evidence": "src/controllers/clarezaController.ts:205",
+    "evidence": "src/controllers/clarezaController.ts:255",
     "frontConsumer": null
   },
   {
@@ -677,7 +677,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:194",
+    "evidence": "src/controllers/clarezaController.ts:244",
     "frontConsumer": null
   },
   {
@@ -685,7 +685,7 @@
     "path": "/api/clareza/raiox/:ticker",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:144",
+    "evidence": "src/controllers/clarezaController.ts:194",
     "frontConsumer": null
   },
   {
@@ -774,7 +774,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:94",
+    "evidence": "src/controllers/clarezaController.ts:139",
     "frontConsumer": null
   },
   {
@@ -857,7 +857,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:79",
+    "evidence": "src/controllers/clarezaController.ts:124",
     "frontConsumer": null
   },
   {
@@ -939,7 +939,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:109",
+    "evidence": "src/controllers/clarezaController.ts:154",
     "frontConsumer": null
   },
   {
@@ -947,7 +947,7 @@
     "path": "/api/clareza/top10",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:67",
+    "evidence": "src/controllers/clarezaController.ts:112",
     "frontConsumer": null
   },
   {
@@ -3477,7 +3477,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:294",
+    "evidence": "src/controllers/clarezaController.ts:359",
     "frontConsumer": null
   },
   {
@@ -3488,7 +3488,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:342",
+    "evidence": "src/controllers/clarezaController.ts:414",
     "frontConsumer": null
   },
   {
@@ -3499,7 +3499,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:278",
+    "evidence": "src/controllers/clarezaController.ts:338",
     "frontConsumer": null
   },
   {
@@ -3510,7 +3510,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:222",
+    "evidence": "src/controllers/clarezaController.ts:277",
     "frontConsumer": null
   },
   {
@@ -3521,7 +3521,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:49",
+    "evidence": "src/controllers/clarezaController.ts:94",
     "frontConsumer": null
   },
   {
@@ -3532,7 +3532,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:130",
+    "evidence": "src/controllers/clarezaController.ts:180",
     "frontConsumer": null
   },
   {

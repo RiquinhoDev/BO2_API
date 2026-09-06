@@ -76,7 +76,7 @@ const clarezaRefreshes: readonly [string, number, string, string, string, string
 
 describe('OPS-02 mixed provider-read wave three protections', () => {
   test.each(clarezaRefreshes)(
-    '%s records the finite Clareza universe cap but keeps replay hardening open',
+    '%s records the finite Clareza universe cap and durable replay fence',
     (route, limit, file, capMarker, replayMarker, writeFile, writeMarker) => {
       const [method, pathName] = route.split(' ', 2)
       const result = decision(method ?? '', pathName ?? '')
@@ -92,8 +92,8 @@ describe('OPS-02 mixed provider-read wave three protections', () => {
         limit,
       })
       expect(result.idempotency).toEqual({
-        status: 'required',
-        reason: 'local-reconciliation-replay-unverified',
+        status: 'verified',
+        reason: 'clareza-refresh-durable-receipt-and-local-write-fence',
       })
       expect(result.killSwitch).toEqual({
         status: 'not-applicable',
@@ -103,9 +103,12 @@ describe('OPS-02 mixed provider-read wave three protections', () => {
         status: 'not-applicable',
         reason: 'provider-read-only',
       })
-      expect(result.status).toBe('needs-hardening')
+      expect(result.status).toBe('reviewed')
       expect(text).toContain(capMarker)
       expect(text).toContain(replayMarker)
+      expect(text).toContain('hooks?.providerStarted()')
+      expect(text).toContain('hooks?.providerSucceeded()')
+      expect(text).toContain('hooks?.localMutationStarted()')
       expect(source(writeFile)).toContain(writeMarker)
     },
   )

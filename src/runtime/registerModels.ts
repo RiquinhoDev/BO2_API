@@ -6,6 +6,7 @@ const modelLoaders = [
   () => import('../models/ActiveCampaignExecution'),
   () => import('../models/ActiveCampaignProductTagReceipt'),
   () => import('../models/DiscordMessageExecutionReceipt'),
+  () => import('../models/ClarezaRefreshExecutionReceipt'),
   () => import('../models/GuruCurseducaInactivationReceipt'),
   () => import('../models/AcWebhookReceipt'),
   () => import('../models/Admin'),

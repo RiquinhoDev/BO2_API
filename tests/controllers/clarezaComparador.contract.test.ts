@@ -2,6 +2,7 @@ import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 installTestRuntimeConfigHooks()
 import request from 'supertest'
 import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
+import { HttpError } from '../../src/security/errorHandling'
 import { ComparadorPolicyError } from '../../src/services/clareza/comparador/comparadorPolicy'
 import type {
   ComparadorRefreshReport,
@@ -15,6 +16,7 @@ const mockSearchComparador = jest.fn<Promise<ComparadorSearchResponse>, [string]
 const mockRefreshComparadorSymbols = jest.fn<Promise<ComparadorRefreshReport>, [string]>()
 const mockRefreshClarezaComparadorData = jest.fn<Promise<{ readonly total: number; readonly errors: number }>, []>()
 const mockIsClarezaRefreshAuthorized = jest.fn<boolean, [string]>()
+const mockRunClarezaRefreshWithReceipt = jest.fn()
 
 jest.mock('../../src/services/clareza/comparador/comparador.runtime', () => ({
   getComparadorSymbols: mockGetComparadorSymbols,
@@ -35,6 +37,9 @@ jest.mock('../../src/services/clareza/clarezaTop10Service', () => ({ getClarezaT
 jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({ getRaioxJson: jest.fn(), searchRaiox: jest.fn(), refreshClarezaRaioxData: jest.fn(), diagnoseRaiox: jest.fn() }))
 jest.mock('../../src/services/clareza/carteira/carteira.runtime', () => ({ getClarezaCarteiraData: jest.fn(), searchCarteira: jest.fn(), refreshClarezaCarteiraData: jest.fn() }))
 jest.mock('../../src/services/clareza/clarezaEarningsService', () => ({ getClarezaEarningsData: jest.fn(), refreshClarezaEarningsData: jest.fn() }))
+jest.mock('../../src/services/clareza/clarezaRefreshExecution.service', () => ({
+  runClarezaRefreshWithReceipt: mockRunClarezaRefreshWithReceipt,
+}))
 
 import clarezaRouter from '../../src/routes/clareza.routes'
 
@@ -54,6 +59,12 @@ const company = {
 describe('Clareza comparator HTTP contract', () => {
   beforeEach(() => {
     jest.resetAllMocks()
+    mockRunClarezaRefreshWithReceipt.mockImplementation(async (options: { refresh: (hooks: unknown) => Promise<unknown> }) =>
+      options.refresh({
+        providerStarted: () => undefined,
+        providerSucceeded: () => undefined,
+        localMutationStarted: () => undefined,
+      }))
     mockIsClarezaRefreshAuthorized.mockReturnValue(true)
   })
 
@@ -125,17 +136,88 @@ describe('Clareza comparator HTTP contract', () => {
     const denied = await request(app).post('/comparador/refresh?symbols=AAPL&__bo2_offline_loopback=1').send({})
     expect(denied.status).toBe(403)
     expect(denied.body).toEqual({ error: 'Refresh Clareza nao autorizado' })
+    expect(mockRunClarezaRefreshWithReceipt).not.toHaveBeenCalled()
 
     mockRefreshComparadorSymbols.mockResolvedValueOnce({ ok: true, updated: ['AAPL'], failed: [] })
     const refreshed = await request(app).post('/comparador/refresh?symbols=AAPL&__bo2_offline_loopback=1').send({})
     expect(refreshed.status).toBe(200)
     expect(refreshed.body).toEqual({ success: true, data: { ok: true, updated: ['AAPL'], failed: [] } })
-    expect(mockRefreshComparadorSymbols).toHaveBeenCalledWith('AAPL')
+    expect(mockRefreshComparadorSymbols).toHaveBeenCalledWith('AAPL', expect.anything())
 
     mockRefreshComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem simbolos validos.'))
     const invalid = await request(app).post('/comparador/refresh?symbols=invalid/ticker&__bo2_offline_loopback=1').send({})
     expect(invalid.status).toBe(400)
     expect(invalid.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
+  })
+
+  it('forwards the real request identity and preserves canonical refresh conflicts', async () => {
+    mockRefreshComparadorSymbols.mockResolvedValueOnce({ ok: true, updated: ['MSFT', 'AAPL'], failed: [] })
+    const app = appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }, 'fallback-correlation')
+    const refreshed = await request(app)
+      .post('/comparador/refresh?symbols=msft,aapl,MSFT&__bo2_offline_loopback=1')
+      .set('X-Request-ID', 'incoming-refresh-id')
+      .send({})
+
+    expect(refreshed.status).toBe(200)
+    expect(mockRefreshComparadorSymbols).toHaveBeenCalledWith('MSFT,AAPL', expect.anything())
+    expect(mockRunClarezaRefreshWithReceipt).toHaveBeenCalledWith(expect.objectContaining({
+      operation: 'comparador',
+      identity: 'comparador-symbols',
+      fingerprint: 'MSFT,AAPL',
+      requestId: 'incoming-refresh-id',
+    }))
+
+    mockRunClarezaRefreshWithReceipt.mockRejectedValueOnce(new HttpError({
+      status: 409,
+      code: 'CLAREZA_REFRESH_IN_PROGRESS',
+      publicMessage: 'Refresh Clareza já está em processamento',
+    }))
+    const conflict = await request(app)
+      .post('/comparador/refresh?__bo2_offline_loopback=1')
+      .send({})
+
+    expect(conflict.status).toBe(409)
+    expect(conflict.body).toEqual({
+      success: false,
+      code: 'CLAREZA_REFRESH_IN_PROGRESS',
+      message: 'Refresh Clareza já está em processamento',
+      correlationId: 'fallback-correlation',
+    })
+
+    mockRunClarezaRefreshWithReceipt.mockRejectedValueOnce(new HttpError({
+      status: 409,
+      code: 'CLAREZA_REFRESH_REQUEST_ID_REUSED',
+      publicMessage: 'X-Request-ID já foi usado noutro refresh Clareza',
+    }))
+    const reused = await request(app)
+      .post('/comparador/refresh?symbols=AAPL&__bo2_offline_loopback=1')
+      .set('X-Request-ID', 'incoming-refresh-id')
+      .send({})
+
+    expect(reused.status).toBe(409)
+    expect(reused.body).toEqual({
+      success: false,
+      code: 'CLAREZA_REFRESH_REQUEST_ID_REUSED',
+      message: 'X-Request-ID já foi usado noutro refresh Clareza',
+      correlationId: 'incoming-refresh-id',
+    })
+
+    mockRunClarezaRefreshWithReceipt.mockRejectedValueOnce(new HttpError({
+      status: 503,
+      code: 'CLAREZA_REFRESH_INDETERMINATE',
+      publicMessage: 'Resultado do refresh Clareza ficou indeterminado; requer reconciliação',
+    }))
+    const indeterminate = await request(app)
+      .post('/comparador/refresh?__bo2_offline_loopback=1')
+      .send({})
+
+    expect(indeterminate.status).toBe(503)
+    expect(indeterminate.body).toEqual({
+      success: false,
+      code: 'CLAREZA_REFRESH_INDETERMINATE',
+      message: 'Resultado do refresh Clareza ficou indeterminado; requer reconciliação',
+      correlationId: 'fallback-correlation',
+    })
   })
 
   it('preserves full refresh, integration unavailability, and central SEC-10 failures', async () => {

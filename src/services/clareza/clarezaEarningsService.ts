@@ -11,6 +11,7 @@ import {
   type ClarezaEarningsEntry,
   type ClarezaEarningsPayload,
 } from '../../types/clareza.types'
+import type { ClarezaRefreshPhaseHooks } from './clarezaRefreshExecution.service'
 
 // Limits concurrency without adding p-queue to this hot path.
 function errorMessage(error: unknown): string {
@@ -190,8 +191,11 @@ export async function fetchEarningsForTicker(
   return entry
 }
 
-export async function refreshClarezaEarningsData(): Promise<{ total: number; errors: number }> {
+export async function refreshClarezaEarningsData(
+  hooks?: ClarezaRefreshPhaseHooks,
+): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
+  hooks?.providerStarted()
 
   logger.info(`[ClarezaEarnings] Iniciando refresh de ${COMPANIES.length} tickers...`)
   let errors = 0
@@ -210,6 +214,7 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
     }),
     12
   )
+  hooks?.providerSucceeded()
 
   const earnings = results
     .filter((entry: ClarezaEarningsEntry | null): entry is ClarezaEarningsEntry => entry !== null)
@@ -222,6 +227,7 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
     earnings
   }
 
+  hooks?.localMutationStarted()
   await cacheService.set(CLAREZA_EARNINGS_CACHE_KEY, payload, CACHE_TTL)
 
   try {

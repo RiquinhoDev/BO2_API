@@ -8,9 +8,10 @@ import type {
   ComparadorStock,
   ComparadorSymbolsResponse,
 } from './comparador.types'
+import type { ClarezaRefreshPhaseHooks } from '../clarezaRefreshExecution.service'
 
 const MAX_COMPARISON_SYMBOLS = 4
-const MAX_MANUAL_REFRESH_SYMBOLS = 10
+export const MAX_MANUAL_REFRESH_SYMBOLS = 10
 
 export interface ComparadorFullRefreshReport {
   readonly total: number
@@ -20,8 +21,8 @@ export interface ComparadorFullRefreshReport {
 export interface ComparadorService {
   getComparadorSymbols(rawSymbols: string): Promise<ComparadorSymbolsResponse>
   searchComparador(rawQuery: string): Promise<ComparadorSearchResponse>
-  refreshComparadorSymbols(rawSymbols: string): Promise<ComparadorRefreshReport>
-  refreshClarezaComparadorData(): Promise<ComparadorFullRefreshReport>
+  refreshComparadorSymbols(rawSymbols: string, hooks?: ClarezaRefreshPhaseHooks): Promise<ComparadorRefreshReport>
+  refreshClarezaComparadorData(hooks?: ClarezaRefreshPhaseHooks): Promise<ComparadorFullRefreshReport>
 }
 
 export interface ComparadorServiceDependencies {
@@ -125,17 +126,28 @@ export function createComparadorService(dependencies: ComparadorServiceDependenc
       return searchComparadorStocks(await readSnapshot(), rawQuery)
     },
 
-    async refreshComparadorSymbols(rawSymbols: string): Promise<ComparadorRefreshReport> {
+    async refreshComparadorSymbols(
+      rawSymbols: string,
+      hooks?: ClarezaRefreshPhaseHooks,
+    ): Promise<ComparadorRefreshReport> {
       dependencies.assertFmpAvailable()
       const symbols = parseComparadorSymbols(rawSymbols, MAX_MANUAL_REFRESH_SYMBOLS)
+      hooks?.providerStarted()
       const result = await refresh(symbols, await readSnapshot(), true)
+      hooks?.providerSucceeded()
+      hooks?.localMutationStarted()
       await dependencies.store.write(result.snapshot, result.failed.length)
       return { ok: true, updated: result.updated, failed: result.failed }
     },
 
-    async refreshClarezaComparadorData(): Promise<ComparadorFullRefreshReport> {
+    async refreshClarezaComparadorData(
+      hooks?: ClarezaRefreshPhaseHooks,
+    ): Promise<ComparadorFullRefreshReport> {
       dependencies.assertFmpAvailable()
+      hooks?.providerStarted()
       const result = await refresh(dependencies.universe, emptySnapshot(), false)
+      hooks?.providerSucceeded()
+      hooks?.localMutationStarted()
       await dependencies.store.write(result.snapshot, result.failed.length)
       return { total: result.updated.length, errors: result.failed.length }
     },

@@ -23,6 +23,7 @@ const mockRefreshClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
 const mockGetClarezaEarningsData: AsyncBoundaryMock = jest.fn()
 const mockRefreshClarezaEarningsData: AsyncBoundaryMock = jest.fn()
 const mockIsClarezaRefreshAuthorized = jest.fn<boolean, [string]>()
+const mockRunClarezaRefreshWithReceipt = jest.fn()
 
 jest.mock('../../src/security/clarezaRefreshAuthorization', () => ({
   isClarezaRefreshAuthorized: mockIsClarezaRefreshAuthorized,
@@ -57,6 +58,10 @@ jest.mock('../../src/services/clareza/carteira/carteira.runtime', () => ({
 jest.mock('../../src/services/clareza/clarezaEarningsService', () => ({
   getClarezaEarningsData: mockGetClarezaEarningsData,
   refreshClarezaEarningsData: mockRefreshClarezaEarningsData,
+}))
+
+jest.mock('../../src/services/clareza/clarezaRefreshExecution.service', () => ({
+  runClarezaRefreshWithReceipt: mockRunClarezaRefreshWithReceipt,
 }))
 
 const mockTestimonialAggregate: AsyncBoundaryMock = jest.fn()
@@ -237,6 +242,12 @@ const testimonialOperations: TestimonialOperation[] = [
 describe('SEC-10 remaining application wave', () => {
   beforeEach(() => {
     jest.resetAllMocks()
+    mockRunClarezaRefreshWithReceipt.mockImplementation(async (options: { refresh: (hooks: unknown) => Promise<unknown> }) =>
+      options.refresh({
+        providerStarted: () => undefined,
+        providerSucceeded: () => undefined,
+        localMutationStarted: () => undefined,
+      }))
     mockIsClarezaRefreshAuthorized.mockReturnValue(true)
     jest.spyOn(console, 'log').mockImplementation(() => undefined)
     jest.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -282,6 +293,7 @@ describe('SEC-10 remaining application wave', () => {
 
       expect(response.status).toBe(403)
       expect(response.body).toEqual({ error: 'Refresh Clareza nao autorizado' })
+      expect(mockRunClarezaRefreshWithReceipt).not.toHaveBeenCalled()
     })
 
     it('preserves the unavailable-data response', async () => {

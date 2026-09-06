@@ -12,6 +12,7 @@ import {
   type ClarezaTop10Payload,
   type ClarezaTop10StockPayload,
 } from '../../types/clareza.types'
+import type { ClarezaRefreshPhaseHooks } from './clarezaRefreshExecution.service'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
 function errorMessage(error: unknown): string {
@@ -316,8 +317,11 @@ function privateStockPayload(): ClarezaTop10StockPayload {
 // REFRESH COMPLETO (chamado pelo cron ClarezaRefresh e pelo endpoint manual)
 // ─────────────────────────────────────────────────────────────
 
-export async function refreshClarezaTop10Data(): Promise<{ total: number; errors: number }> {
+export async function refreshClarezaTop10Data(
+  hooks?: ClarezaRefreshPhaseHooks,
+): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
+  hooks?.providerStarted()
 
   logger.info(`📈 [ClarezaTop10] Iniciando refresh de ${WATCHLIST.length} ações (${REVISION})...`)
 
@@ -347,6 +351,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
     // garante que a soma de chamadas nunca passa de 2.400/min.
     10
   )
+  hooks?.providerSucceeded()
 
   const stocks: Record<string, ClarezaTop10StockPayload> = {}
   for (const entry of entries) {
@@ -362,6 +367,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
 
   // Guardar em Redis: objeto (back-compat) + string já serializada (servida sem parse/stringify)
   const payloadJson = JSON.stringify(payload)
+  hooks?.localMutationStarted()
   await cacheService.set(CLAREZA_TOP10_CACHE_KEY, payload, CACHE_TTL)
   await cacheService.setRaw(CLAREZA_TOP10_JSON_KEY, payloadJson, CACHE_TTL)
   // Atualizar cache em memória do processo (rede de segurança independente do Redis)

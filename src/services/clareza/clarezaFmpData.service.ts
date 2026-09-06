@@ -4,13 +4,17 @@ import ClarezaMarketData from '../../models/ClarezaMarketData'
 import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import { UNIVERSE } from './clarezaFmpUniverse'
 import { CACHE_TTL, CLAREZA_CACHE_KEY, ClarezaStockEntry, errorMessage, fetchStock, runWithConcurrency } from './clarezaFmpAnalysisSupport'
+import type { ClarezaRefreshPhaseHooks } from './clarezaRefreshExecution.service'
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // REFRESH COMPLETO (chamado pelo cron e pelo endpoint manual)
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
+export async function refreshClarezaData(
+  hooks?: ClarezaRefreshPhaseHooks,
+): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
+  hooks?.providerStarted()
 
   logger.info(`ðŸ“ˆ [Clareza] Iniciando refresh de ${UNIVERSE.length} aÃ§Ãµes...`)
 
@@ -32,8 +36,10 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
     // subir a concorrÃªncia aqui sÃ³ acelera o refresh, nÃ£o arrisca o limite.
     12
   )
+  hooks?.providerSucceeded()
 
   // Guardar em Redis
+  hooks?.localMutationStarted()
   await cacheService.set(CLAREZA_CACHE_KEY, results, CACHE_TTL)
 
   // Guardar em MongoDB (persistÃªncia durÃ¡vel â€” mesmo se Redis reiniciar)

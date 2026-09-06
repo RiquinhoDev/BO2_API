@@ -1,6 +1,6 @@
 import logger from '../utils/logger'
 import { type NextFunction, type Request, type Response } from 'express'
-import { internalError } from '../security/errorHandling'
+import { HttpError, internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
 import { isClarezaRefreshAuthorized } from '../security/clarezaRefreshAuthorization'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
@@ -9,16 +9,56 @@ import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } fro
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
+import {
+  runClarezaRefreshWithReceipt,
+  type ClarezaRefreshPhaseHooks,
+} from '../services/clareza/clarezaRefreshExecution.service'
+import type { ClarezaRefreshExecutionOperation } from '../models/ClarezaRefreshExecutionReceipt'
 import {
   getComparadorSymbols,
   searchComparador,
   refreshComparadorSymbols,
   refreshClarezaComparadorData,
 } from '../services/clareza/comparador/comparador.runtime'
-import { ComparadorPolicyError, comparadorPolicyMessage } from '../services/clareza/comparador/comparadorPolicy'
+import {
+  ComparadorPolicyError,
+  comparadorPolicyMessage,
+  parseComparadorSymbols,
+} from '../services/clareza/comparador/comparadorPolicy'
+import { MAX_MANUAL_REFRESH_SYMBOLS } from '../services/clareza/comparador/comparador.service'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function runClarezaRefresh<T>(
+  req: Request,
+  res: Response,
+  options: {
+    operation: ClarezaRefreshExecutionOperation
+    identity: string
+    fingerprint: string
+    refresh: (hooks: ClarezaRefreshPhaseHooks) => Promise<T>
+  },
+): Promise<T> {
+  return runClarezaRefreshWithReceipt({
+    ...options,
+    requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+  })
+}
+
+function forwardClarezaRefreshError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof HttpError) {
+    next(error)
+    return
+  }
+  forwardApplicationError(next, error, publicMessage, code)
 }
 
 export const clarezaController = {
@@ -45,10 +85,15 @@ export const clarezaController = {
       }
 
       logger.info('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
-      const result = await refreshClarezaData()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'market',
+        identity: 'market-data',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaData(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
-      next(internalError('Erro interno do servidor', 'CLAREZA_DATA_REFRESH_FAILED', error))
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_DATA_REFRESH_FAILED')
       return
     }
   },
@@ -126,10 +171,15 @@ export const clarezaController = {
       }
 
       logger.info('🔄 [POST /api/clareza/top10/refresh] Refresh manual iniciado')
-      const result = await refreshClarezaTop10Data()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'top10',
+        identity: 'top10-data',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaTop10Data(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
-      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED')
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED')
       return
     }
   },
@@ -218,10 +268,15 @@ export const clarezaController = {
       }
 
       logger.info('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
-      const result = await refreshClarezaRaioxData()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'raiox',
+        identity: 'raiox-data',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaRaioxData(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
-      next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_REFRESH_FAILED', error))
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_RAIOX_REFRESH_FAILED')
       return
     }
   },
@@ -274,10 +329,15 @@ export const clarezaController = {
       }
 
       logger.info('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
-      const result = await refreshClarezaEarningsData()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'earnings',
+        identity: 'earnings-data',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaEarningsData(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
-      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED')
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED')
       return
     }
   },
@@ -290,10 +350,15 @@ export const clarezaController = {
       }
 
       logger.info('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
-      const result = await refreshClarezaCarteiraData()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'carteira',
+        identity: 'carteira-data',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaCarteiraData(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
-      next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_REFRESH_FAILED', error))
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_CARTEIRA_REFRESH_FAILED')
       return
     }
   },
@@ -338,17 +403,29 @@ export const clarezaController = {
       }
 
       if (req.query.symbols !== undefined) {
-        const result = await refreshComparadorSymbols(String(req.query.symbols || ''))
+        const symbols = parseComparadorSymbols(String(req.query.symbols || ''), MAX_MANUAL_REFRESH_SYMBOLS)
+        const normalizedSymbols = symbols.join(',')
+        const result = await runClarezaRefresh(req, res, {
+          operation: 'comparador',
+          identity: 'comparador-symbols',
+          fingerprint: normalizedSymbols,
+          refresh: hooks => refreshComparadorSymbols(normalizedSymbols, hooks),
+        })
         return res.json(successResponse(result))
       }
 
-      const result = await refreshClarezaComparadorData()
+      const result = await runClarezaRefresh(req, res, {
+        operation: 'comparador',
+        identity: 'comparador-full',
+        fingerprint: 'full',
+        refresh: hooks => refreshClarezaComparadorData(hooks),
+      })
       return res.json(successResponse(result))
     } catch (error: unknown) {
       if (error instanceof ComparadorPolicyError) {
         return res.status(400).json({ error: comparadorPolicyMessage(error) })
       }
-      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_COMPARADOR_REFRESH_FAILED')
+      forwardClarezaRefreshError(next, error, 'Erro interno do servidor', 'CLAREZA_COMPARADOR_REFRESH_FAILED')
       return
     }
   }

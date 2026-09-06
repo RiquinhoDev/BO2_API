@@ -201,6 +201,11 @@ function clarezaStaticUniverseCap(limit: number): ReviewedProtection {
   }
 }
 
+const clarezaRefreshReceipt: ReviewedProtection = {
+  status: 'verified',
+  reason: 'clareza-refresh-durable-receipt-and-local-write-fence',
+}
+
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
     'POST /api/guru/webhooks/migrate-source',
@@ -308,36 +313,42 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
     'POST /api/clareza/refresh',
     {
       cap: clarezaStaticUniverseCap(183),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [
     'POST /api/clareza/top10/refresh',
     {
       cap: clarezaStaticUniverseCap(10),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [
     'POST /api/clareza/raiox/refresh',
     {
       cap: clarezaStaticUniverseCap(185),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [
     'POST /api/clareza/carteira/refresh',
     {
       cap: clarezaStaticUniverseCap(731),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [
     'POST /api/clareza/earnings/refresh',
     {
       cap: clarezaStaticUniverseCap(183),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [
     'POST /api/clareza/comparador/refresh',
     {
       cap: clarezaStaticUniverseCap(183),
+      idempotency: clarezaRefreshReceipt,
     },
   ],
   [

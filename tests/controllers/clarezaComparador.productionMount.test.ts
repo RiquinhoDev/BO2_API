@@ -10,6 +10,7 @@ import { configureJwt, signAppToken } from '../../src/security/jwt'
 const mockSearchComparador = jest.fn()
 const mockRefreshClarezaComparadorData = jest.fn()
 const mockIsClarezaRefreshAuthorized = jest.fn<boolean, [string]>()
+const mockRunClarezaRefreshWithReceipt = jest.fn()
 
 jest.mock('../../src/services/clareza/comparador/comparador.runtime', () => ({
   getComparadorSymbols: jest.fn(),
@@ -30,6 +31,9 @@ jest.mock('../../src/services/clareza/clarezaTop10Service', () => ({ getClarezaT
 jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({ getRaioxJson: jest.fn(), searchRaiox: jest.fn(), refreshClarezaRaioxData: jest.fn(), diagnoseRaiox: jest.fn() }))
 jest.mock('../../src/services/clareza/carteira/carteira.runtime', () => ({ getClarezaCarteiraData: jest.fn(), searchCarteira: jest.fn(), refreshClarezaCarteiraData: jest.fn() }))
 jest.mock('../../src/services/clareza/clarezaEarningsService', () => ({ getClarezaEarningsData: jest.fn(), refreshClarezaEarningsData: jest.fn() }))
+jest.mock('../../src/services/clareza/clarezaRefreshExecution.service', () => ({
+  runClarezaRefreshWithReceipt: mockRunClarezaRefreshWithReceipt,
+}))
 
 import { registerRoutes } from '../../src/runtime/registerRoutes'
 
@@ -58,6 +62,12 @@ function adminToken(): string {
 
 beforeEach(() => {
   jest.resetAllMocks()
+  mockRunClarezaRefreshWithReceipt.mockImplementation(async (options: { refresh: (hooks: unknown) => Promise<unknown> }) =>
+    options.refresh({
+      providerStarted: () => undefined,
+      providerSucceeded: () => undefined,
+      localMutationStarted: () => undefined,
+    }))
   configureJwt({
     jwtSecret,
     oldApiJwtSecret: 'clareza-comparator-production-mount-old-secret',
