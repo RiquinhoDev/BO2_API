@@ -75,6 +75,6 @@ const CronExecutionSchema: Schema = new Schema(
 
 // Index para queries rápidas
 CronExecutionSchema.index({ cronName: 1, startTime: -1 })
+CronExecutionSchema.index({ startTime: 1 })
 
 export default mongoose.model<ICronExecution>('CronExecution', CronExecutionSchema)
-

@@ -1,145 +1,181 @@
 import logger from '../utils/logger'
-// ════════════════════════════════════════════════════════════
-// 🧹 CRON EXECUTION CLEANUP JOB
-// ════════════════════════════════════════════════════════════
-//
-// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
-// Gestão: http://localhost:3000/activecampaign
-//
-// Limpa registos de execuções antigas (>90 dias) para manter BD limpa
-// Schedule original: Todos os domingos às 03:00
-//
-// ════════════════════════════════════════════════════════════
-
-import schedule from 'node-schedule'
 import CronExecution from '../models/cron/CronExecution'
+import { MAX_PROVIDER_READ_ITEMS } from '../security/providerReadBatchPolicy'
+import type { CronExecutionCleanupPlan } from '../types/cron.types'
+import type { CronExecutionPhaseHooks } from '../services/cron/scheduler/executionPhases'
 
-const RETENTION_DAYS = 90
-const CRON_SCHEDULE = '0 3 * * 0'
-const MIN_RECORDS_TO_KEEP = 100
+export const CRON_EXECUTION_CLEANUP_RETENTION_DAYS = 90
+export const CRON_EXECUTION_CLEANUP_MIN_RECORDS = 100
+export const CRON_EXECUTION_CLEANUP_MAX_CANDIDATES = MAX_PROVIDER_READ_ITEMS
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+export interface CronExecutionCleanupOptions {
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
+  now?: () => Date
 }
 
-logger.info(`⚠️ CronExecutionCleanup: DESATIVADO (migrado para wizard CRON)`)
-logger.info(`   Schedule original: ${CRON_SCHEDULE} (Domingos às 03:00)`)
-logger.info(`   Retenção: ${RETENTION_DAYS} dias`)
-logger.info(`   Mínimo a manter: ${MIN_RECORDS_TO_KEEP} registos`)
-
-async function cleanupOldExecutions(): Promise<{
+export interface CronExecutionCleanupResult {
   success: boolean
   deleted: number
   remaining: number
   error?: string
+  dryRun?: boolean
+  plan?: CronExecutionCleanupPlan
+}
+
+type CleanupInvocation = boolean | CronExecutionCleanupOptions
+
+function cutoffFor(now: Date): Date {
+  const cutoff = new Date(now)
+  cutoff.setDate(cutoff.getDate() - CRON_EXECUTION_CLEANUP_RETENTION_DAYS)
+  return cutoff
+}
+
+function planFor(
+  totalBefore: number,
+  eligible: number,
+  wouldDelete: number,
+  truncated: boolean,
+): CronExecutionCleanupPlan {
+  return {
+    operation: 'cron-execution-cleanup',
+    dryRun: true,
+    totalBefore,
+    eligible,
+    wouldDelete,
+    minimumToKeep: CRON_EXECUTION_CLEANUP_MIN_RECORDS,
+    limit: CRON_EXECUTION_CLEANUP_MAX_CANDIDATES,
+    truncated,
+    remaining: truncated ? 1 : 0,
+  }
+}
+
+async function boundedEligibleIds(cutoffDate: Date): Promise<{
+  ids: unknown[]
+  truncated: boolean
 }> {
-  const executionId = `CLEANUP-${Date.now()}`
+  const rows = await CronExecution.find({ startTime: { $lt: cutoffDate } })
+    .sort({ startTime: 1, _id: 1 })
+    .select({ _id: 1 })
+    .limit(CRON_EXECUTION_CLEANUP_MAX_CANDIDATES + 1)
+    .lean()
+    .exec()
+  const truncated = rows.length > CRON_EXECUTION_CLEANUP_MAX_CANDIDATES
+  return {
+    ids: rows
+      .slice(0, CRON_EXECUTION_CLEANUP_MAX_CANDIDATES)
+      .map(row => row._id),
+    truncated,
+  }
+}
 
-  logger.info(`\n${'═'.repeat(70)}`)
-  logger.info(`🧹 INICIANDO LIMPEZA DE HISTÓRICO - ${executionId}`)
-  logger.info(`${'═'.repeat(70)}`)
+async function revalidateIds(ids: unknown[], cutoffDate: Date): Promise<unknown[]> {
+  const rows = await CronExecution.find({
+    _id: { $in: ids },
+    startTime: { $lt: cutoffDate },
+  })
+    .sort({ startTime: 1, _id: 1 })
+    .select({ _id: 1 })
+    .limit(ids.length + 1)
+    .lean()
+    .exec()
+  return rows.map(row => row._id)
+}
 
-  const startTime = Date.now()
+function hasSameIds(expected: unknown[], actual: unknown[]): boolean {
+  if (expected.length !== actual.length) return false
+  const actualIds = new Set(actual.map(String))
+  return expected.every(id => actualIds.has(String(id)))
+}
 
-  try {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS)
+async function cleanupOldExecutions(
+  options: CronExecutionCleanupOptions,
+): Promise<CronExecutionCleanupResult> {
+  const now = options.now?.() ?? new Date()
+  const cutoffDate = cutoffFor(now)
+  options.phaseHooks?.assertOwnership?.()
 
-    logger.info(`📅 Data limite: ${cutoffDate.toISOString()}`)
-    logger.info(`   Registos anteriores a esta data serão removidos`)
+  const totalBefore = await CronExecution.countDocuments()
+  options.phaseHooks?.assertOwnership?.()
+  const candidateSet = await boundedEligibleIds(cutoffDate)
+  const eligible = candidateSet.ids.length
+  const initialBudget = Math.max(0, totalBefore - CRON_EXECUTION_CLEANUP_MIN_RECORDS)
 
-    const totalBefore = await CronExecution.countDocuments()
-    logger.info(`📊 Total de registos ANTES: ${totalBefore}`)
-
-    const toDelete = await CronExecution.countDocuments({
-      startTime: { $lt: cutoffDate }
-    })
-    logger.info(`🗑️  Registos candidatos à remoção: ${toDelete}`)
-
-    if (totalBefore - toDelete < MIN_RECORDS_TO_KEEP) {
-      logger.info(`⚠️  PROTEÇÃO ATIVADA: Manter pelo menos ${MIN_RECORDS_TO_KEEP} registos`)
-      logger.info(`   Nenhum registo será removido nesta execução`)
-
-      return {
-        success: true,
-        deleted: 0,
-        remaining: totalBefore,
-        error: `Proteção ativada: manter mínimo de ${MIN_RECORDS_TO_KEEP} registos`
-      }
-    }
-
-    const result = await CronExecution.deleteMany({
-      startTime: { $lt: cutoffDate }
-    })
-
-    const totalAfter = await CronExecution.countDocuments()
-    const duration = Date.now() - startTime
-
-    logger.info(`\n${'─'.repeat(70)}`)
-    logger.info(`✅ LIMPEZA CONCLUÍDA`)
-    logger.info(`${'─'.repeat(70)}`)
-    logger.info(`🗑️  Registos removidos: ${result.deletedCount}`)
-    logger.info(`📊 Registos restantes: ${totalAfter}`)
-    logger.info(`💾 Espaço liberado: ~${(result.deletedCount * 0.5).toFixed(2)} KB (estimado)`)
-    logger.info(`⏱️  Tempo total: ${(duration / 1000).toFixed(2)}s`)
-    logger.info(`${'═'.repeat(70)}\n`)
-
+  if (options.dryRun === true) {
+    const wouldDelete = Math.min(eligible, initialBudget)
     return {
       success: true,
-      deleted: result.deletedCount,
-      remaining: totalAfter
+      deleted: 0,
+      remaining: totalBefore,
+      dryRun: true,
+      plan: planFor(totalBefore, eligible, wouldDelete, candidateSet.truncated),
     }
-  } catch (error: unknown) {
-    const duration = Date.now() - startTime
-    const message = errorMessage(error)
+  }
 
-    logger.error(`\n${'═'.repeat(70)}`)
-    logger.error(`❌ ERRO NA LIMPEZA - ${executionId}`)
-    logger.error(`${'═'.repeat(70)}`)
-    logger.error(`Erro: ${message}`)
-    logger.error(`Tempo até falha: ${(duration / 1000).toFixed(2)}s`)
-    logger.error(`${'═'.repeat(70)}\n`)
+  if (initialBudget === 0 || eligible === 0) {
+    return {
+      success: true,
+      deleted: 0,
+      remaining: totalBefore,
+      error: initialBudget === 0
+        ? `Proteção ativada: manter mínimo de ${CRON_EXECUTION_CLEANUP_MIN_RECORDS} registos`
+        : undefined,
+      plan: planFor(totalBefore, eligible, 0, candidateSet.truncated),
+    }
+  }
 
+  options.phaseHooks?.assertOwnership?.()
+  const totalAtDelete = await CronExecution.countDocuments()
+  const deleteBudget = Math.max(0, totalAtDelete - CRON_EXECUTION_CLEANUP_MIN_RECORDS)
+  const selectedIds = candidateSet.ids.slice(0, Math.min(deleteBudget, eligible))
+  const plan = planFor(totalBefore, eligible, selectedIds.length, candidateSet.truncated)
+
+  if (deleteBudget === 0 || selectedIds.length === 0) {
+    return {
+      success: true,
+      deleted: 0,
+      remaining: totalAtDelete,
+      error: `Proteção ativada: manter mínimo de ${CRON_EXECUTION_CLEANUP_MIN_RECORDS} registos`,
+      plan,
+    }
+  }
+
+  options.phaseHooks?.assertOwnership?.()
+  const revalidatedIds = await revalidateIds(selectedIds, cutoffDate)
+  options.phaseHooks?.assertOwnership?.()
+  if (!hasSameIds(selectedIds, revalidatedIds)) {
     return {
       success: false,
       deleted: 0,
-      remaining: await CronExecution.countDocuments(),
-      error: message
+      remaining: totalAtDelete,
+      error: 'Revalidação dos candidatos falhou; nenhuma remoção efetuada',
+      plan: planFor(totalBefore, eligible, 0, candidateSet.truncated),
     }
+  }
+
+  options.phaseHooks?.localMutationStarted()
+  options.phaseHooks?.assertOwnership?.()
+  const result = await CronExecution.deleteMany({ _id: { $in: selectedIds } })
+  const remaining = await CronExecution.countDocuments()
+
+  return {
+    success: true,
+    deleted: result.deletedCount,
+    remaining,
+    plan,
   }
 }
 
-export async function runCleanupManually(dryRun: boolean = false): Promise<
-  Awaited<ReturnType<typeof cleanupOldExecutions>> |
-  { success: true; dryRun: true; wouldDelete: number; totalBefore: number }
-> {
-  logger.info(`🧪 Executando limpeza manual${dryRun ? ' (DRY RUN)' : ''}...`)
-
-  if (dryRun) {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS)
-
-    const totalBefore = await CronExecution.countDocuments()
-    const toDelete = await CronExecution.countDocuments({
-      startTime: { $lt: cutoffDate }
-    })
-
-    logger.info(`📊 Total de registos: ${totalBefore}`)
-    logger.info(`🗑️  Registos a remover: ${toDelete}`)
-    logger.info(`📅 Data limite: ${cutoffDate.toISOString()}`)
-    logger.info(`🔍 DRY RUN - Nenhum registo foi removido`)
-
-    return {
-      success: true,
-      dryRun: true,
-      wouldDelete: toDelete,
-      totalBefore
-    }
-  }
-
-  return await cleanupOldExecutions()
+export async function runCleanupManually(
+  invocation: CleanupInvocation = {},
+): Promise<CronExecutionCleanupResult> {
+  const options: CronExecutionCleanupOptions = typeof invocation === 'boolean'
+    ? { dryRun: invocation }
+    : invocation
+  logger.info(`🧹 Executando limpeza CRON${options.dryRun ? ' (DRY RUN)' : ''}`)
+  return cleanupOldExecutions(options)
 }
 
 export default {
-  run: runCleanupManually
+  run: runCleanupManually,
 }

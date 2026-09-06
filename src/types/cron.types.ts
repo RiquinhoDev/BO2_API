@@ -68,7 +68,7 @@ export interface CronExecutionResult {
   stats: ILastRunStats
   errorMessage?: string
   dryRun?: boolean
-  plan?: DailyPipelinePlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan
 }
 
 export interface DailyPipelinePlan {
@@ -84,6 +84,19 @@ export interface DailyPipelinePlan {
     curseduca: number
   }
   steps: readonly string[]
+}
+
+export interface CronExecutionCleanupPlan {
+  operation: 'cron-execution-cleanup'
+  dryRun: true
+  totalBefore: number
+  eligible: number
+  wouldDelete: number
+  minimumToKeep: number
+  limit: number
+  truncated: boolean
+  /** Lower bound of candidates beyond the bounded sample; never an exact count. */
+  remaining: number
 }
 
 export interface DailyPipelineOptions {

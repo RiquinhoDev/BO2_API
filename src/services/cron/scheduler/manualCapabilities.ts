@@ -81,6 +81,15 @@ const capabilityEntries: readonly {
   capability: CronManualCapability
 }[] = [
   {
+    matches: job => job.name.includes('CronExecutionCleanup'),
+    capability: implemented(
+      'cron-execution-cleanup',
+      'cron-job',
+      { status: 'verified', reason: 'cron-execution-cleanup-max-candidates', limit: 20_000 },
+      { status: 'verified', reason: 'CRON_EXECUTION_CLEANUP_MUTABLE_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.name.includes('DiscordScheduledMessages'),
     capability: implemented(
       'discord-scheduled-messages',

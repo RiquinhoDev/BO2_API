@@ -1,9 +1,3 @@
-// ════════════════════════════════════════════════════════════
-// 📁 src/services/cron/scheduler/service.ts
-// Service: CRON Job Management
-// Gestão completa de jobs agendados (criar, executar, monitorar)
-// ════════════════════════════════════════════════════════════
-
 import mongoose from 'mongoose'
 import { randomUUID } from 'node:crypto'
 import schedule from 'node-schedule'
@@ -21,7 +15,10 @@ import type { CronExecutionPhaseHooks } from './executionPhases'
 import { createLoggingCronNotification } from './notificationPort'
 import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
-import { isSyncMutableExecutionEnabled } from '../../requestDrivenRuntimeConfig'
+import {
+  isCronExecutionCleanupMutableExecutionEnabled,
+  isSyncMutableExecutionEnabled,
+} from '../../requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../renewal/discord/planning'
 import { HttpError } from '../../../security/errorHandling'
@@ -35,10 +32,6 @@ import {
 } from './manualCapabilities'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
-
-// ─────────────────────────────────────────────────────────────
-// IN-MEMORY SCHEDULER REGISTRY
-// ─────────────────────────────────────────────────────────────
 
 const registry = new SchedulerRegistry()
 const notificationPort = createLoggingCronNotification(logger)
@@ -308,6 +301,13 @@ const job = await CronJobConfig.create({
       })
     }
 
+    if (capability.id === 'cron-execution-cleanup' && !isCronExecutionCleanupMutableExecutionEnabled()) {
+      throw new HttpError({
+        status: 503,
+        code: 'CRON_EXECUTION_CLEANUP_DISABLED',
+        publicMessage: 'Limpeza do histórico CRON desativada',
+      })
+    }
     if (capability.id === 'daily-pipeline' && !isSyncMutableExecutionEnabled()) {
       throw new HttpError({
         status: 503,
@@ -339,9 +339,6 @@ const job = await CronJobConfig.create({
       }),
     })
   }
-  // GET JOBS
-  // ═══════════════════════════════════════════════════════════
-
   async getAllJobs(): Promise<ICronJobConfig[]> {
     return CronJobConfig.find()
       .sort({ createdAt: -1 })
@@ -361,10 +358,6 @@ const job = await CronJobConfig.create({
   async getJobsByType(syncType: SyncType): Promise<ICronJobConfig[]> {
     return CronJobConfig.getJobsByType(syncType)
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // SCHEDULING
-  // ═══════════════════════════════════════════════════════════
 
   private async executeScheduledJob(job: ICronJobConfig): Promise<void> {
     const capability = getCronManualCapability(job)
@@ -475,10 +468,6 @@ const job = await CronJobConfig.create({
     return registry.getAll().size > 0
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // UTILITIES
-  // ═══════════════════════════════════════════════════════════
-
   private validateCronExpression(expression: string): void {
     cronExpressionService.validate(expression)
   }
@@ -491,10 +480,6 @@ const job = await CronJobConfig.create({
     return cronExpressionService.getNextExecutions(expression, count)
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// SINGLETON INSTANCE
-// ─────────────────────────────────────────────────────────────
 
 export const syncSchedulerService = new CronManagementService()
 export default syncSchedulerService

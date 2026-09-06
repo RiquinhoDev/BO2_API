@@ -27,11 +27,11 @@ describe('ESLint suppression baseline', () => {
       0,
     )
 
-    expect(countSuppressions()).toBe(66)
+    expect(countSuppressions()).toBe(65)
     expect(noConsole).toBe(0)
     expect(noExplicitAny).toBe(0)
     expect(countSuppressions((relativePath) => syncTask1.test(relativePath))).toBe(15)
     expect(countSuppressions((relativePath) => providerTask2.test(relativePath))).toBe(0)
-    expect(countSuppressions((relativePath) => opsTask3.test(relativePath))).toBe(19)
+    expect(countSuppressions((relativePath) => opsTask3.test(relativePath))).toBe(18)
   })
 })

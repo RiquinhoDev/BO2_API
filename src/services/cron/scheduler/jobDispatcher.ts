@@ -1,5 +1,5 @@
 import { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
-import type { DailyPipelinePlan } from '../../../types/cron.types'
+import type { CronExecutionCleanupPlan, DailyPipelinePlan } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
@@ -23,7 +23,7 @@ export interface CronDispatchResult {
   stats: ILastRunStats
   errorMessage?: string
   dryRun?: boolean
-  plan?: DailyPipelinePlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan
 }
 
 export interface CronDispatchOptions {
@@ -114,10 +114,13 @@ const normalizeGenericResult = (value: unknown): CronDispatchResult => {
     skipped: numberOf(result, 'skipped')
   }
 
+  const plan = result.plan
   return {
     success: booleanOf(result, 'success') !== false && stats.errors === 0,
     stats,
-    errorMessage: stringOf(result, 'error') ?? stringOf(result, 'errorMessage')
+    errorMessage: stringOf(result, 'error') ?? stringOf(result, 'errorMessage'),
+    ...(booleanOf(result, 'dryRun') === true ? { dryRun: true } : {}),
+    ...(plan && typeof plan === 'object' ? { plan: plan as DailyPipelinePlan | CronExecutionCleanupPlan } : {}),
   }
 }
 
@@ -133,7 +136,7 @@ const defaultDependencies: CronDispatchDependencies = {
     }
     throw new Error('Método não encontrado')
   },
-  cleanupExecutions: async () => (await import('../../../jobs/cronExecutionCleanup.job')).default.run(),
+  cleanupExecutions: async (options) => (await import('../../../jobs/cronExecutionCleanup.job')).default.run(options),
   weeklyTagSnapshot: async () => (await import('../../../jobs/weeklyTagSnapshot.job')).default.run(),
   clarezaRefresh: async () => (await import('../../../jobs/clareza.job')).default.run(),
   guruTrialCheck: async () => (await import('../../../jobs/guruTrialCheck.job')).default.run(),
@@ -242,6 +245,9 @@ export class CronJobDispatcher {
         }
       }
 
+      if (job.name.includes('CronExecutionCleanup')) {
+        return this.normalizeCleanupExecution(await this.dependencies.cleanupExecutions(options))
+      }
       const runner = this.specificRunner(job.name)
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)
       return normalizeGenericResult(await runner(options))
@@ -260,6 +266,29 @@ export class CronJobDispatcher {
     if (name.includes('ClarezaRefresh')) return this.dependencies.clarezaRefresh
     if (name.includes('GuruTrialCheck')) return this.dependencies.guruTrialCheck
     return undefined
+  }
+
+  private normalizeCleanupExecution(value: unknown): CronDispatchResult {
+    const report = recordOf(value)
+    const plan = nestedRecordOf(report, 'plan')
+    const dryRun = booleanOf(report, 'dryRun') === true
+    const total = numberOf(plan, 'eligible')
+    const deleted = numberOf(report, 'deleted')
+    const errors = booleanOf(report, 'success') === false ? 1 : 0
+    const updated = dryRun ? 0 : deleted
+    return {
+      success: errors === 0,
+      stats: {
+        total,
+        inserted: 0,
+        updated,
+        errors,
+        skipped: Math.max(0, total - updated),
+      },
+      errorMessage: stringOf(report, 'error') ?? stringOf(report, 'errorMessage'),
+      ...(dryRun ? { dryRun: true } : {}),
+      ...(Object.keys(plan).length > 0 ? { plan: plan as unknown as CronExecutionCleanupPlan } : {}),
+    }
   }
 
   private normalizePlannedExecution(value: unknown, totalKey: 'accountsDesired' | 'classChangesSeen'): CronDispatchResult {

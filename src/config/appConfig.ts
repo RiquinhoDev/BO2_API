@@ -452,6 +452,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     env.SYNC_MUTABLE_EXECUTION_ENABLED,
     'SYNC_MUTABLE_EXECUTION_ENABLED',
   )
+  const cronExecutionCleanupMutableExecutionEnabled = parseBooleanFlag(
+    env.CRON_EXECUTION_CLEANUP_MUTABLE_EXECUTION_ENABLED,
+    'CRON_EXECUTION_CLEANUP_MUTABLE_EXECUTION_ENABLED',
+  )
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
@@ -474,6 +478,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     authEnforce,
     enableDebugRoutes,
     syncMutableExecutionEnabled,
+    cronExecutionCleanupMutableExecutionEnabled,
     allowedOrigins,
     port,
   }

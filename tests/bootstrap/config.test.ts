@@ -185,6 +185,12 @@ test('execução mutável dos composites fica desligada por omissão e exige fla
     .toBe(true)
 })
 
+test('limpeza de execuções CRON fica desligada por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).core.cronExecutionCleanupMutableExecutionEnabled).toBe(false)
+  expect(loadConfig({ ...VALID_ENV, CRON_EXECUTION_CLEANUP_MUTABLE_EXECUTION_ENABLED: 'true' }).core.cronExecutionCleanupMutableExecutionEnabled)
+    .toBe(true)
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -219,6 +225,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     authEnforce: true,
     enableDebugRoutes: false,
     syncMutableExecutionEnabled: false,
+    cronExecutionCleanupMutableExecutionEnabled: false,
     allowedOrigins: config.allowedOrigins,
     port: 3001,
   })

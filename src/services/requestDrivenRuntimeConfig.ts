@@ -42,6 +42,10 @@ export function isSyncMutableExecutionEnabled(): boolean {
   return getRuntimeConfig().core.syncMutableExecutionEnabled === true
 }
 
+export function isCronExecutionCleanupMutableExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.cronExecutionCleanupMutableExecutionEnabled === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

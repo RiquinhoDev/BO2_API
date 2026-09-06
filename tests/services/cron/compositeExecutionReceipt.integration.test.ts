@@ -10,6 +10,7 @@ jest.mock('../../../src/services/syncUtilizadoresServices/hotmartServices/hotmar
 
 import { assertSafeTestMongoUri } from '../../../src/config/testDatabase'
 import CompositeExecutionReceipt from '../../../src/models/CompositeExecutionReceipt'
+import CronExecution from '../../../src/models/cron/CronExecution'
 import {
   executeCompositeExecutionReceipt,
   runCompositeExecutionWithReceipt,
@@ -18,6 +19,7 @@ import {
 import { executeSyncAndPreparationSteps } from '../../../src/services/cron/dailyPipelineSyncSteps'
 import { DAILY_PIPELINE_MAX_ITEMS, getProductsConfig } from '../../../src/services/cron/dailyPipelineSupport'
 import type { DailyPipelineResult } from '../../../src/types/cron.types'
+import { runCleanupManually } from '../../../src/jobs/cronExecutionCleanup.job'
 
 jest.setTimeout(30_000)
 
@@ -251,6 +253,53 @@ test('coordinates automatic and manual pipeline entries through one active ident
   expect(automatic).toEqual({ kind: 'in-progress' })
   expect(await manual).toEqual({ kind: 'completed', result: { value: 'manual' } })
   expect(effectCount).toBe(1)
+})
+
+test('manual and automatic cleanup share one durable identity and each run deletes at most one batch', async () => {
+  const now = new Date('2026-09-06T12:00:00.000Z')
+  const oldStartTime = new Date('2026-01-01T00:00:00.000Z')
+  await CronExecution.insertMany(Array.from({ length: 150 }, () => ({
+    cronName: 'cleanup-fixture',
+    executionType: 'automatic',
+    status: 'success',
+    startTime: oldStartTime,
+    endTime: oldStartTime,
+    duration: 1,
+  })))
+
+  const identity = 'cron-job:cleanup-fixture'
+  const run = (actorId: string, requestId: string) => runCompositeExecutionWithReceipt({
+    operation: 'cron-job',
+    identity,
+    actorId,
+    fingerprint: `cleanup:${actorId}`,
+    requestId,
+    run: hooks => runCleanupManually({ phaseHooks: hooks, now: () => now }),
+  })
+
+  const manual = await run('manual-actor', 'cleanup-manual')
+  expect(manual).toMatchObject({ success: true, deleted: 50, remaining: 100 })
+  expect(await CronExecution.countDocuments({})).toBe(100)
+
+  const replayRun = jest.fn(async () => ({ success: true }))
+  const replay = await runCompositeExecutionWithReceipt({
+    operation: 'cron-job',
+    identity,
+    actorId: 'manual-actor',
+    fingerprint: 'cleanup:manual-actor',
+    requestId: 'cleanup-manual',
+    run: replayRun,
+  })
+  expect(replay).toMatchObject({ deleted: 50 })
+  expect(replayRun).not.toHaveBeenCalled()
+  expect(await CronExecution.countDocuments({})).toBe(100)
+
+  const automatic = await run('system:cron', 'cleanup-automatic')
+  expect(automatic).toMatchObject({ success: true, deleted: 0, remaining: 100 })
+  expect(await CronExecution.countDocuments({})).toBe(100)
+  expect(await CompositeExecutionReceipt.countDocuments({ operation: 'cron-job', identity })).toBe(2)
+
+  await CronExecution.deleteMany({ cronName: 'cleanup-fixture' })
 })
 
 test('marks an expired running lease indeterminate without reopening work', async () => {

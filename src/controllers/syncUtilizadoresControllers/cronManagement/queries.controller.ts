@@ -11,13 +11,17 @@ import {
   getCronManualCapability,
   type CronManualCapabilityJob,
 } from '../../../services/cron/scheduler/manualCapabilities'
-import { isSyncMutableExecutionEnabled } from '../../../services/requestDrivenRuntimeConfig'
+import {
+  isCronExecutionCleanupMutableExecutionEnabled,
+  isSyncMutableExecutionEnabled,
+} from '../../../services/requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../../services/renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../../services/renewal/discord/planning'
 
 function manualMutableEnabled(job: CronManualCapabilityJob): boolean {
   const capability = getCronManualCapability(job)
   if (capability.id === 'daily-pipeline') return isSyncMutableExecutionEnabled()
+  if (capability.id === 'cron-execution-cleanup') return isCronExecutionCleanupMutableExecutionEnabled()
   if (capability.id === 'discord-scheduled-messages') {
     return isScheduledMessagesEnabled() && isMessagesEnabled()
   }

@@ -236,6 +236,68 @@ describe('CronJobDispatcher', () => {
     expect(dependencies.runScheduledMessages).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
   })
 
+  it('passes dry-run and phase options to cleanup and preserves its bounded plan', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+    dependencies.cleanupExecutions.mockResolvedValueOnce({
+      success: true,
+      deleted: 0,
+      remaining: 10_000,
+      dryRun: true,
+      plan: {
+        operation: 'cron-execution-cleanup',
+        dryRun: true,
+        totalBefore: 30_000,
+        eligible: 20_000,
+        wouldDelete: 20_000,
+        minimumToKeep: 100,
+        limit: 20_000,
+        truncated: true,
+        remaining: 1,
+      },
+    })
+
+    await expect(dispatcher.execute(job('CronExecutionCleanup'), { dryRun: true, phaseHooks }))
+      .resolves.toMatchObject({
+        success: true,
+        dryRun: true,
+        stats: { total: 20_000, inserted: 0, updated: 0, errors: 0, skipped: 20_000 },
+        plan: { operation: 'cron-execution-cleanup', truncated: true },
+      })
+    expect(dependencies.cleanupExecutions).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+  })
+
+  it('normalizes live cleanup stats from bounded candidates and deletes', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    dependencies.cleanupExecutions.mockResolvedValueOnce({
+      success: true,
+      deleted: 50,
+      remaining: 100,
+      plan: {
+        operation: 'cron-execution-cleanup',
+        dryRun: true,
+        totalBefore: 150,
+        eligible: 75,
+        wouldDelete: 50,
+        minimumToKeep: 100,
+        limit: 20_000,
+        truncated: false,
+        remaining: 0,
+      },
+    })
+
+    await expect(dispatcher.execute(job('CronExecutionCleanup'))).resolves.toMatchObject({
+      success: true,
+      stats: { total: 75, inserted: 0, updated: 50, errors: 0, skipped: 25 },
+    })
+  })
+
   it('fails closed for an unsupported sync type', async () => {
     const dispatcher = new CronJobDispatcher(createDependencies())
 

@@ -18,6 +18,7 @@ export interface CoreConfig {
   readonly authEnforce: boolean
   readonly enableDebugRoutes: boolean
   readonly syncMutableExecutionEnabled?: boolean
+  readonly cronExecutionCleanupMutableExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }
