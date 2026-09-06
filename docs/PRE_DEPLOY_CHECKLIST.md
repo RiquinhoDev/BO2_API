@@ -21,6 +21,7 @@
 - [ ] Confirmar claim local AC por `UserProduct`: apply/remove concorrentes recebem `409`, sync reporta `inProgress`, lease de 120 s cobre o timeout AC de 30 s e falha/exception permite retry; a criação/ligação contacto+tag no provider continua gap externo a validar
 - [ ] Confirmar sync de product-tags limitado a 200 `UserProduct` por execução, com overflow rejeitado antes de writes
 - [ ] Discord bot token válido
+- [ ] Em BD/domínio Railway de teste isolados, validar os receipts Discord: replay canónico por `X-Request-ID`, payload/actor diferente rejeitado, concorrência/fence por regra+mês, lease expirado e falha pós-provider em `indeterminate`; validar `scheduled/run` com cap 50 antes de provider/seed e `dryRun` sem provider/receipts/seed/save
 - [ ] Redis URL configurado (se aplicável)
 
 ### Segurança

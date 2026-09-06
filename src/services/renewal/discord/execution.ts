@@ -1,16 +1,13 @@
 import logger from '../../../utils/logger'
 import axios from 'axios'
 import mongoose from 'mongoose'
-import { IntegrationUnavailableError } from '../../../errors/integrationUnavailableError'
 import {
-  DiscordMessageLog,
   DiscordMessageTemplate,
   DiscordRoleChange,
   DiscordRoleState,
   IDiscordRoleChange
 } from '../../../models/discordRenewal'
 import {
-  ALL_RENEWAL_ROLE_IDS,
   APPROVED_TTL_HOURS,
   botHeaders,
   botUrl,
@@ -28,6 +25,18 @@ import {
   RENEWAL_ROLES,
   ROLE_NAME_BY_ID
 } from './planning'
+import {
+  executeDiscordMessageReceipt,
+  type DiscordMessageExecutionContext,
+} from './discordMessageExecution.service'
+import type { DiscordMessageExecutionOperation } from '../../../models/DiscordMessageExecutionReceipt'
+import {
+  discordMessageIdentity,
+  performDiscordMessage,
+  prepareDiscordMessage,
+  type DiscordMessageSendParams,
+  type DiscordMessageSendResult,
+} from './discordMessageTransport.service'
 
 interface DiscordRoleApplyResult {
   discordUserId: string
@@ -38,11 +47,6 @@ interface DiscordRoleApplyResult {
 
 interface DiscordRoleApplyResponse {
   results?: DiscordRoleApplyResult[]
-}
-
-interface DiscordMessageResponse {
-  messageIds?: string[]
-  parts?: number
 }
 
 interface DiscordBotHealth {
@@ -258,82 +262,56 @@ export async function ensureDefaultTemplates(): Promise<void> {
   }
 }
 
-export function renderMessage(
-  content: string,
-  mentionRoleIds: string[],
-  dataFim?: string,
-  mentionEveryone: boolean = false
-): string {
-  const mentions = mentionRoleIds.map((id) => `<@&${id}>`).join(' ')
-  const hadCargosPlaceholder = /\{cargos\}/.test(content)
+export { renderMessage } from './discordMessageTransport.service'
 
-  let out = content
-    .replace(/\{cargos\}/g, mentions || '')
-    .replace(/\{dataFim\}/g, dataFim || '{dataFim}')
-
-  const header: string[] = []
-  if (mentionEveryone && !/@everyone/.test(out)) header.push('@everyone')
-  if (mentions && !hadCargosPlaceholder) header.push(mentions)
-  if (header.length > 0) out = `${header.join(' ')}\n\n${out}`
-
-  return out
+export interface DiscordMessageSendOptions {
+  operation?: DiscordMessageExecutionOperation
+  identity?: string
+  heartbeatMs?: number
+  now?: () => Date
+  afterProviderSuccess?: (context: DiscordMessageExecutionContext) => Promise<void>
 }
 
-export async function sendDiscordMessage(params: {
-  content: string
-  mentionRoleIds: string[]
-  dataFim?: string
-  channelId?: string
-  templateKey?: string
-  mentionEveryone?: boolean
-  sentBy: string
-}): Promise<{ success: boolean; message: string; messageIds?: string[] }> {
-  if (!isMessagesEnabled()) {
-    return { success: false, message: 'DISCORD_MESSAGES_ENABLED != true — envio recusado (nada publicado)' }
+export async function sendDiscordMessage(
+  params: DiscordMessageSendParams,
+  requestId?: string,
+  options: DiscordMessageSendOptions = {},
+): Promise<DiscordMessageSendResult> {
+  if (!requestId) {
+    const prepared = prepareDiscordMessage(params)
+    if (!prepared.success) return prepared
+    return performDiscordMessage(prepared.message, undefined, options.afterProviderSuccess)
   }
 
-  const roleIds = params.mentionRoleIds.filter((id) => ALL_RENEWAL_ROLE_IDS.includes(id))
-  if (roleIds.length !== params.mentionRoleIds.length) {
-    return { success: false, message: 'mentionRoleIds contém cargos fora da allowlist R.*' }
+  const execution = await executeDiscordMessageReceipt({
+    operation: options.operation ?? 'manual-send',
+    identity: options.identity ?? discordMessageIdentity(params),
+    requestId,
+    heartbeatMs: options.heartbeatMs,
+    now: options.now,
+    run: async (context) => {
+      const prepared = prepareDiscordMessage(params)
+      if (!prepared.success) {
+        context.provider.notAttempted()
+        context.provider.retryableFailure()
+        return prepared
+      }
+      return performDiscordMessage(prepared.message, context, options.afterProviderSuccess)
+    },
+  })
+  if (execution.kind === 'completed' || execution.kind === 'replay' || execution.kind === 'failed') {
+    return execution.result
   }
-
-  const channelId = params.channelId || getDefaultMessageChannelId()
-  if (!channelId) {
-    return { success: false, message: 'DISCORD_MESSAGE_CHANNEL_ID not configured' }
+  if (execution.kind === 'in-progress') {
+    return { success: false, kind: 'in-progress', message: 'Mensagem Discord já está em processamento' }
   }
-  const allowedChannels = getMessageChannels()
-  if (!allowedChannels.some((c) => c.channelId === channelId)) {
-    return { success: false, message: 'Canal fora da lista de canais permitidos (DISCORD_MESSAGE_CHANNELS)' }
+  if (execution.kind === 'request-id-reused') {
+    return { success: false, kind: 'request-id-reused', message: 'X-Request-ID já foi usado noutro payload' }
   }
-  const mentionEveryone = params.mentionEveryone === true
-  const finalContent = renderMessage(params.content, roleIds, params.dataFim, mentionEveryone)
-  if (!finalContent.trim()) return { success: false, message: 'Mensagem vazia' }
-
-  try {
-    const resp = await axios.post<DiscordMessageResponse>(
-      `${botUrl()}/renewal/messages/send`,
-      { channelId, content: finalContent, mentionRoleIds: roleIds, mentionEveryone },
-      { headers: botHeaders(), timeout: 60000 }
-    )
-
-    await DiscordMessageLog.create({
-      channelId,
-      content: finalContent,
-      mentionRoleIds: roleIds,
-      mentionRoleNames: [
-        ...(mentionEveryone ? ['@everyone'] : []),
-        ...roleIds.map((id) => ROLE_NAME_BY_ID.get(id) || id)
-      ],
-      templateKey: params.templateKey,
-      sentBy: params.sentBy,
-      messageIds: resp.data.messageIds || [],
-      parts: resp.data.parts || 1,
-      sentAt: new Date()
-    })
-
-    return { success: true, message: `Publicada (${resp.data.parts || 1} parte(s))`, messageIds: resp.data.messageIds }
-  } catch (error: unknown) {
-    return { success: false, message: `Bot recusou/falhou: ${responseMessage(error) || errorMessage(error)}` }
+  return {
+    success: false,
+    kind: 'indeterminate',
+    message: 'Resultado da mensagem Discord ficou indeterminado; requer reconciliação',
   }
 }
 

@@ -65,7 +65,8 @@ function rule(): FakeRule {
 }
 
 function query<T>(value: T) {
-  return { exec: jest.fn().mockResolvedValue(value) }
+  const result = { exec: jest.fn().mockResolvedValue(value) }
+  return { ...result, limit: jest.fn(() => result) }
 }
 
 function leanQuery<T>(value: T) {
@@ -77,7 +78,14 @@ function setupJob(currentRule: FakeRule) {
   mockRuleFind.mockReturnValue(query([currentRule]))
   mockRoleStateCountDocuments.mockResolvedValue(1)
   mockTemplateFindOne.mockReturnValue(leanQuery({ content: 'Renova até {dataFim}' }))
-  mockSendDiscordMessage.mockResolvedValue({ success: true, message: 'sent', messageIds: ['m-1'] })
+  mockSendDiscordMessage.mockImplementation(async (
+    _params: unknown,
+    _requestId: string,
+    options?: { afterProviderSuccess?: (context: unknown) => Promise<void> },
+  ) => {
+    await options?.afterProviderSuccess?.({ lease: { assertOwnership: jest.fn() } })
+    return { success: true, message: 'sent', messageIds: ['m-1'] }
+  })
 }
 
 async function flushMicrotasks(): Promise<void> {
@@ -144,7 +152,10 @@ describe('Discord scheduled message write-path characterization', () => {
   test('provider failure is persisted as a retryable partial run', async () => {
     const currentRule = rule()
     setupJob(currentRule)
-    mockSendDiscordMessage.mockResolvedValueOnce({ success: false, message: 'provider unavailable' })
+    mockSendDiscordMessage.mockImplementationOnce(async () => ({
+      success: false,
+      message: 'provider unavailable',
+    }))
 
     const failed = await runScheduledMessagesJob()
 
@@ -153,7 +164,14 @@ describe('Discord scheduled message write-path characterization', () => {
     expect(currentRule.lastResult).toBe('FALHOU: provider unavailable')
     expect(currentRule.save).toHaveBeenCalledTimes(1)
 
-    mockSendDiscordMessage.mockResolvedValueOnce({ success: true, message: 'sent' })
+    mockSendDiscordMessage.mockImplementationOnce(async (
+      _params: unknown,
+      _requestId: string,
+      options?: { afterProviderSuccess?: (context: unknown) => Promise<void> },
+    ) => {
+      await options?.afterProviderSuccess?.({ lease: { assertOwnership: jest.fn() } })
+      return { success: true, message: 'sent' }
+    })
     const retried = await runScheduledMessagesJob()
 
     expect(retried.sent).toBe(1)

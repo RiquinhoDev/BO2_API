@@ -43,7 +43,14 @@ jest.mock('../../src/services/renewal/discordScheduledMessages.service', () => (
   })),
 }))
 
-import { executeDiscordRolesPlan } from '../../src/services/renewal/discordRolesSync.service'
+import {
+  executeDiscordRolesPlan,
+  sendDiscordMessage,
+} from '../../src/services/renewal/discordRolesSync.service'
+import {
+  runScheduledMessagesJob,
+  testScheduledRule,
+} from '../../src/services/renewal/discordScheduledMessages.service'
 import discordRenewalRouter from '../../src/routes/discordRenewal.routes'
 
 const marker = { __bo2_offline_loopback: '1' }
@@ -138,4 +145,70 @@ test('execute preserves actor from the body', async () => {
   expect(execute).toHaveBeenCalledWith(expect.objectContaining({
     executedBy: 'reviewer@example.test',
   }))
+})
+
+test('message routes forward the real X-Request-ID and scheduled dry-run', async () => {
+  const send = jest.mocked(sendDiscordMessage)
+  const testScheduled = jest.mocked(testScheduledRule)
+  const runScheduled = jest.mocked(runScheduledMessagesJob) as jest.Mock
+  send.mockClear()
+  testScheduled.mockClear()
+  runScheduled.mockClear()
+
+  await request(buildApp())
+    .post('/api/discord-renewal/messages/send')
+    .query(marker)
+    .set('X-Request-ID', 'message-route-a')
+    .send({ content: 'hello', mentionRoleIds: [] })
+    .expect(200)
+  await request(buildApp())
+    .post('/api/discord-renewal/scheduled/renewal-last-day/test')
+    .query(marker)
+    .set('X-Request-ID', 'test-route-a')
+    .send({})
+    .expect(200)
+  await request(buildApp())
+    .post('/api/discord-renewal/scheduled/run')
+    .query(marker)
+    .set('X-Request-ID', 'run-route-a')
+    .send({ dryRun: true })
+    .expect(200)
+
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ content: 'hello' }), 'message-route-a')
+  expect(testScheduled).toHaveBeenCalledWith('renewal-last-day', 'backoffice', 'test-route-a')
+  expect(runScheduled).toHaveBeenCalledWith('run-route-a', { dryRun: true })
+})
+
+test('message routes expose indeterminate and request-id reuse statuses', async () => {
+  const send = jest.mocked(sendDiscordMessage)
+  const runScheduled = jest.mocked(runScheduledMessagesJob) as jest.Mock
+  send.mockResolvedValueOnce({
+    success: false,
+    kind: 'indeterminate',
+    message: 'requires reconciliation',
+  })
+  runScheduled.mockResolvedValueOnce({ kind: 'request-id-reused' })
+
+  await request(buildApp())
+    .post('/api/discord-renewal/messages/send')
+    .query(marker)
+    .set('X-Request-ID', 'message-route-b')
+    .send({ content: 'hello', mentionRoleIds: [] })
+    .expect(503, {
+      success: false,
+      code: 'DISCORD_MESSAGE_INDETERMINATE',
+      message: 'requires reconciliation',
+      correlationId: 'message-route-b',
+    })
+  await request(buildApp())
+    .post('/api/discord-renewal/scheduled/run')
+    .query(marker)
+    .set('X-Request-ID', 'run-route-b')
+    .send({})
+    .expect(409, {
+      success: false,
+      code: 'DISCORD_SCHEDULED_RUN_REQUEST_ID_REUSED',
+      message: 'X-Request-ID já foi usado noutro run',
+      correlationId: 'run-route-b',
+    })
 })

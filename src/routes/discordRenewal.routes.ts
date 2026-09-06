@@ -9,6 +9,7 @@
 
 import { asyncRoute } from '../security/asyncRoute'
 import { successResponse } from '../contracts/responseContract'
+import { HttpError } from '../security/errorHandling'
 import { Router, type Request, type Response } from 'express'
 import { DiscordMessageLog, DiscordMessageTemplate, DiscordRoleChange } from '../models/discordRenewal'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
@@ -28,11 +29,34 @@ import {
   renderMessage,
   sendDiscordMessage
 } from '../services/renewal/discordRolesSync.service'
+import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
 
 const router = Router()
 
 function actor(req: Pick<Request, 'user'>, validatedActor?: string): string {
   return req.user?.email || validatedActor || 'backoffice'
+}
+
+function messageReceiptFailure(result: { kind?: string; message: string }): never {
+  if (result.kind === 'in-progress') {
+    throw new HttpError({
+      status: 409,
+      code: 'DISCORD_MESSAGE_IN_PROGRESS',
+      publicMessage: result.message,
+    })
+  }
+  if (result.kind === 'indeterminate') {
+    throw new HttpError({
+      status: 503,
+      code: 'DISCORD_MESSAGE_INDETERMINATE',
+      publicMessage: result.message,
+    })
+  }
+  throw new HttpError({
+    status: 409,
+    code: 'DISCORD_MESSAGE_REQUEST_ID_REUSED',
+    publicMessage: result.message,
+  })
 }
 
 /** GET /api/discord-renewal/status */
@@ -161,7 +185,10 @@ router.post('/messages/send', withValidatedInput(discordRenewalMessageSendInput,
     templateKey: input.body.templateKey,
     mentionEveryone: input.body.mentionEveryone === true,
     sentBy: actor(req, input.body.actor)
-  })
+  }, requestIdFrom(req.get('x-request-id') || res.locals.correlationId))
+  if (!result.success && 'kind' in result && result.kind) {
+    messageReceiptFailure(result)
+  }
   if (!result.success) {
     res.status(400).json(result)
     return
@@ -210,15 +237,46 @@ router.get('/scheduled/:key/preview', asyncRoute(async (req: Request, res: Respo
 /** POST /api/discord-renewal/scheduled/:key/test — envia SEM menções (ninguém notificado) */
 router.post('/scheduled/:key/test', withValidatedInput(discordRenewalScheduledTestInput, async (input, req, res) => {
   const { testScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
-  const result = await testScheduledRule(input.params.key, actor(req, input.body.actor))
+  const result = await testScheduledRule(
+    input.params.key,
+    actor(req, input.body.actor),
+    requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+  )
+  if (!result.success && 'kind' in result && result.kind) {
+    messageReceiptFailure(result)
+  }
   if (!result.success) return res.status(400).json(result)
   res.json(successResponse({ result }))
 }))
 
 /** POST /api/discord-renewal/scheduled/run — corre o job já (respeita switches/idempotência) */
-router.post('/scheduled/run', withValidatedInput(discordRenewalScheduledRunInput, async (_input, _req, res) => {
+router.post('/scheduled/run', withValidatedInput(discordRenewalScheduledRunInput, async (input, req, res) => {
   const { runScheduledMessagesJob } = await import('../services/renewal/discordScheduledMessages.service')
-  const report = await runScheduledMessagesJob()
+  const report = await runScheduledMessagesJob(
+    requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+    { dryRun: input.body.dryRun === true },
+  )
+  if ('kind' in report) {
+    if (report.kind === 'in-progress') {
+      throw new HttpError({
+        status: 409,
+        code: 'DISCORD_SCHEDULED_RUN_IN_PROGRESS',
+        publicMessage: 'Execução de mensagens Discord já está em processamento',
+      })
+    }
+    if (report.kind === 'indeterminate') {
+      throw new HttpError({
+        status: 503,
+        code: 'DISCORD_SCHEDULED_RUN_INDETERMINATE',
+        publicMessage: 'Execução de mensagens Discord ficou indeterminada; requer reconciliação',
+      })
+    }
+    throw new HttpError({
+      status: 409,
+      code: 'DISCORD_SCHEDULED_RUN_REQUEST_ID_REUSED',
+      publicMessage: 'X-Request-ID já foi usado noutro run',
+    })
+  }
   res.json({ success: true, data: report })
 }))
 

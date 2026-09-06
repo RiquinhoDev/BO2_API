@@ -200,7 +200,10 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
   [
     'POST /api/discord-renewal/messages/send',
     {
-      idempotency: { status: 'required', reason: 'manual-message-no-idempotency-key' },
+      idempotency: {
+        status: 'verified',
+        reason: 'discord-message-durable-receipt-and-provider-audit-fence',
+      },
       killSwitch: { status: 'verified', reason: 'DISCORD_MESSAGES_ENABLED' },
       dryRun: { status: 'verified', reason: 'POST /api/discord-renewal/messages/preview' },
     },
@@ -208,7 +211,10 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
   [
     'POST /api/discord-renewal/scheduled/:key/test',
     {
-      idempotency: { status: 'required', reason: 'scheduled-test-no-idempotency-key' },
+      idempotency: {
+        status: 'verified',
+        reason: 'discord-message-durable-receipt-and-provider-audit-fence',
+      },
       killSwitch: { status: 'verified', reason: 'DISCORD_MESSAGES_ENABLED' },
       dryRun: { status: 'verified', reason: 'GET /api/discord-renewal/scheduled/:key/preview' },
     },
@@ -216,13 +222,23 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
   [
     'POST /api/discord-renewal/scheduled/run',
     {
-      cap: { status: 'required', reason: 'scheduled-rule-count-no-finite-cap' },
-      idempotency: { status: 'required', reason: 'lastSentMonth-check-save-not-atomic' },
+      cap: {
+        status: 'verified',
+        reason: 'scheduled-rule-query-cap',
+        limit: 50,
+      },
+      idempotency: {
+        status: 'verified',
+        reason: 'scheduled-rule-month-receipt-and-run-receipt-fence',
+      },
       killSwitch: {
         status: 'verified',
         reason: 'DISCORD_SCHEDULED_MESSAGES_ENABLED+DISCORD_MESSAGES_ENABLED',
       },
-      dryRun: { status: 'required', reason: 'scheduled-run-no-complete-dry-run' },
+      dryRun: {
+        status: 'verified',
+        reason: 'scheduled-run-dry-run-no-provider-or-local-mutation',
+      },
     },
   ],
 ]

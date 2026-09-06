@@ -10,8 +10,8 @@
 //
 // Salvaguardas:
 // - Master switch DISCORD_SCHEDULED_MESSAGES_ENABLED (runtime, default false) + enabled por regra.
-// - Idempotência: lastSentMonth ('YYYY-MM') garante máx. 1 envio por regra/mês (re-runs e
-//   redeploys não duplicam).
+// - Idempotência: receipt durável por regra/mês coordena re-runs e concorrência; lastSentMonth
+//   é a projeção operacional, não a fence atómica.
 // - GUARD DE MÊS VAZIO (pedida pelo João): há meses sem nenhuma turma a renovar (verificado
 //   2026-07-11: Agosto e Outubro = 0 alunos). Se o cargo alvo não tem NINGUÉM com ele
 //   aplicado (DiscordRoleState), a mensagem NÃO sai — evita anunciar renovações a um cargo
@@ -20,6 +20,7 @@
 //   canais, switch DISCORD_MESSAGES_ENABLED, e registo em DiscordMessageLog.
 
 import logger from '../../utils/logger'
+import { HttpError } from '../../security/errorHandling'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   DiscordMessageTemplate,
@@ -32,9 +33,29 @@ import {
   renderMessage,
   sendDiscordMessage
 } from './discordRolesSync.service'
+import {
+  executeDiscordMessageReceipt,
+} from './discord/discordMessageExecution.service'
+import {
+  normalizeDiscordActor,
+  performDiscordMessage,
+  prepareDiscordMessage,
+} from './discord/discordMessageTransport.service'
 
 export const isScheduledMessagesEnabled = () =>
   getRuntimeConfig().renewal.discordScheduledMessagesEnabled
+
+export const MAX_SCHEDULED_MESSAGE_RULES = 50
+
+export class DiscordScheduledMessagesLimitError extends HttpError {
+  constructor() {
+    super({
+      status: 413,
+      code: 'DISCORD_SCHEDULED_MESSAGES_LIMIT_EXCEEDED',
+      publicMessage: `Mensagens Discord agendadas limitadas a ${MAX_SCHEDULED_MESSAGE_RULES} regras`,
+    })
+  }
+}
 
 const LISBON_TZ = 'Europe/Lisbon'
 
@@ -119,12 +140,52 @@ export interface ScheduledMessagesReport {
   checked: number
   sent: number
   skipped: Array<{ rule: string; reason: string }>
+  dryRun?: boolean
+  planned?: number
 }
 
-export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport> {
-  await ensureDefaultScheduledRules()
+export type ScheduledMessagesExecutionResult =
+  | ScheduledMessagesReport
+  | { kind: 'in-progress' | 'indeterminate' | 'request-id-reused' }
 
-  const now = new Date()
+export interface ScheduledMessagesRunOptions {
+  dryRun?: boolean
+  now?: () => Date
+}
+
+async function readScheduledRulesWithinCap(): Promise<IDiscordScheduledRule[]> {
+  const rules = await DiscordScheduledRule.find({})
+    .limit(MAX_SCHEDULED_MESSAGE_RULES + 1)
+    .exec()
+  if (rules.length > MAX_SCHEDULED_MESSAGE_RULES) throw new DiscordScheduledMessagesLimitError()
+  return rules
+}
+
+function missingDefaultRules(rules: readonly IDiscordScheduledRule[]): number {
+  const keys = new Set(rules.map((rule) => rule.key))
+  return DEFAULT_RULES.filter((rule) => !keys.has(rule.key)).length
+}
+
+function dateKey(now: Date): string {
+  const { year, month, day } = lisbonParts(now)
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+async function runScheduledMessagesCore(
+  now: Date,
+  options: ScheduledMessagesRunOptions,
+  requestId?: string,
+): Promise<ScheduledMessagesReport> {
+  const dryRun = options.dryRun === true
+  let rules = await readScheduledRulesWithinCap()
+  if (!dryRun) {
+    if (rules.length + missingDefaultRules(rules) > MAX_SCHEDULED_MESSAGE_RULES) {
+      throw new DiscordScheduledMessagesLimitError()
+    }
+    await ensureDefaultScheduledRules()
+    rules = await readScheduledRulesWithinCap()
+  }
+
   const { day } = lisbonParts(now)
   const target = getTargetMonth(now)
 
@@ -134,10 +195,9 @@ export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport
     targetRole: target.roleName,
     checked: 0,
     sent: 0,
-    skipped: []
+    skipped: [],
+    ...(dryRun ? { dryRun: true, planned: 0 } : {}),
   }
-
-  const rules = await DiscordScheduledRule.find({}).exec()
 
   for (const rule of rules) {
     if (rule.dayOfMonth !== day) continue // hoje não é o dia desta regra
@@ -145,6 +205,7 @@ export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport
 
     const skip = async (reason: string) => {
       report.skipped.push({ rule: rule.key, reason })
+      if (dryRun) return
       rule.lastRunAt = now
       rule.lastResult = reason
       await rule.save()
@@ -176,6 +237,12 @@ export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport
       continue
     }
 
+    if (dryRun) {
+      report.planned = (report.planned ?? 0) + 1
+      await skip('dry-run — envio e persistência recusados')
+      continue
+    }
+
     const result = await sendDiscordMessage({
       content: template.content,
       mentionRoleIds: [target.roleId],
@@ -183,26 +250,74 @@ export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport
       channelId: rule.channelId || undefined,
       templateKey: rule.templateKey,
       sentBy: 'cron:DiscordScheduledMessages'
+    },
+    requestId
+      ? `${requestId}:rule:${rule.key}:${target.monthKey}`
+      : `cron:DiscordScheduledMessages:${rule.key}:${target.monthKey}`,
+    {
+      operation: 'scheduled-rule',
+      identity: `rule:${rule.key}:${target.monthKey}`,
+      now: options.now,
+      afterProviderSuccess: async (context) => {
+        context.lease.assertOwnership()
+        rule.lastRunAt = now
+        rule.lastSentMonth = target.monthKey
+        rule.lastResult = `enviada a ${target.roleName} (${members} membros)`
+        await rule.save()
+      },
     })
 
-    rule.lastRunAt = now
     if (result.success) {
-      rule.lastSentMonth = target.monthKey
-      rule.lastResult = `enviada a ${target.roleName} (${members} membros)`
       report.sent++
       logger.info(`📨 [ScheduledMessages] ${rule.key} → ${target.roleName} (${members} membros): OK`)
+    } else if (result.kind === 'in-progress') {
+      report.skipped.push({ rule: rule.key, reason: result.message })
+    } else if (result.kind === 'indeterminate' || result.kind === 'request-id-reused') {
+      report.skipped.push({ rule: rule.key, reason: result.message })
     } else {
+      rule.lastRunAt = now
       rule.lastResult = `FALHOU: ${result.message}`
       report.skipped.push({ rule: rule.key, reason: result.message })
+      await rule.save()
       logger.error(`❌ [ScheduledMessages] ${rule.key}: ${result.message}`)
     }
-    await rule.save()
   }
 
   logger.info(
     `📅 [ScheduledMessages] dia ${day} — ${report.checked} regra(s) para hoje, ${report.sent} enviada(s), ${report.skipped.length} skip(s)`
   )
   return report
+}
+
+export function runScheduledMessagesJob(): Promise<ScheduledMessagesReport>
+export function runScheduledMessagesJob(
+  requestId: string,
+  options?: ScheduledMessagesRunOptions,
+): Promise<ScheduledMessagesExecutionResult>
+export function runScheduledMessagesJob(
+  requestId: undefined,
+  options?: ScheduledMessagesRunOptions,
+): Promise<ScheduledMessagesReport>
+export async function runScheduledMessagesJob(
+  requestId?: string,
+  options: ScheduledMessagesRunOptions = {},
+): Promise<ScheduledMessagesExecutionResult> {
+  const now = options.now?.() ?? new Date()
+  // Preview é estritamente read-only: não cria receipt de execução, seed, save nem chama provider.
+  if (options.dryRun === true) return runScheduledMessagesCore(now, options, requestId)
+  if (!requestId) return runScheduledMessagesCore(now, options)
+
+  const execution = await executeDiscordMessageReceipt({
+    operation: 'scheduled-run',
+    identity: `run:${dateKey(now)}:live`,
+    requestId,
+    now: options.now,
+    run: () => runScheduledMessagesCore(now, options, requestId),
+  })
+  if (execution.kind === 'completed' || execution.kind === 'replay' || execution.kind === 'failed') {
+    return execution.result
+  }
+  return execution
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -245,21 +360,66 @@ export async function previewScheduledRule(key: string): Promise<{
 }
 
 /** Envio de teste SEM menções (ninguém é notificado) — modo seguro para validar texto/canal */
-export async function testScheduledRule(key: string, sentBy: string) {
-  const rule = await DiscordScheduledRule.findOne({ key }).lean().exec()
-  if (!rule) return { success: false, message: `Regra '${key}' não encontrada` }
-  const template = await DiscordMessageTemplate.findOne({ key: rule.templateKey }).lean().exec()
-  if (!template) return { success: false, message: `Template '${rule.templateKey}' não encontrado` }
-
+export async function testScheduledRule(key: string, sentBy: string, requestId?: string) {
   const target = getTargetMonth()
-  return sendDiscordMessage({
-    content: `🧪 [TESTE — mensagem agendada '${rule.key}', sem menções]\n\n${template.content}`,
-    mentionRoleIds: [], // sem menções = não notifica ninguém
-    dataFim: target.dataFim,
-    channelId: rule.channelId || undefined,
-    templateKey: rule.templateKey,
-    sentBy
+  const loadMessage = async () => {
+    const rule = await DiscordScheduledRule.findOne({ key }).lean().exec()
+    if (!rule) return { success: false as const, message: `Regra '${key}' não encontrada` }
+    const template = await DiscordMessageTemplate.findOne({ key: rule.templateKey }).lean().exec()
+    if (!template) return { success: false as const, message: `Template '${rule.templateKey}' não encontrado` }
+    return {
+      success: true as const,
+      params: {
+        content: `🧪 [TESTE — mensagem agendada '${rule.key}', sem menções]\n\n${template.content}`,
+        mentionRoleIds: [], // sem menções = não notifica ninguém
+        dataFim: target.dataFim,
+        channelId: rule.channelId || undefined,
+        templateKey: rule.templateKey,
+        sentBy,
+      },
+    }
+  }
+
+  if (!requestId) {
+    const loaded = await loadMessage()
+    if (!loaded.success) return loaded
+    return sendDiscordMessage(loaded.params)
+  }
+
+  const execution = await executeDiscordMessageReceipt({
+    operation: 'scheduled-test',
+    identity: `rule:${key}:actor:${normalizeDiscordActor(sentBy)}`,
+    requestId,
+    run: async (context) => {
+      const loaded = await loadMessage()
+      if (!loaded.success) {
+        context.provider.notAttempted()
+        context.provider.retryableFailure()
+        return loaded
+      }
+      const prepared = prepareDiscordMessage(loaded.params)
+      if (!prepared.success) {
+        context.provider.notAttempted()
+        context.provider.retryableFailure()
+        return prepared
+      }
+      return performDiscordMessage(prepared.message, context)
+    },
   })
+  if (execution.kind === 'completed' || execution.kind === 'replay' || execution.kind === 'failed') {
+    return execution.result
+  }
+  if (execution.kind === 'in-progress') {
+    return { success: false, kind: 'in-progress' as const, message: 'Teste de mensagem Discord já está em processamento' }
+  }
+  if (execution.kind === 'request-id-reused') {
+    return { success: false, kind: 'request-id-reused' as const, message: 'X-Request-ID já foi usado noutra regra' }
+  }
+  return {
+    success: false,
+    kind: 'indeterminate' as const,
+    message: 'Resultado do teste Discord ficou indeterminado; requer reconciliação',
+  }
 }
 
 export async function setScheduledRuleEnabled(key: string, enabled: boolean): Promise<IDiscordScheduledRule | null> {

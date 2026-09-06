@@ -5,6 +5,7 @@ const modelLoaders = [
   () => import('../models/acTags/TagRule'),
   () => import('../models/ActiveCampaignExecution'),
   () => import('../models/ActiveCampaignProductTagReceipt'),
+  () => import('../models/DiscordMessageExecutionReceipt'),
   () => import('../models/GuruCurseducaInactivationReceipt'),
   () => import('../models/AcWebhookReceipt'),
   () => import('../models/Admin'),

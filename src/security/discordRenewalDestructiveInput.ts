@@ -39,5 +39,5 @@ export const discordRenewalScheduledTestInput = validatedSchema({
 export const discordRenewalScheduledRunInput = validatedSchema({
   params: {},
   query: {},
-  body: {},
+  body: { dryRun: z.boolean().optional() },
 })
