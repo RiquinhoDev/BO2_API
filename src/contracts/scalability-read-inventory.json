@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 23,
-      "pending": 1,
-      "changed": 19,
+      "complete": 24,
+      "pending": 0,
+      "changed": 20,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -1002,8 +1002,25 @@
         "id": "product-sales.product-loop-writes",
         "file": "src/services/productSalesStatsBuilder.ts",
         "start": "export async function buildProductSalesStats",
-        "status": "pending",
-        "reason": "The outer product traversal still couples per-product reads to one stats upsert; batching needs write-order and partial-failure equivalence."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: per-product reads, aggregation, one idempotent productId upsert and partial-error accounting remain ordered; empty products converge to zero stats",
+        "evidence": [
+          "tests/scalability/scaleRound1ProductSalesLoop.contract.test.ts:80-108 (N=1/10/100, peak=1, product order and one upsert per product)",
+          "tests/scalability/scaleRound1ProductSalesLoop.contract.test.ts:111-130 (active product without UserProducts overwrites stale stats with empty totals)",
+          "tests/scalability/scaleRound1ProductSalesLoop.contract.test.ts:139-152 (product read failure is isolated and later products continue)",
+          "tests/scalability/scaleRound1ProductSalesLoop.contract.test.ts:155-175 (product upsert failure is isolated and next rebuild retries the product)",
+          "tests/scalability/scaleRound1ProductSalesLoop.contract.test.ts:177-188 (null upsert result is reported as a product error)"
+        ],
+        "require": [
+          "for (const product of products)",
+          "await persistProductSalesStats(product,",
+          "result.productsSucceeded++",
+          "result.errors.push"
+        ],
+        "globalRequire": [
+          "if (!persisted) throw new Error"
+        ]
       }
     ],
     "operational": {

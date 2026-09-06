@@ -10,25 +10,103 @@ import ProductSalesStats, {
   IDateSourceBreakdown,
 } from '../models/product/ProductSalesStats'
 import UserProduct from '../models/UserProduct'
-import Product from '../models/product/Product'
+import Product, { type IProduct } from '../models/product/Product'
 import User from '../models/user'
 import mongoose from 'mongoose'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { determineSaleDate } from './productSales/dateResolver'
 
-export async function buildProductSalesStats(): Promise<void> {
+export interface ProductSalesStatsBuildResult {
+  productsFound: number
+  productsProcessed: number
+  productsSucceeded: number
+  productsWithNoUserProducts: number
+  errors: Array<{ productId: string; error: string }>
+  duration: number
+}
+
+interface ProductSalesStatsPayload {
+  salesByMonth: IMonthlySales[]
+  salesByYear: IYearlySales[]
+  totals: {
+    allTime: number
+    lastYear: number
+    last6Months: number
+    last3Months: number
+    lastMonth: number
+    currentMonth: number
+  }
+  overallDataSources: IDateSourceBreakdown
+  meta: {
+    calculatedAt: Date
+    oldestSale: Date | null
+    newestSale: Date | null
+    totalRecordsProcessed: number
+    recordsWithValidDates: number
+    recordsWithoutDates: number
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
+function emptyDataSources(): IDateSourceBreakdown {
+  return {
+    purchaseDate: 0,
+    joinedDate: 0,
+    enrolledAt: 0,
+    joinedServer: 0,
+    firstSystemEntry: 0,
+    createdAt: 0,
+    unknown: 0
+  }
+}
+
+async function persistProductSalesStats(
+  product: Pick<IProduct, '_id' | 'code' | 'name' | 'platform'>,
+  payload: ProductSalesStatsPayload
+): Promise<void> {
+  const persisted = await ProductSalesStats.findOneAndUpdate(
+    { productId: product._id },
+    {
+      $set: {
+        productCode: product.code,
+        productName: product.name,
+        platform: product.platform,
+        ...payload
+      }
+    },
+    { upsert: true, new: true }
+  )
+
+  if (!persisted) throw new Error('Product Sales Stats upsert não devolveu documento')
+}
+
+export async function buildProductSalesStats(): Promise<ProductSalesStatsBuildResult> {
   logger.info('\nðŸ—ï¸ ========================================')
   logger.info('ðŸ—ï¸ CONSTRUINDO PRODUCT SALES STATS')
   logger.info('ðŸ—ï¸ ========================================\n')
   
   const startTime = Date.now()
+  const result: ProductSalesStatsBuildResult = {
+    productsFound: 0,
+    productsProcessed: 0,
+    productsSucceeded: 0,
+    productsWithNoUserProducts: 0,
+    errors: [],
+    duration: 0
+  }
   
   try {
     const products = await Product.find({ isActive: true })
+    result.productsFound = products.length
     logger.info(`ðŸ“¦ ${products.length} produtos ativos encontrados\n`)
     
     for (const product of products) {
-      logger.info(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
+      result.productsProcessed++
+      try {
+        logger.info(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
       
       const userProducts = await UserProduct.find({ 
         productId: product._id 
@@ -38,6 +116,29 @@ export async function buildProductSalesStats(): Promise<void> {
       
       if (userProducts.length === 0) {
         logger.info(`   â­ï¸  Pulando produto sem vendas`)
+        result.productsWithNoUserProducts++
+        await persistProductSalesStats(product, {
+          salesByMonth: [],
+          salesByYear: [],
+          totals: {
+            allTime: 0,
+            lastYear: 0,
+            last6Months: 0,
+            last3Months: 0,
+            lastMonth: 0,
+            currentMonth: 0
+          },
+          overallDataSources: emptyDataSources(),
+          meta: {
+            calculatedAt: new Date(),
+            oldestSale: null,
+            newestSale: null,
+            totalRecordsProcessed: 0,
+            recordsWithValidDates: 0,
+            recordsWithoutDates: 0
+          }
+        })
+        result.productsSucceeded++
         continue
       }
       
@@ -228,29 +329,21 @@ export async function buildProductSalesStats(): Promise<void> {
         }
       })
       
-      await ProductSalesStats.findOneAndUpdate(
-        { productId: product._id },
-        {
-          $set: {
-            productCode: product.code,
-            productName: product.name,
-            platform: product.platform,
-            salesByMonth,
-            salesByYear,
-            totals,
-            overallDataSources: overallSources,
-            meta: {
-              calculatedAt: new Date(),
-              oldestSale,
-              newestSale,
-              totalRecordsProcessed: recordsProcessed,
-              recordsWithValidDates,
-              recordsWithoutDates
-            }
-          }
-        },
-        { upsert: true, new: true }
-      )
+      await persistProductSalesStats(product, {
+        salesByMonth,
+        salesByYear,
+        totals,
+        overallDataSources: overallSources,
+        meta: {
+          calculatedAt: new Date(),
+          oldestSale,
+          newestSale,
+          totalRecordsProcessed: recordsProcessed,
+          recordsWithValidDates,
+          recordsWithoutDates
+        }
+      })
+      result.productsSucceeded++
       
       logger.info(`   âœ… Stats guardados:`)
       logger.info(`      â€¢ Total vendas: ${totals.allTime}`)
@@ -263,10 +356,18 @@ export async function buildProductSalesStats(): Promise<void> {
       logger.info(`        - enrolledAt: ${overallSources.enrolledAt}`)
       logger.info(`        - ðŸ†• firstSystemEntry: ${overallSources.firstSystemEntry}`)
       logger.info(`        - unknown: ${overallSources.unknown}`)
+      } catch (error: unknown) {
+        const productId = product._id.toString()
+        const message = errorMessage(error)
+        result.errors.push({ productId, error: message })
+        logger.error(`âŒ Erro ao processar produto ${productId}: ${message}`)
+      }
     }
     
     const duration = Math.round((Date.now() - startTime) / 1000)
-    logger.info(`\nâœ… Product Sales Stats construÃ­dos com sucesso em ${duration}s`)
+    result.duration = duration
+    logger.info(`\nâœ… Product Sales Stats concluÃ­dos em ${duration}s: ${result.productsSucceeded}/${result.productsFound} produtos; ${result.errors.length} erros`)
+    return result
     
   } catch (error) {
     logger.error('âŒ Erro ao construir Product Sales Stats:', error)

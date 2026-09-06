@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 23, pending: 1, changed: 19, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 24, pending: 0, changed: 20, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 23 complete / 1 pending')
+  expect(run()).toContain('SCALE-03 24 complete / 0 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(23)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(1)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(19)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(24)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(0)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(20)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -180,6 +180,33 @@ test('SCALE-03 records Guru cross-reference budget, failure accounting and stale
     'email: { $nin: canonicalSyncedEmails }',
     'canonicalSyncedEmails.length >= minSize',
     'const syncedSet = new Set(canonicalSyncedEmails)',
+  ]))
+})
+
+test('SCALE-03 records product-sales ordered traversal and partial retry accounting', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const productSales = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'product-sales.product-loop-writes')
+
+  expect(productSales).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(productSales.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('scaleRound1ProductSalesLoop.contract.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('without UserProducts'),
+    expect.stringContaining('retries'),
+    expect.stringContaining('null upsert'),
+  ]))
+  expect(productSales.require).toEqual(expect.arrayContaining([
+    'for (const product of products)',
+    'await persistProductSalesStats(product,',
+    'result.productsSucceeded++',
+    'result.errors.push',
+  ]))
+  expect(productSales.globalRequire).toEqual(expect.arrayContaining([
+    'if (!persisted) throw new Error',
   ]))
 })
 
