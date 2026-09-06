@@ -1,5 +1,7 @@
 const mockUserProductFind = jest.fn()
 const mockFindByIdAndUpdate = jest.fn()
+const mockUserFind = jest.fn()
+const mockUserProductUpdateMany = jest.fn()
 const mockUserFindByIdAndUpdate = jest.fn()
 const mockAxiosGet = jest.fn()
 
@@ -9,13 +11,14 @@ jest.mock('axios', () => ({
 }))
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
-  default: { findByIdAndUpdate: mockUserFindByIdAndUpdate },
+  default: { find: mockUserFind, findByIdAndUpdate: mockUserFindByIdAndUpdate },
 }))
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {
     find: mockUserProductFind,
     findByIdAndUpdate: mockFindByIdAndUpdate,
+    updateMany: mockUserProductUpdateMany,
   },
 }))
 jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
@@ -24,11 +27,20 @@ jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
   })),
 }))
 
-import { runCrossReferenceAfterGuruSync } from '../../src/services/guru/crossReference.service'
+import {
+  runCrossReferenceAfterCurseducaSync,
+  runCrossReferenceAfterGuruSync,
+} from '../../src/services/guru/crossReference.service'
 
 const productsQuery = (products: unknown[]) => ({
   populate: jest.fn().mockReturnThis(),
   lean: jest.fn().mockResolvedValue(products),
+})
+
+const usersQuery = (users: unknown[]) => ({
+  select: jest.fn().mockReturnThis(),
+  populate: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockResolvedValue(users),
 })
 
 describe.each([1, 10, 100])('Guru cross-reference actions N=%i', (size) => {
@@ -132,4 +144,63 @@ describe.each([1, 10, 100])('Guru cross-reference actions N=%i', (size) => {
       jest.useRealTimers()
     }
   })
+
+  test('counts failed provider attempts and still caps them at 20', async () => {
+    jest.clearAllMocks()
+    const products = Array.from({ length: size }, (_, index) => ({
+      _id: `product-${index}`,
+      status: 'PARA_INATIVAR',
+      platformUserId: `member-${index}`,
+      userId: {
+        _id: `user-${index}`,
+        email: `user-${index}@example.test`,
+        guru: { status: 'canceled' },
+        curseduca: { memberStatus: 'ACTIVE', situation: 'ACTIVE' },
+      },
+    }))
+    mockUserProductFind.mockReturnValue(productsQuery(products))
+    mockAxiosGet.mockRejectedValue(new Error('provider-down'))
+
+    const result = await runCrossReferenceAfterGuruSync()
+
+    expect(mockAxiosGet).toHaveBeenCalledTimes(Math.min(size, 20))
+    expect(result.errors).toBe(Math.min(size, 20))
+    expect(result.confirmedInactive).toBe(0)
+    expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+  })
+})
+
+test('normalizes synced emails before stale reconciliation', async () => {
+  jest.clearAllMocks()
+  mockUserFind
+    .mockReturnValueOnce(usersQuery([{
+      _id: 'synced-user',
+      email: 'synced@example.test',
+      guru: { status: 'active' },
+      curseduca: { curseducaUserId: 'member-synced', memberStatus: 'ACTIVE', situation: 'ACTIVE' },
+    }]))
+    .mockReturnValueOnce(usersQuery([]))
+  mockUserProductFind
+    .mockReturnValueOnce(productsQuery([{
+      _id: 'synced-product',
+      userId: 'synced-user',
+      platform: 'curseduca',
+      status: 'ACTIVE',
+    }]))
+    .mockReturnValueOnce(productsQuery([{
+      _id: 'active-product',
+      userId: { email: 'active@example.test' },
+      platform: 'curseduca',
+      status: 'ACTIVE',
+    }]))
+
+  const result = await runCrossReferenceAfterCurseducaSync(
+    ['  ACTIVE@example.test  ', 'synced@example.test'],
+    { reconcileStale: true, minSyncSize: 1 },
+  )
+
+  expect(result.reconciledStale).toBe(0)
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+  expect((mockUserFindByIdAndUpdate as jest.Mock)).not.toHaveBeenCalled()
+  expect(mockUserProductUpdateMany).not.toHaveBeenCalled()
 })

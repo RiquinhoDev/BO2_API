@@ -283,7 +283,7 @@ export async function runCrossReferenceAfterCurseducaSync(
   if (options?.reconcileStale === true && syncedEmails && syncedEmails.length >= minSize) {
     logger.info(`\n🧹 [CROSS-REF] Reconciliação de stale records (${syncedEmails.length} emails no sync)...`)
 
-    const syncedSet = new Set(syncedEmails)
+    const syncedSet = new Set(syncedEmails.map(email => email.toLowerCase().trim()))
 
     const activeUPs = await UserProduct.find({
       platform: 'curseduca',
@@ -386,6 +386,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
         const memberId = up.platformUserId || user.curseduca?.curseducaUserId
         const curseducaSettings = getOptionalCurseducaRuntimeSettings()
         if (memberId && curseducaSettings) {
+          apiCallsUsed++
           try {
             const apiResp = await axios.get<CurseducaMemberResponse>(
               `${curseducaSettings.apiUrl}/members/${memberId}`,
@@ -410,9 +411,9 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
                 }
               })
             }
-            apiCallsUsed++
             await new Promise(resolve => setTimeout(resolve, 300))
           } catch (apiErr: unknown) {
+            result.errors++
             logger.info(`   ⚠️ API check falhou ${user.email}: ${requestErrorMessage(apiErr)}`)
           }
         }

@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 22,
-      "pending": 2,
-      "changed": 18,
+      "complete": 23,
+      "pending": 1,
+      "changed": 19,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -930,8 +930,22 @@
         "id": "guru-cross-reference.actions",
         "file": "src/services/guru/crossReference.service.ts",
         "start": "export async function runCrossReferenceAfterCurseducaSync",
-        "status": "pending",
-        "reason": "Conditional provider reads, database updates, action ordering and throttling prevent safe parallelization."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: conditional provider reads, ordered UserProduct writes, 20-attempt provider budget, 300ms successful-read throttle and stale reconciliation identity remain observable",
+        "evidence": [
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:34-215 (N=1/10/100, peak=1, ordered writes, partial write failures, provider throttle and 20-attempt budget)",
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:148-170 (failed provider attempts are capped and counted as errors without writes)",
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:173-205 (stale reconciliation normalizes incoming email identity before set membership)"
+        ],
+        "require": [
+          "for (const up of userProducts)",
+          "apiCallsUsed++",
+          "await new Promise(resolve => setTimeout(resolve, 300))",
+          "result.errors++",
+          "new Set(syncedEmails.map(email => email.toLowerCase().trim()))",
+          "await applyAction(up._id.toString(), user._id.toString(), action)"
+        ]
       },
       {
         "id": "analytics-cache.stats-scan",

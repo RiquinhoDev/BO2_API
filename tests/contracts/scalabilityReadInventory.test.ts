@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 22, pending: 2, changed: 18, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 23, pending: 1, changed: 19, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 22 complete / 2 pending')
+  expect(run()).toContain('SCALE-03 23 complete / 1 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(22)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(2)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(18)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(23)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(1)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(19)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -153,6 +153,28 @@ test('SCALE-03 records native-tag capture ordering, replay and identity protecti
     'processed++',
     'captured++',
     'errors++',
+  ]))
+})
+
+test('SCALE-03 records Guru cross-reference budget, failure accounting and stale identity', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const crossReference = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'guru-cross-reference.actions')
+
+  expect(crossReference).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(crossReference.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('scaleRound1GuruCrossReference.contract.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('failed provider attempts'),
+    expect.stringContaining('stale reconciliation'),
+  ]))
+  expect(crossReference.require).toEqual(expect.arrayContaining([
+    'apiCallsUsed++',
+    'result.errors++',
+    'new Set(syncedEmails.map(email => email.toLowerCase().trim()))',
   ]))
 })
 
