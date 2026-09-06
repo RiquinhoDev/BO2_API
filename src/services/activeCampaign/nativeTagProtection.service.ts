@@ -15,6 +15,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erro desconhecido'
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
+}
+
 /**
  * Verifica se uma tag é uma tag BO (criada pelo nosso sistema)
  *
@@ -79,52 +83,69 @@ export async function captureNativeTags(
   isFirstCapture: boolean
 }> {
   try {
+    const normalizedEmail = email.trim().toLowerCase()
+
     // Buscar tags atuais da AC
-    const allTagsFromAC = await activeCampaignService.getContactTagsByEmail(email)
+    const allTagsFromAC = await activeCampaignService.getContactTagsByEmail(normalizedEmail)
+
+    // Contacto sem tags e sem histórico não precisa de snapshot inicial.
+    let snapshot = await ACNativeTagsSnapshot.findOne({ email: normalizedEmail })
 
     if (!allTagsFromAC || allTagsFromAC.length === 0) {
-      logger.info(`[NativeTagProtection] ${email} não tem tags na AC`)
-      return {
-        success: true,
-        nativeTags: [],
-        boTags: [],
-        isFirstCapture: false
+      logger.info(`[NativeTagProtection] ${normalizedEmail} não tem tags na AC`)
+      if (!snapshot) {
+        return {
+          success: true,
+          nativeTags: [],
+          boTags: [],
+          isFirstCapture: false
+        }
       }
     }
 
     // Classificar tags
-    const { boTags, nativeTags } = classifyTags(allTagsFromAC)
+    const { boTags, nativeTags } = classifyTags(allTagsFromAC || [])
 
-    logger.info(`[NativeTagProtection] ${email}:`, {
-      totalTags: allTagsFromAC.length,
+    logger.info(`[NativeTagProtection] ${normalizedEmail}:`, {
+      totalTags: allTagsFromAC?.length || 0,
       boTags: boTags.length,
       nativeTags: nativeTags.length
     })
 
-    // Buscar snapshot existente
-    let snapshot = await ACNativeTagsSnapshot.findOne({ email })
-
-    const isFirstCapture = !snapshot
+    let isFirstCapture = !snapshot
 
     if (!snapshot) {
-      // Criar novo snapshot
-      snapshot = await ACNativeTagsSnapshot.create({
-        email,
-        nativeTags,
-        boTags,
-        capturedAt: new Date(),
-        lastSyncAt: new Date(),
-        syncCount: 1,
-        history: [{
-          timestamp: new Date(),
-          action: 'INITIAL_CAPTURE',
-          tags: nativeTags,
-          source
-        }]
-      })
+      try {
+        // Criar novo snapshot
+        snapshot = await ACNativeTagsSnapshot.create({
+          email: normalizedEmail,
+          nativeTags,
+          boTags,
+          capturedAt: new Date(),
+          lastSyncAt: new Date(),
+          syncCount: 1,
+          history: [{
+            timestamp: new Date(),
+            action: 'INITIAL_CAPTURE',
+            tags: nativeTags,
+            source
+          }]
+        })
 
-      logger.info(`[NativeTagProtection] ✅ Snapshot inicial criado para ${email}`)
-    } else {
+        logger.info(`[NativeTagProtection] ✅ Snapshot inicial criado para ${normalizedEmail}`)
+      } catch (error: unknown) {
+        if (!isDuplicateKeyError(error)) throw error
+
+        snapshot = await ACNativeTagsSnapshot.findOne({ email: normalizedEmail })
+        if (!snapshot) throw error
+        isFirstCapture = false
+        logger.warn(`[NativeTagProtection] Snapshot concorrente já existe para ${normalizedEmail}; a sincronizar replay`)
+      }
+    }
+
+    if (!snapshot) throw new Error(`Snapshot não ficou disponível para ${normalizedEmail}`)
+
+    if (!isFirstCapture) {
       // Atualizar snapshot existente
       const previousNativeTags = new Set(snapshot.nativeTags)
       const currentNativeTags = new Set(nativeTags)
@@ -143,7 +164,7 @@ export async function captureNativeTags(
           tags: addedTags,
           source
         })
-        logger.info(`[NativeTagProtection] ➕ ${email}: ${addedTags.length} tags nativas adicionadas`)
+        logger.info(`[NativeTagProtection] ➕ ${normalizedEmail}: ${addedTags.length} tags nativas adicionadas`)
       }
 
       if (removedTags.length > 0) {
@@ -153,7 +174,7 @@ export async function captureNativeTags(
           tags: removedTags,
           source
         })
-        logger.warn(`[NativeTagProtection] ⚠️  ${email}: ${removedTags.length} tags nativas removidas!`)
+        logger.warn(`[NativeTagProtection] ⚠️  ${normalizedEmail}: ${removedTags.length} tags nativas removidas!`)
       }
 
       // Atualizar snapshot
@@ -164,7 +185,7 @@ export async function captureNativeTags(
 
       await snapshot.save()
 
-      logger.info(`[NativeTagProtection] ✅ Snapshot atualizado para ${email} (sync #${snapshot.syncCount})`)
+      logger.info(`[NativeTagProtection] ✅ Snapshot atualizado para ${normalizedEmail} (sync #${snapshot.syncCount})`)
     }
 
     return {
@@ -197,6 +218,10 @@ export async function captureNativeTagsBatch(
   captured: number
   errors: number
 }> {
+  if (!Number.isInteger(batchSize) || batchSize <= 0) {
+    throw new RangeError('batchSize must be a positive integer')
+  }
+
   logger.info(`[NativeTagProtection] 🚀 Iniciando captura batch de ${emails.length} utilizadores...`)
 
   let processed = 0

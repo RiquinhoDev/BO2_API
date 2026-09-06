@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 21,
-      "pending": 3,
-      "changed": 17,
+      "complete": 22,
+      "pending": 2,
+      "changed": 18,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -847,8 +847,26 @@
         "id": "native-tags.compensating-writes",
         "file": "src/services/activeCampaign/nativeTagProtection.service.ts",
         "start": "export async function captureNativeTagsBatch",
-        "status": "pending",
-        "reason": "Tag removal plus snapshot and history writes have ordering and compensation implications."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: provider reads, per-email snapshot/history writes and partial-error accounting remain ordered; unique normalized email identity converges duplicate initial captures by replay",
+        "evidence": [
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:172-258 (N=1/10/100, peak=1, provider -> snapshot order, partial failures, replay, total-removal history)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:260-281 (failed save leaves persisted state unchanged and replay writes one history transition)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:283-329 (concurrent initial captures converge after duplicate key)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:331-358 (email normalization before provider and snapshot identity)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:360-369 (invalid batchSize fails before provider I/O)",
+          "tests/models/ACNativeTagsSnapshot.test.ts:3-14 (unique normalized email index)"
+        ],
+        "require": [
+          "for (const email of batch)",
+          "await captureNativeTags(email, source)",
+          "Number.isInteger(batchSize)",
+          "if (result.success)",
+          "processed++",
+          "captured++",
+          "errors++"
+        ]
       },
       {
         "id": "testimonial-tags.ordered-provider",

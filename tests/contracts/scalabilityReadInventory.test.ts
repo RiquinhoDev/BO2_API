@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 21, pending: 3, changed: 17, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 22, pending: 2, changed: 18, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 21 complete / 3 pending')
+  expect(run()).toContain('SCALE-03 22 complete / 2 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(21)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(3)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(17)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(22)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(2)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(18)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -128,6 +128,31 @@ test('SCALE-03 records weekly tag snapshot convergence and ordered repair', () =
     'includeResultMetadata: true',
     'if (result.created) snapshotsCreated++',
     'if (result.created) notificationsCreated++',
+  ]))
+})
+
+test('SCALE-03 records native-tag capture ordering, replay and identity protection', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const nativeTags = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'native-tags.compensating-writes')
+
+  expect(nativeTags).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(nativeTags.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('nativeTagsCompensatingWrites.contract.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('concurrent initial captures'),
+    expect.stringContaining('invalid batchSize'),
+    expect.stringContaining('ACNativeTagsSnapshot.test.ts'),
+  ]))
+  expect(nativeTags.require).toEqual(expect.arrayContaining([
+    'await captureNativeTags(email, source)',
+    'Number.isInteger(batchSize)',
+    'processed++',
+    'captured++',
+    'errors++',
   ]))
 })
 
