@@ -1,6 +1,13 @@
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 
+const mockFetchHotmartDataForSync = jest.fn()
+
+jest.mock('../../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter', () => ({
+  __esModule: true,
+  default: { fetchHotmartDataForSync: mockFetchHotmartDataForSync },
+}))
+
 import { assertSafeTestMongoUri } from '../../../src/config/testDatabase'
 import CompositeExecutionReceipt from '../../../src/models/CompositeExecutionReceipt'
 import {
@@ -8,6 +15,9 @@ import {
   runCompositeExecutionWithReceipt,
   type CompositeExecutionOptions,
 } from '../../../src/services/cron/compositeExecution.service'
+import { executeSyncAndPreparationSteps } from '../../../src/services/cron/dailyPipelineSyncSteps'
+import { DAILY_PIPELINE_MAX_ITEMS, getProductsConfig } from '../../../src/services/cron/dailyPipelineSupport'
+import type { DailyPipelineResult } from '../../../src/types/cron.types'
 
 jest.setTimeout(30_000)
 
@@ -45,6 +55,57 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await CompositeExecutionReceipt.deleteMany({})
+  mockFetchHotmartDataForSync.mockReset()
+})
+
+function pipelineResult(): DailyPipelineResult {
+  return {
+    success: true,
+    duration: 0,
+    completedAt: new Date(),
+    steps: {
+      syncHotmart: { success: false, duration: 0, stats: {} },
+      syncCursEduca: { success: false, duration: 0, stats: {} },
+      preCreateTags: { success: false, duration: 0, stats: {} },
+      recalcEngagement: { success: false, duration: 0, stats: {} },
+      evaluateTagRules: { success: false, duration: 0, stats: {} },
+      syncTestimonialTags: { success: false, duration: 0, stats: {} },
+    },
+    errors: [],
+    summary: { totalUsers: 0, totalUserProducts: 0, engagementUpdated: 0, tagsApplied: 0 },
+  }
+}
+
+test('keeps an oversized read-only pipeline payload reusable instead of indeterminate', async () => {
+  mockFetchHotmartDataForSync.mockResolvedValue(
+    Array.from({ length: DAILY_PIPELINE_MAX_ITEMS + 1 }, () => ({})),
+  )
+  const config = {
+    hotmart: { products: [{ code: 'HOTMART_PRODUCT' }] },
+    curseduca: { products: [] },
+  } as unknown as Awaited<ReturnType<typeof getProductsConfig>>
+  const run: CompositeExecutionOptions<{ value: string }>['run'] = async (context) => {
+    await executeSyncAndPreparationSteps(
+      pipelineResult(),
+      [],
+      {
+        providerStarted: context.provider.begin,
+        providerSucceeded: context.provider.success,
+        localMutationStarted: context.localMutation.begin,
+      },
+      config,
+    )
+    return { value: 'not-reached' }
+  }
+
+  await expect(executeCompositeExecutionReceipt(options('oversized-read', run)))
+    .rejects.toMatchObject({ code: 'SYNC_PIPELINE_CAP_EXCEEDED', status: 413 })
+  expect(await CompositeExecutionReceipt.findOne({ requestId: 'oversized-read' }).lean())
+    .toMatchObject({ status: 'failed', providerStatus: 'not-started' })
+
+  await expect(executeCompositeExecutionReceipt(options('oversized-read', run)))
+    .rejects.toMatchObject({ code: 'SYNC_PIPELINE_CAP_EXCEEDED', status: 413 })
+  expect(mockFetchHotmartDataForSync).toHaveBeenCalledTimes(2)
 })
 
 test('replays the stored result for the same request and fingerprint', async () => {
@@ -153,6 +214,45 @@ test('fences concurrent A/B executions for the same pipeline identity', async ()
   expect(first).toEqual({ kind: 'completed', result: { value: 'first' } })
 })
 
+test('coordinates automatic and manual pipeline entries through one active identity', async () => {
+  let started = 0
+  let effectCount = 0
+  let release!: () => void
+  const barrier = new Promise<void>((resolve) => { release = resolve })
+
+  const manual = executeCompositeExecutionReceipt({
+    ...options('manual-pipeline-entry', async (context) => {
+      context.provider.begin()
+      started += 1
+      await barrier
+      context.provider.success()
+      effectCount += 1
+      return { value: 'manual' }
+    }),
+    actorId: 'manual-actor',
+  })
+
+  await new Promise<void>((resolve) => {
+    const timer = setInterval(() => {
+      if (started > 0) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 5)
+    timer.unref?.()
+  })
+
+  const automatic = await executeCompositeExecutionReceipt({
+    ...options('automatic-pipeline-entry', async () => ({ value: 'must-not-run' })),
+    actorId: 'system:cron',
+  })
+  release()
+
+  expect(automatic).toEqual({ kind: 'in-progress' })
+  expect(await manual).toEqual({ kind: 'completed', result: { value: 'manual' } })
+  expect(effectCount).toBe(1)
+})
+
 test('marks an expired running lease indeterminate without reopening work', async () => {
   const now = new Date()
   await CompositeExecutionReceipt.create({
@@ -213,6 +313,58 @@ test('ownership loss fences the execution before provider work starts', async ()
 
   expect(await execution).toEqual({ kind: 'indeterminate' })
   expect(providerStarted).not.toHaveBeenCalled()
+})
+
+test('ownership loss between phase boundaries prevents the next effect', async () => {
+  let release!: () => void
+  let signalReady!: () => void
+  const barrier = new Promise<void>((resolve) => { release = resolve })
+  const ready = new Promise<void>((resolve) => { signalReady = resolve })
+  const nextEffect = jest.fn()
+
+  const execution = runCompositeExecutionWithReceipt({
+    operation: 'cron-job',
+    identity: 'cron-job:ownership-boundary',
+    actorId: 'actor-a',
+    fingerprint: 'fingerprint-a',
+    requestId: 'ownership-boundary',
+    heartbeatMs: 1_000,
+    run: async (hooks) => {
+      hooks.providerStarted()
+      signalReady()
+      await barrier
+      hooks.localMutationStarted()
+      nextEffect()
+      return { value: 'must-not-complete' }
+    },
+  })
+
+  await ready
+  await CompositeExecutionReceipt.updateOne(
+    { requestId: 'ownership-boundary' },
+    { $set: { ownerId: 'recovered-owner' } },
+  )
+  await new Promise<void>((resolve) => setTimeout(resolve, 1_100))
+  release()
+
+  await expect(execution).rejects.toMatchObject({
+    code: 'COMPOSITE_EXECUTION_INDETERMINATE',
+    status: 503,
+  })
+  expect(nextEffect).not.toHaveBeenCalled()
+})
+
+test('keeps provider status unknown when one of several provider phases fails', async () => {
+  const result = await executeCompositeExecutionReceipt(options('partial-provider', async (context) => {
+    context.provider.begin()
+    context.provider.success()
+    context.provider.begin()
+    return { value: 'partial' }
+  }))
+
+  expect(result).toEqual({ kind: 'indeterminate' })
+  expect(await CompositeExecutionReceipt.findOne({ requestId: 'partial-provider' }).lean())
+    .toMatchObject({ status: 'indeterminate', providerStatus: 'unknown' })
 })
 
 test('turns provider/local failure, stale ownership and settlement failure into indeterminate', async () => {

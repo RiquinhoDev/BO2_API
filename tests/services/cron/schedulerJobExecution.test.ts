@@ -143,6 +143,54 @@ describe('CronJobExecutor', () => {
     expect(dependencies.notify).not.toHaveBeenCalled()
   })
 
+  it('stops job, history and notification effects after ownership loss', async () => {
+    const dependencies = createDependencies()
+    const job = createJob()
+    const assertOwnership = jest.fn(() => { throw new Error('ownership lost') })
+    const executor = new CronJobExecutor(dependencies)
+
+    await expect(executor.execute(job, {
+      triggeredBy: 'MANUAL',
+      isolateRecordFailure: true,
+      phaseHooks: {
+        assertOwnership,
+        providerStarted: jest.fn(),
+        providerSucceeded: jest.fn(),
+        localMutationStarted: jest.fn(),
+      },
+    })).rejects.toThrow('ownership lost')
+
+    expect(job.recordExecution).not.toHaveBeenCalled()
+    expect(dependencies.saveHistory).not.toHaveBeenCalled()
+    expect(dependencies.notify).not.toHaveBeenCalled()
+  })
+
+  it('does not save history after ownership is lost during the job save', async () => {
+    const dependencies = createDependencies()
+    const job = createJob()
+    let checks = 0
+    const assertOwnership = jest.fn(() => {
+      checks += 1
+      if (checks >= 2) throw new Error('ownership lost')
+    })
+    const executor = new CronJobExecutor(dependencies)
+
+    await expect(executor.execute(job, {
+      triggeredBy: 'MANUAL',
+      isolateRecordFailure: true,
+      phaseHooks: {
+        assertOwnership,
+        providerStarted: jest.fn(),
+        providerSucceeded: jest.fn(),
+        localMutationStarted: jest.fn(),
+      },
+    })).rejects.toThrow('ownership lost')
+
+    expect(job.recordExecution).toHaveBeenCalledTimes(1)
+    expect(dependencies.saveHistory).not.toHaveBeenCalled()
+    expect(dependencies.notify).not.toHaveBeenCalled()
+  })
+
   it('keeps dry-run execution free of job, history and notification writes', async () => {
     const events: string[] = []
     const dependencies = createDependencies(events)

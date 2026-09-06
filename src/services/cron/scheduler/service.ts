@@ -23,6 +23,7 @@ import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
 import { isSyncMutableExecutionEnabled } from '../../requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../renewal/discordScheduledMessages.service'
+import { isMessagesEnabled } from '../../renewal/discord/planning'
 import { HttpError } from '../../../security/errorHandling'
 import {
   compositeExecutionFingerprint,
@@ -314,7 +315,8 @@ const job = await CronJobConfig.create({
         publicMessage: 'Execução mutável do pipeline desativada',
       })
     }
-    if (capability.id === 'discord-scheduled-messages' && !isScheduledMessagesEnabled()) {
+    if (capability.id === 'discord-scheduled-messages'
+      && (!isScheduledMessagesEnabled() || !isMessagesEnabled())) {
       throw new HttpError({
         status: 503,
         code: 'CRON_DISCORD_SCHEDULED_MESSAGES_DISABLED',
@@ -364,6 +366,39 @@ const job = await CronJobConfig.create({
   // SCHEDULING
   // ═══════════════════════════════════════════════════════════
 
+  private async executeScheduledJob(job: ICronJobConfig): Promise<void> {
+    const capability = getCronManualCapability(job)
+    if (capability.status === 'blocked') {
+      await this.jobExecutor.execute(job, {
+        triggeredBy: 'CRON',
+        isolateRecordFailure: false,
+      })
+      return
+    }
+
+    const actorId = 'system:cron'
+    try {
+      await runCompositeExecutionWithReceipt({
+        operation: capability.operation,
+        identity: capability.identity(job),
+        actorId,
+        fingerprint: compositeExecutionFingerprint(actorId, cronManualFingerprintPayload(job)),
+        requestId: `cron:${job._id.toString()}:${randomUUID()}`,
+        run: (phaseHooks: CronExecutionPhaseHooks) => this.jobExecutor.execute(job, {
+          triggeredBy: 'CRON',
+          isolateRecordFailure: false,
+          phaseHooks,
+        }),
+      })
+    } catch (error: unknown) {
+      if (error instanceof HttpError && error.code === 'COMPOSITE_EXECUTION_IN_PROGRESS') {
+        logger.warn(`⏭️ Job automático já está em execução: ${job.name}`)
+        return
+      }
+      logger.error(`❌ Erro na execução automática: ${job.name}`, error)
+    }
+  }
+
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
     if (!job.schedule.enabled || !job.isActive) {
       logger.info(`⏸️ Job não agendado (disabled): ${job.name}`)
@@ -377,10 +412,7 @@ const job = await CronJobConfig.create({
       const scheduledJob = schedule.scheduleJob(
         job.schedule.cronExpression,
         async () => {
-          await this.jobExecutor.execute(job, {
-            triggeredBy: 'CRON',
-            isolateRecordFailure: false
-          })
+          await this.executeScheduledJob(job)
         }
       )
 
@@ -465,5 +497,4 @@ const job = await CronJobConfig.create({
 // ─────────────────────────────────────────────────────────────
 
 export const syncSchedulerService = new CronManagementService()
-
 export default syncSchedulerService

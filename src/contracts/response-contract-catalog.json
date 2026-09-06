@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:78",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:81",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:128",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:131",
     "frontConsumer": null
   },
   {

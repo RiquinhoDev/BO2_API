@@ -24,6 +24,7 @@ export type CompositeExecutionOutcome<T> =
   | { kind: 'request-id-reused' }
 
 export interface CompositeExecutionPhaseHooks {
+  assertOwnership?(): void
   providerStarted(): void
   providerSucceeded(): void
   localMutationStarted(): void
@@ -285,11 +286,15 @@ export async function executeCompositeExecutionReceipt<T>(
   if (claimed.kind !== 'claimed') return claimed
 
   let providerAttempted = false
-  let providerSucceeded = false
+  let providerAttempts = 0
+  let providerSuccesses = 0
   let localMutationStarted = false
   const provider = {
-    begin(): void { providerAttempted = true },
-    success(): void { providerSucceeded = true },
+    begin(): void {
+      providerAttempted = true
+      providerAttempts += 1
+    },
+    success(): void { providerSuccesses += 1 },
   }
   const localMutation = {
     begin(): void { localMutationStarted = true },
@@ -301,13 +306,14 @@ export async function executeCompositeExecutionReceipt<T>(
   })
 
   try {
+    const providerSucceeded = () => providerAttempted && providerSuccesses === providerAttempts
     let result: T
     try {
       result = await lease.run(() => options.run({ lease, provider, localMutation }))
     } catch (error: unknown) {
       const providerStatus: CompositeProviderStatus = !providerAttempted
         ? 'not-started'
-        : providerSucceeded ? 'succeeded' : 'unknown'
+        : providerSucceeded() ? 'succeeded' : 'unknown'
       const status = providerAttempted || localMutationStarted
         || error instanceof ActiveCampaignExecutionOwnershipError
         ? 'indeterminate'
@@ -328,7 +334,7 @@ export async function executeCompositeExecutionReceipt<T>(
       throw error
     }
 
-    if (providerAttempted && !providerSucceeded) {
+    if (providerAttempted && !providerSucceeded()) {
       try {
         await settleReceipt(
           options as CompositeExecutionOptions<unknown>,
@@ -355,7 +361,7 @@ export async function executeCompositeExecutionReceipt<T>(
           options as CompositeExecutionOptions<unknown>,
           claimed.ownerId,
           status,
-          providerSucceeded ? 'succeeded' : providerAttempted ? 'unknown' : 'not-started',
+          providerSucceeded() ? 'succeeded' : providerAttempted ? 'unknown' : 'not-started',
           status === 'failed' ? result : undefined,
           now(),
         )
@@ -371,7 +377,7 @@ export async function executeCompositeExecutionReceipt<T>(
         options as CompositeExecutionOptions<unknown>,
         claimed.ownerId,
         'completed',
-        providerSucceeded ? 'succeeded' : 'not-started',
+        providerSucceeded() ? 'succeeded' : 'not-started',
         result,
         now(),
       )
@@ -381,7 +387,7 @@ export async function executeCompositeExecutionReceipt<T>(
           options as CompositeExecutionOptions<unknown>,
           claimed.ownerId,
           'indeterminate',
-          providerSucceeded ? 'succeeded' : 'unknown',
+          providerSucceeded() ? 'succeeded' : 'unknown',
           undefined,
           now(),
         )
@@ -420,6 +426,7 @@ export async function runCompositeExecutionWithReceipt<T>(options: {
   requestId: string
   run: (hooks: CompositeExecutionPhaseHooks) => Promise<T>
   now?: () => Date
+  heartbeatMs?: number
 }): Promise<T> {
   const execution = await executeCompositeExecutionReceipt({
     operation: options.operation,
@@ -428,10 +435,21 @@ export async function runCompositeExecutionWithReceipt<T>(options: {
     fingerprint: options.fingerprint,
     requestId: options.requestId,
     now: options.now,
+    heartbeatMs: options.heartbeatMs,
     run: async (context) => options.run({
-      providerStarted: context.provider.begin,
-      providerSucceeded: context.provider.success,
-      localMutationStarted: context.localMutation.begin,
+      assertOwnership: context.lease.assertOwnership,
+      providerStarted: () => {
+        context.lease.assertOwnership()
+        context.provider.begin()
+      },
+      providerSucceeded: () => {
+        context.lease.assertOwnership()
+        context.provider.success()
+      },
+      localMutationStarted: () => {
+        context.lease.assertOwnership()
+        context.localMutation.begin()
+      },
     }),
   })
 

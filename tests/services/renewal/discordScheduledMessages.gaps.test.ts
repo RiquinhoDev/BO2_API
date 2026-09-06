@@ -81,8 +81,12 @@ function setupJob(currentRule: FakeRule) {
   mockSendDiscordMessage.mockImplementation(async (
     _params: unknown,
     _requestId: string,
-    options?: { afterProviderSuccess?: (context: unknown) => Promise<void> },
+    options?: {
+      beforeProviderAttempt?: () => void
+      afterProviderSuccess?: (context: unknown) => Promise<void>
+    },
   ) => {
+    options?.beforeProviderAttempt?.()
     await options?.afterProviderSuccess?.({ lease: { assertOwnership: jest.fn() } })
     return { success: true, message: 'sent', messageIds: ['m-1'] }
   })

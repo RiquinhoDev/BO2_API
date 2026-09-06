@@ -63,10 +63,12 @@ import { executeDailyPipeline } from '../../../src/services/cron/dailyPipelineEx
 function query<T>(value: T) {
   const chain = {
     select: jest.fn(),
+    limit: jest.fn(),
     populate: jest.fn(),
     lean: jest.fn(),
   }
   chain.select.mockReturnValue(chain)
+  chain.limit.mockReturnValue(chain)
   chain.populate.mockReturnValue(chain)
   chain.lean.mockResolvedValue(value)
   return chain
@@ -145,6 +147,32 @@ test('fails closed before effects when the preflight universe exceeds the cap', 
   expect(orchestrateUserProduct).not.toHaveBeenCalled()
 })
 
+test('fails closed before effects when configured products exceed the cap', async () => {
+  productFind
+    .mockReturnValueOnce(query(Array.from({ length: 20_001 }, () => ({ code: 'HOTMART_PRODUCT' }))))
+    .mockReturnValueOnce(query([]))
+
+  await expect(executeDailyPipeline()).rejects.toMatchObject({
+    code: 'SYNC_PIPELINE_CAP_EXCEEDED',
+    status: 413,
+  })
+  expect(executeSyncAndPreparationSteps).not.toHaveBeenCalled()
+  expect(orchestrateUserProduct).not.toHaveBeenCalled()
+})
+
+test('fails closed before effects when the aggregate product catalog exceeds the cap', async () => {
+  productFind
+    .mockReturnValueOnce(query(Array.from({ length: 12_000 }, () => ({ code: 'HOTMART_PRODUCT' }))))
+    .mockReturnValueOnce(query(Array.from({ length: 9_000 }, () => ({ code: 'CURSEDUCA_PRODUCT' }))))
+
+  await expect(executeDailyPipeline()).rejects.toMatchObject({
+    code: 'SYNC_PIPELINE_CAP_EXCEEDED',
+    status: 413,
+  })
+  expect(executeSyncAndPreparationSteps).not.toHaveBeenCalled()
+  expect(orchestrateUserProduct).not.toHaveBeenCalled()
+})
+
 test('dryRun returns a plan without provider, mutation, snapshot or history effects', async () => {
   userProductCountDocuments.mockResolvedValue(12)
   userCountDocuments.mockResolvedValue(3)
@@ -182,4 +210,36 @@ test('marks the full pipeline partial when one provider orchestration fails', as
   expect(result.steps.evaluateTagRules.stats).toMatchObject({ total: 2, failed: 1 })
   expect(result.success).toBe(false)
   expect(result.errors).toContain('Tag Rules: 1 UserProducts falharam')
+})
+
+test('does not mark the composite provider successful after a tag orchestration failure', async () => {
+  userProductFind.mockReturnValue(query(userProducts(1)))
+  orchestrateUserProduct.mockRejectedValue(new Error('provider unavailable'))
+  const phaseHooks = {
+    providerStarted: jest.fn(),
+    providerSucceeded: jest.fn(),
+    localMutationStarted: jest.fn(),
+  }
+
+  const result = await executeDailyPipeline({ phaseHooks })
+
+  expect(result.success).toBe(false)
+  expect(phaseHooks.providerStarted).toHaveBeenCalledTimes(2)
+  expect(phaseHooks.providerSucceeded).toHaveBeenCalledTimes(1)
+})
+
+test('marks the pipeline unsuccessful when testimonial sync reports failure', async () => {
+  syncTestimonialTags.mockResolvedValue({ success: false, stats: { synced: 0 }, errors: [] })
+
+  const result = await executeDailyPipeline({
+    phaseHooks: {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    },
+  })
+
+  expect(result.success).toBe(false)
+  expect(result.steps.syncTestimonialTags.success).toBe(false)
+  expect(result.errors).toContain('Sync Testimonial Tags: sincronização reportou falhas')
 })

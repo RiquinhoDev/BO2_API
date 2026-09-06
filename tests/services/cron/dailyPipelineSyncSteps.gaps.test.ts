@@ -89,7 +89,7 @@ test('rejects an oversized Hotmart response before local mutation or universal s
   await expect(executeSyncAndPreparationSteps(result(), [], phaseHooks, config))
     .rejects.toMatchObject({ code: 'SYNC_PIPELINE_CAP_EXCEEDED', status: 413 })
 
-  expect(phaseHooks.providerStarted).toHaveBeenCalledTimes(1)
+  expect(phaseHooks.providerStarted).not.toHaveBeenCalled()
   expect(phaseHooks.providerSucceeded).not.toHaveBeenCalled()
   expect(phaseHooks.localMutationStarted).not.toHaveBeenCalled()
   expect(executeUniversalSync).not.toHaveBeenCalled()
@@ -103,8 +103,53 @@ test('rejects an oversized CursEduca response before local mutation or universal
   await expect(executeSyncAndPreparationSteps(result(), [], phaseHooks, config))
     .rejects.toMatchObject({ code: 'SYNC_PIPELINE_CAP_EXCEEDED', status: 413 })
 
-  expect(phaseHooks.providerStarted).toHaveBeenCalledTimes(2)
-  expect(phaseHooks.providerSucceeded).toHaveBeenCalledTimes(1)
+  expect(phaseHooks.providerStarted).not.toHaveBeenCalled()
+  expect(phaseHooks.providerSucceeded).not.toHaveBeenCalled()
   expect(phaseHooks.localMutationStarted).not.toHaveBeenCalled()
   expect(executeUniversalSync).not.toHaveBeenCalled()
+})
+
+test('prefetches every provider payload before any Universal Sync mutation', async () => {
+  fetchHotmartDataForSync.mockResolvedValue([{}])
+  fetchCurseducaDataForSync.mockResolvedValue(
+    Array.from({ length: DAILY_PIPELINE_MAX_ITEMS + 1 }, () => ({})),
+  )
+  const phaseHooks = hooks()
+
+  await expect(executeSyncAndPreparationSteps(result(), [], phaseHooks, config))
+    .rejects.toMatchObject({ code: 'SYNC_PIPELINE_CAP_EXCEEDED', status: 413 })
+
+  expect(executeUniversalSync).not.toHaveBeenCalled()
+  expect(phaseHooks.localMutationStarted).not.toHaveBeenCalled()
+})
+
+test('fetches Hotmart once when several configured products share the provider roster', async () => {
+  fetchHotmartDataForSync.mockResolvedValue([{}])
+  const phaseHooks = hooks()
+  const multiProductConfig = {
+    hotmart: { products: [{ code: 'HOTMART_A' }, { code: 'HOTMART_B' }] },
+    curseduca: { products: [] },
+  } as unknown as Awaited<ReturnType<typeof getProductsConfig>>
+
+  await executeSyncAndPreparationSteps(result(), [], phaseHooks, multiProductConfig)
+
+  expect(fetchHotmartDataForSync).toHaveBeenCalledTimes(1)
+  expect(executeUniversalSync).toHaveBeenCalledTimes(1)
+  expect(phaseHooks.localMutationStarted).toHaveBeenCalled()
+})
+
+test('marks the pipeline unsuccessful when pre-create tags reports failure', async () => {
+  preCreateBOTags.mockResolvedValue({
+    success: false,
+    totalTags: 1,
+    created: 0,
+    existing: 0,
+    failed: ['TAG_FAILED'],
+    tagCache: new Map(),
+  })
+
+  const pipeline = result()
+  await executeSyncAndPreparationSteps(pipeline, [], hooks(), config)
+
+  expect(pipeline.success).toBe(false)
 })

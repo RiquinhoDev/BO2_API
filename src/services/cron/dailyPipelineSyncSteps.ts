@@ -8,11 +8,29 @@ import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curs
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import {
   DAILY_PIPELINE_MAX_ITEMS,
+  assertDailyPipelineConfigCapacity,
   assertDailyPipelinePayloadCapacity,
   DailyPipelineCapacityError,
   getProductsConfig,
   logStep,
 } from './dailyPipelineSupport'
+
+type PrefetchedPayload<T> = { data: T[]; error?: string }
+
+async function prefetchPayload<T>(
+  enabled: boolean,
+  fetch: () => Promise<T[]>,
+): Promise<PrefetchedPayload<T>> {
+  if (!enabled) return { data: [] }
+  try {
+    const data = await fetch()
+    assertDailyPipelinePayloadCapacity(data.length)
+    return { data }
+  } catch (error: unknown) {
+    if (error instanceof DailyPipelineCapacityError) throw error
+    return { data: [], error: error instanceof Error ? error.message : String(error) }
+  }
+}
 
 export async function executeSyncAndPreparationSteps(
   result: DailyPipelineResult,
@@ -21,6 +39,23 @@ export async function executeSyncAndPreparationSteps(
   suppliedConfig?: Awaited<ReturnType<typeof getProductsConfig>>,
 ): Promise<void> {
     const config = suppliedConfig ?? await getProductsConfig()
+    assertDailyPipelineConfigCapacity(config)
+
+    // Ambos payloads são lidos e validados antes da primeira mutação local.
+    // Um cap excedido em CursEduca não pode chegar depois do Universal Sync Hotmart.
+    const hotmartPayload = await prefetchPayload(
+      config.hotmart.products.length > 0,
+      () => hotmartAdapter.fetchHotmartDataForSync(),
+    )
+    const curseducaPayload = await prefetchPayload(
+      config.curseduca.products.length > 0,
+      () => curseducaAdapter.fetchCurseducaDataForSync({
+        includeProgress: true,
+        includeGroups: true,
+        enrichWithDetails: true,
+      }),
+    )
+
     // STEP 1/5: SYNC HOTMART
     const step1Start = Date.now()
     logStep(1, 'Sync Hotmart', 'START')
@@ -30,19 +65,13 @@ export async function executeSyncAndPreparationSteps(
       const hotmartProductsCount = config.hotmart.products.length
 
       if (hotmartProductsCount > 0) {
-        for (let idx = 0; idx < hotmartProductsCount; idx++) {
-          const product = config.hotmart.products[idx]
-
-          phaseHooks?.providerStarted()
-          const hotmartData = await hotmartAdapter.fetchHotmartDataForSync()
-          assertDailyPipelinePayloadCapacity(hotmartData.length)
-          phaseHooks?.providerSucceeded()
-          if (hotmartData.length === 0) continue
-
+        if (hotmartPayload.error) throw new Error(hotmartPayload.error)
+        const hotmartData = hotmartPayload.data
+        if (hotmartData.length > 0) {
           phaseHooks?.localMutationStarted()
           const syncResult = await universalSyncService.executeUniversalSync({
             syncType: 'hotmart',
-            jobName: `Daily Pipeline - Hotmart ${product.code}`,
+            jobName: 'Daily Pipeline - Hotmart',
             triggeredBy: 'CRON',
             fullSync: true,
             includeProgress: true,
@@ -90,14 +119,8 @@ export async function executeSyncAndPreparationSteps(
       let totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
 
       if (config.curseduca.products.length > 0) {
-        phaseHooks?.providerStarted()
-        const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
-          includeProgress: true,
-          includeGroups: true,
-          enrichWithDetails: true
-        })
-        assertDailyPipelinePayloadCapacity(curseducaData.length)
-        phaseHooks?.providerSucceeded()
+        if (curseducaPayload.error) throw new Error(curseducaPayload.error)
+        const curseducaData = curseducaPayload.data
 
         if (curseducaData.length > 0) {
           phaseHooks?.localMutationStarted()
@@ -150,7 +173,7 @@ export async function executeSyncAndPreparationSteps(
       phaseHooks?.providerStarted()
       phaseHooks?.localMutationStarted()
       const preCreateResult = await tagPreCreationService.preCreateBOTags()
-      phaseHooks?.providerSucceeded()
+      if (preCreateResult.success) phaseHooks?.providerSucceeded()
 
       result.steps.preCreateTags = {
         success: preCreateResult.success,
@@ -166,6 +189,10 @@ export async function executeSyncAndPreparationSteps(
 
       if (preCreateResult.failed.length > 0) {
         logger.warn(`âš ï¸  ${preCreateResult.failed.length} tags falharam: ${preCreateResult.failed.join(', ')}`)
+      }
+      if (!preCreateResult.success) {
+        result.success = false
+        errors.push(`Pre-create Tags: ${preCreateResult.failed.length} tags falharam`)
       }
 
       logStep(3, 'Pre-create Tags', 'DONE', `${preCreateResult.totalTags} tags, ${result.steps.preCreateTags.duration}s`)
@@ -196,6 +223,10 @@ export async function executeSyncAndPreparationSteps(
         success: recalcResult.success,
         duration: Math.floor((Date.now() - step4Start) / 1000),
         stats: recalcResult.stats
+      }
+      if (!recalcResult.success) {
+        result.success = false
+        errors.push('Recalc Engagement: sincronização reportou falhas')
       }
 
       result.summary.totalUserProducts = (recalcResult.stats?.total as number) || 0

@@ -65,6 +65,7 @@ export class CronJobExecutor {
     context: CronExecutionContext
   ): Promise<CronExecutionResult> {
     const startedAt = this.dependencies.now()
+    const assertOwnership = () => context.phaseHooks?.assertOwnership?.()
 
     try {
       const result = await this.dependencies.dispatch(job, {
@@ -84,6 +85,7 @@ export class CronJobExecutor {
         }
       }
 
+      assertOwnership()
       await this.record(
         job,
         result.stats,
@@ -92,9 +94,11 @@ export class CronJobExecutor {
         context,
         result.errorMessage
       )
+      assertOwnership()
       await this.saveHistory(job, result.stats, result.success, duration, context, result.errorMessage)
 
       if (job.notifications.enabled) {
+        assertOwnership()
         await this.dependencies.notify(job, result.success, result.stats, result.errorMessage)
       }
 
@@ -118,6 +122,7 @@ export class CronJobExecutor {
         }
       }
 
+      assertOwnership()
       await this.record(
         job,
         FAILED_STATS,
@@ -126,6 +131,7 @@ export class CronJobExecutor {
         context,
         errorMessage
       )
+      assertOwnership()
       await this.saveHistory(job, FAILED_STATS, false, duration, context, errorMessage)
       this.dependencies.reportError(`Erro ao executar job: ${job.name}`, error)
 

@@ -203,6 +203,7 @@ async function runScheduledMessagesCore(
   }
 
   for (const rule of rules) {
+    options.phaseHooks?.assertOwnership?.()
     if (rule.dayOfMonth !== day) continue // hoje não é o dia desta regra
     report.checked++
 
@@ -247,7 +248,7 @@ async function runScheduledMessagesCore(
       continue
     }
 
-    options.phaseHooks?.providerStarted()
+    let providerAttemptedForRule = false
     const result = await sendDiscordMessage({
       content: template.content,
       mentionRoleIds: [target.roleId],
@@ -263,6 +264,10 @@ async function runScheduledMessagesCore(
       operation: 'scheduled-rule',
       identity: `rule:${rule.key}:${target.monthKey}`,
       now: options.now,
+      beforeProviderAttempt: () => {
+        providerAttemptedForRule = true
+        options.phaseHooks?.providerStarted()
+      },
       afterProviderSuccess: async (context) => {
         context.lease.assertOwnership()
         options.phaseHooks?.localMutationStarted()
@@ -274,7 +279,7 @@ async function runScheduledMessagesCore(
     })
 
     if (result.success) {
-      options.phaseHooks?.providerSucceeded()
+      if (providerAttemptedForRule) options.phaseHooks?.providerSucceeded()
       report.sent++
       logger.info(`📨 [ScheduledMessages] ${rule.key} → ${target.roleName} (${members} membros): OK`)
     } else if (result.kind === 'in-progress') {

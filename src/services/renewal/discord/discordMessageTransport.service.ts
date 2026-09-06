@@ -158,11 +158,13 @@ export async function performDiscordMessage(
   message: PreparedDiscordMessage,
   context?: DiscordMessageExecutionContext,
   afterProviderSuccess?: (context: DiscordMessageExecutionContext) => Promise<void>,
+  beforeProviderAttempt?: () => void,
 ): Promise<DiscordMessageSendResult> {
   let resp: { data: DiscordMessageResponse }
   try {
     context?.lease.assertOwnership()
     context?.provider.begin()
+    beforeProviderAttempt?.()
     resp = await axios.post<DiscordMessageResponse>(
       `${message.url}/renewal/messages/send`,
       {

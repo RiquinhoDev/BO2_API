@@ -62,6 +62,8 @@ export async function executeDailyPipeline(
         : [`Pipeline limitado a ${DAILY_PIPELINE_MAX_ITEMS} itens; detetados ${Math.max(
           preflight.plan.activeUserProducts,
           preflight.plan.testimonialUsers,
+          preflight.plan.activeTagRules,
+          preflight.plan.configuredProducts.hotmart + preflight.plan.configuredProducts.curseduca,
         )}`]
       result.completedAt = new Date()
       return result
@@ -81,6 +83,7 @@ export async function executeDailyPipeline(
     try {
       preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
       options.phaseHooks?.localMutationStarted()
+      options.phaseHooks?.assertOwnership?.()
       await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_latest.json')
       logger.info(`   âœ… Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
     } catch (error: unknown) {
@@ -209,6 +212,7 @@ export async function executeDailyPipeline(
       logger.info(`   ðŸš€ Iniciando Step 5: ${items.length} UserProducts a processar...`)
 
       for (const item of items) {
+        options.phaseHooks?.assertOwnership?.()
         const result = await tagOrchestratorV2.orchestrateUserProduct(item.userId, item.productId)
           .catch((error) => ({
             userId: item.userId,
@@ -248,11 +252,10 @@ export async function executeDailyPipeline(
         }
       }
 
-      if (items.length > 0) options.phaseHooks?.providerSucceeded()
-
       logger.info(`   âœ… Processamento completo: ${items.length} UserProducts em ${Math.floor((Date.now() - step5Start) / 1000)}s`)
 
       const stats = tagOrchestratorV2.getExecutionStats(orchestrationResults)
+      if (items.length > 0 && stats.failed === 0) options.phaseHooks?.providerSucceeded()
 
       const tagsApplied = orchestrationResults.reduce(
         (sum, orchestrationResult) => sum + orchestrationResult.tagsApplied.length,
@@ -317,6 +320,7 @@ export async function executeDailyPipeline(
     try {
       postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
       options.phaseHooks?.localMutationStarted()
+      options.phaseHooks?.assertOwnership?.()
       await pipelineSnapshotService.saveSnapshot(postSnapshot, 'snapshot_POST_latest.json')
       logger.info(`   âœ… Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
 
@@ -325,7 +329,9 @@ export async function executeDailyPipeline(
         logger.info('   ðŸ” Comparando snapshots PRE vs POST...')
         comparison = pipelineSnapshotService.compareSnapshots(preSnapshot, postSnapshot)
 
+        options.phaseHooks?.assertOwnership?.()
         await pipelineSnapshotService.saveComparison(comparison, 'comparison_latest.json')
+        options.phaseHooks?.assertOwnership?.()
         await pipelineSnapshotService.saveMarkdownReport(comparison, 'report_latest.md')
 
         logger.info('   âœ… ComparaÃ§Ã£o concluÃ­da:', {
@@ -350,13 +356,17 @@ export async function executeDailyPipeline(
       options.phaseHooks?.providerStarted()
       options.phaseHooks?.localMutationStarted()
       const syncResult = await testimonialTagSyncService.syncTestimonialTags()
-      options.phaseHooks?.providerSucceeded()
 
       result.steps.syncTestimonialTags = {
         success: syncResult.success,
         duration: Math.floor((Date.now() - step6Start) / 1000),
         stats: syncResult.stats
       }
+      if (!syncResult.success) {
+        result.success = false
+        errors.push('Sync Testimonial Tags: sincronização reportou falhas')
+      }
+      if (syncResult.success) options.phaseHooks?.providerSucceeded()
 
       logStep(6, 'Sync Testimonial Tags', 'DONE', `${syncResult.stats.synced} tags sincronizadas, ${result.steps.syncTestimonialTags.duration}s`)
     } catch (err: unknown) {

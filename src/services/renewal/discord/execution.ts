@@ -270,6 +270,7 @@ export interface DiscordMessageSendOptions {
   heartbeatMs?: number
   now?: () => Date
   afterProviderSuccess?: (context: DiscordMessageExecutionContext) => Promise<void>
+  beforeProviderAttempt?: () => void
 }
 
 export async function sendDiscordMessage(
@@ -280,7 +281,12 @@ export async function sendDiscordMessage(
   if (!requestId) {
     const prepared = prepareDiscordMessage(params)
     if (!prepared.success) return prepared
-    return performDiscordMessage(prepared.message, undefined, options.afterProviderSuccess)
+    return performDiscordMessage(
+      prepared.message,
+      undefined,
+      options.afterProviderSuccess,
+      options.beforeProviderAttempt,
+    )
   }
 
   const execution = await executeDiscordMessageReceipt({
@@ -296,7 +302,12 @@ export async function sendDiscordMessage(
         context.provider.retryableFailure()
         return prepared
       }
-      return performDiscordMessage(prepared.message, context, options.afterProviderSuccess)
+      return performDiscordMessage(
+        prepared.message,
+        context,
+        options.afterProviderSuccess,
+        options.beforeProviderAttempt,
+      )
     },
   })
   if (execution.kind === 'completed' || execution.kind === 'replay' || execution.kind === 'failed') {

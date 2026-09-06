@@ -9,7 +9,9 @@ import {
   DiscordScheduledRule,
 } from '../../../src/models/discordRenewal'
 import DiscordMessageExecutionReceipt from '../../../src/models/DiscordMessageExecutionReceipt'
+import CompositeExecutionReceipt from '../../../src/models/CompositeExecutionReceipt'
 import { sendDiscordMessage } from '../../../src/services/renewal/discord/execution'
+import { runCompositeExecutionWithReceipt } from '../../../src/services/cron/compositeExecution.service'
 import {
   runScheduledMessagesJob,
   testScheduledRule,
@@ -72,7 +74,11 @@ type MessageSender = (
 
 const sendWithRequestId = sendDiscordMessage as unknown as MessageSender
 
-type ScheduledRun = (requestId?: string, options?: { now?: () => Date; dryRun?: boolean }) => Promise<{
+type ScheduledRun = (requestId?: string, options?: {
+  now?: () => Date
+  dryRun?: boolean
+  phaseHooks?: { providerStarted(): void; providerSucceeded(): void; localMutationStarted(): void }
+}) => Promise<{
   sent: number
   skipped: Array<{ rule: string; reason: string }>
 }>
@@ -286,6 +292,70 @@ test('scheduler without a request header fences the same rule and month', async 
   expect(await DiscordScheduledRule.findOne({ key: 'lembrete-dia-8' }).lean()).toMatchObject({
     lastSentMonth: '2026-08',
   })
+})
+
+test('manual composite does not become indeterminate when scheduler owns the rule send', async () => {
+  const now = new Date('2026-08-08T09:00:00.000Z')
+  await DiscordMessageTemplate.create({
+    key: 'aviso-importante',
+    name: 'Aviso',
+    content: 'Renova até {dataFim}',
+  })
+  await DiscordScheduledRule.create({
+    key: 'lembrete-dia-8',
+    label: 'Lembrete',
+    dayOfMonth: 8,
+    templateKey: 'aviso-importante',
+    enabled: true,
+    createdBy: 'test',
+  })
+  await DiscordRoleState.create({
+    discordUserId: 'discord-2',
+    email: 'member-2@example.test',
+    roleId: '1525120024681910424',
+    roleName: 'R. Julho',
+    appliedAt: now,
+  })
+
+  let started = 0
+  let release!: () => void
+  const providerBarrier = new Promise<void>((resolve) => { release = resolve })
+  mockAxiosPost.mockImplementation(async () => {
+    started += 1
+    await providerBarrier
+    return { data: { messageIds: ['message-2'], parts: 1 } }
+  })
+
+  const schedulerPromise = runScheduled(undefined, { now: () => now })
+  await new Promise<void>((resolve) => {
+    const timer = setInterval(() => {
+      if (started > 0) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 5)
+    timer.unref?.()
+  })
+
+  const manualPromise = runCompositeExecutionWithReceipt({
+    operation: 'cron-job',
+    identity: 'cron-job:discord-scheduled-messages',
+    actorId: 'manual-actor',
+    fingerprint: 'manual-fingerprint',
+    requestId: 'manual-request',
+    run: async (phaseHooks) => runScheduled(undefined, {
+      now: () => now,
+      phaseHooks,
+    }),
+  })
+
+  release()
+  const [scheduler, manual] = await Promise.all([schedulerPromise, manualPromise])
+
+  expect(scheduler.sent + manual.sent).toBe(1)
+  expect(mockAxiosPost).toHaveBeenCalledTimes(1)
+  expect(await CompositeExecutionReceipt.findOne({ requestId: 'manual-request' }).lean())
+    .toMatchObject({ status: 'completed', providerStatus: 'not-started' })
 })
 
 test('scheduled HTTP run replays its canonical report before reseeding or provider I/O', async () => {

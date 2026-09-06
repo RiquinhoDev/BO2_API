@@ -14,15 +14,23 @@ jest.mock('../../../src/services/cron/compositeExecution.service', () => ({
 jest.mock('../../../src/services/renewal/discordScheduledMessages.service', () => ({
   isScheduledMessagesEnabled: jest.fn(() => true),
 }))
+jest.mock('../../../src/services/renewal/discord/planning', () => ({
+  isMessagesEnabled: jest.fn(() => true),
+}))
 
 import CronJobConfig from '../../../src/models/SyncModels/CronJobConfig'
 import { isSyncMutableExecutionEnabled } from '../../../src/services/requestDrivenRuntimeConfig'
 import { runCompositeExecutionWithReceipt } from '../../../src/services/cron/compositeExecution.service'
 import { CronManagementService } from '../../../src/services/cron/scheduler/service'
+import { isMessagesEnabled } from '../../../src/services/renewal/discord/planning'
+import { isScheduledMessagesEnabled } from '../../../src/services/renewal/discordScheduledMessages.service'
+import { HttpError } from '../../../src/security/errorHandling'
 
 const findById = jest.mocked(CronJobConfig.findById)
 const mutableEnabled = jest.mocked(isSyncMutableExecutionEnabled)
 const runWithReceipt = jest.mocked(runCompositeExecutionWithReceipt)
+const messagesEnabled = jest.mocked(isMessagesEnabled)
+const scheduledMessagesEnabled = jest.mocked(isScheduledMessagesEnabled)
 
 function job(syncType: 'pipeline' | 'hotmart' | 'discord' = 'pipeline', name = 'Daily Pipeline') {
   return {
@@ -37,6 +45,8 @@ function job(syncType: 'pipeline' | 'hotmart' | 'discord' = 'pipeline', name = '
 beforeEach(() => {
   jest.clearAllMocks()
   mutableEnabled.mockReturnValue(true)
+  messagesEnabled.mockReturnValue(true)
+  scheduledMessagesEnabled.mockReturnValue(true)
   findById.mockResolvedValue(job() as never)
   runWithReceipt.mockImplementation(async (options) => options.run({
     providerStarted: jest.fn(),
@@ -132,6 +142,73 @@ test('manual Discord scheduled messages use their own capability and durable rec
     requestId: 'discord-request-a',
     fingerprint: 'derived-fingerprint',
   }))
+})
+
+test('automatic implemented pipeline uses the shared receipt without the manual kill switch', async () => {
+  mutableEnabled.mockReturnValue(false)
+  const executor = {
+    execute: jest.fn(async (_job: unknown, context: { triggeredBy: string; phaseHooks?: unknown }) => {
+      expect(context.triggeredBy).toBe('CRON')
+      expect(context.phaseHooks).toEqual(expect.any(Object))
+      return { success: true, duration: 1, stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 0 } }
+    }),
+  }
+  const service = new CronManagementService(executor as never)
+  const scheduledJob = job('pipeline', 'Daily Pipeline')
+
+  await (service as unknown as { executeScheduledJob(job: unknown): Promise<void> })
+    .executeScheduledJob(scheduledJob)
+
+  expect(mutableEnabled).not.toHaveBeenCalled()
+  expect(runWithReceipt).toHaveBeenCalledWith(expect.objectContaining({
+    operation: 'sync-pipeline',
+    identity: 'daily-pipeline',
+    actorId: 'system:cron',
+    requestId: expect.stringMatching(/^cron:/),
+  }))
+  expect(executor.execute).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    triggeredBy: 'CRON',
+    isolateRecordFailure: false,
+    phaseHooks: expect.any(Object),
+  }))
+})
+
+test('automatic implemented job absorbs an already-running composite execution', async () => {
+  runWithReceipt.mockRejectedValueOnce(new HttpError({
+    status: 409,
+    code: 'COMPOSITE_EXECUTION_IN_PROGRESS',
+    publicMessage: 'job in progress',
+  }))
+  const executor = { execute: jest.fn() }
+  const service = new CronManagementService(executor as never)
+
+  await expect(
+    (service as unknown as { executeScheduledJob(job: unknown): Promise<void> })
+      .executeScheduledJob(job('pipeline', 'Daily Pipeline')),
+  ).resolves.toBeUndefined()
+  expect(executor.execute).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['scheduled switch', true, false],
+  ['message switch', false, true],
+])('manual Discord execution fails closed when the %s is disabled', async (_label, scheduled, messages) => {
+  const executor = { execute: jest.fn() }
+  findById.mockResolvedValue(job('discord', 'DiscordScheduledMessages') as never)
+  scheduledMessagesEnabled.mockReturnValue(scheduled)
+  messagesEnabled.mockReturnValue(messages)
+  const service = new CronManagementService(executor as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+
+  await expect(service.executeJobManually(id, id, {
+    actorId: 'actor-a',
+    requestId: 'discord-disabled',
+  })).rejects.toMatchObject({
+    code: 'CRON_DISCORD_SCHEDULED_MESSAGES_DISABLED',
+    status: 503,
+  })
+  expect(runWithReceipt).not.toHaveBeenCalled()
+  expect(executor.execute).not.toHaveBeenCalled()
 })
 
 test('manual execution generates a fresh request id when the caller omits one', async () => {

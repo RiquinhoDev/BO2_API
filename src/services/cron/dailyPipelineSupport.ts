@@ -5,6 +5,7 @@ import { HttpError } from '../../security/errorHandling'
 import { MAX_PROVIDER_READ_ITEMS } from '../../security/providerReadBatchPolicy'
 
 export const DAILY_PIPELINE_MAX_ITEMS = MAX_PROVIDER_READ_ITEMS
+export const DAILY_PIPELINE_MAX_PRODUCTS = DAILY_PIPELINE_MAX_ITEMS
 
 export class DailyPipelineCapacityError extends HttpError {
   constructor(observed: number) {
@@ -18,6 +19,19 @@ export class DailyPipelineCapacityError extends HttpError {
 
 export function assertDailyPipelinePayloadCapacity(observed: number): void {
   if (observed > DAILY_PIPELINE_MAX_ITEMS) throw new DailyPipelineCapacityError(observed)
+}
+
+type DailyPipelineConfig = {
+  hotmart: { products: readonly unknown[] }
+  curseduca: { products: readonly unknown[] }
+}
+
+export function configuredProductCount(config: DailyPipelineConfig): number {
+  return config.hotmart.products.length + config.curseduca.products.length
+}
+
+export function assertDailyPipelineConfigCapacity(config: DailyPipelineConfig): void {
+  assertDailyPipelinePayloadCapacity(configuredProductCount(config))
 }
 
 export type PipelineUser = {
@@ -58,12 +72,12 @@ export async function getProductsConfig() {
   const hotmartProducts = await Product.find({ 
     platform: 'hotmart', 
     isActive: true 
-  }).select('code platformData').lean()
+  }).select('code platformData').limit(DAILY_PIPELINE_MAX_PRODUCTS + 1).lean()
   
   const curseducaProducts = await Product.find({ 
     platform: 'curseduca', 
     isActive: true 
-  }).select('code platformData').lean()
+  }).select('code platformData').limit(DAILY_PIPELINE_MAX_PRODUCTS + 1).lean()
   
   return {
     hotmart: {
@@ -84,7 +98,16 @@ export async function getDailyPipelinePlan() {
     }),
     TagRule.countDocuments({ isActive: true }),
   ])
-  const observed = Math.max(activeUserProducts, testimonialUsers, activeTagRules)
+  const configuredProducts = {
+    hotmart: config.hotmart.products.length,
+    curseduca: config.curseduca.products.length,
+  }
+  const observed = Math.max(
+    activeUserProducts,
+    testimonialUsers,
+    activeTagRules,
+    configuredProductCount(config),
+  )
 
   return {
     config,
@@ -96,10 +119,7 @@ export async function getDailyPipelinePlan() {
       activeUserProducts,
       testimonialUsers,
       activeTagRules,
-      configuredProducts: {
-        hotmart: config.hotmart.products.length,
-        curseduca: config.curseduca.products.length,
-      },
+      configuredProducts,
       steps: [
         'syncHotmart',
         'syncCursEduca',
@@ -117,12 +137,14 @@ export function assertDailyPipelineCapacity(plan: {
   activeUserProducts: number
   testimonialUsers: number
   activeTagRules: number
+  configuredProducts?: { hotmart: number; curseduca: number }
 }): void {
   if (plan.withinLimit) return
   throw new DailyPipelineCapacityError(Math.max(
     plan.activeUserProducts,
     plan.testimonialUsers,
     plan.activeTagRules,
+    (plan.configuredProducts?.hotmart ?? 0) + (plan.configuredProducts?.curseduca ?? 0),
   ))
 }
 
