@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { FilterQuery } from 'mongoose'
 import ActiveCampaignExecution, {
   type ActiveCampaignExecutionOperation,
   type IActiveCampaignExecution,
@@ -40,6 +41,15 @@ export class ActiveCampaignExecutionInProgressError extends HttpError {
   }
 }
 
+export class ActiveCampaignExecutionOwnershipError extends Error {
+  readonly code = 'AC_ACTIVE_CAMPAIGN_EXECUTION_OWNERSHIP_LOST'
+
+  constructor(operation: ActiveCampaignExecutionOperation) {
+    super(`Execução ActiveCampaign perdeu a posse de ${operation}`)
+    this.name = 'ActiveCampaignExecutionOwnershipError'
+  }
+}
+
 export type ActiveCampaignExecutionClaim<T> =
   | { kind: 'claimed'; ownerId: string }
   | { kind: 'replay'; result: T }
@@ -52,24 +62,30 @@ function isDuplicateKey(error: unknown): boolean {
     && error.code === 11000
 }
 
+type ExecutionSnapshot = Pick<
+  IActiveCampaignExecution,
+  'requestId' | 'ownerId' | 'status' | 'leaseExpiresAt' | 'result'
+>
+
 async function findExecution(
-  operation: ActiveCampaignExecutionOperation,
-): Promise<Pick<IActiveCampaignExecution, 'requestId' | 'ownerId' | 'status' | 'leaseExpiresAt' | 'result'> | null> {
-  return ActiveCampaignExecution.findOne({ operation })
+  filter: FilterQuery<IActiveCampaignExecution>,
+): Promise<ExecutionSnapshot | null> {
+  return ActiveCampaignExecution.findOne(filter)
     .select('requestId ownerId status leaseExpiresAt result')
-    .lean<Pick<IActiveCampaignExecution, 'requestId' | 'ownerId' | 'status' | 'leaseExpiresAt' | 'result'>>()
+    .lean<ExecutionSnapshot>()
 }
 
 function classifyExisting<T>(
-  execution: Pick<IActiveCampaignExecution, 'requestId' | 'ownerId' | 'status' | 'leaseExpiresAt' | 'result'> | null,
+  execution: ExecutionSnapshot | null,
   requestId: string,
   at: Date,
 ): ActiveCampaignExecutionClaim<T> | undefined {
   if (!execution) return undefined
-  if (execution.status === 'running' && execution.leaseExpiresAt && execution.leaseExpiresAt > at) {
-    return { kind: 'in-progress' }
+  if (execution.status === 'running') {
+    if (!execution.leaseExpiresAt || execution.leaseExpiresAt > at) return { kind: 'in-progress' }
+    return undefined
   }
-  if (execution.status !== 'running' && execution.requestId === requestId && execution.result !== undefined) {
+  if (execution.requestId === requestId && execution.result !== undefined) {
     return { kind: 'replay', result: execution.result as T }
   }
   return undefined
@@ -80,43 +96,95 @@ export async function claimActiveCampaignExecution<T>(
   requestId: string,
   at = new Date(),
 ): Promise<ActiveCampaignExecutionClaim<T>> {
-  const existing = classifyExisting<T>(await findExecution(operation), requestId, at)
-  if (existing) return existing
-
   const ownerId = randomUUID()
   const leaseExpiresAt = new Date(at.getTime() + ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS)
-
-  try {
-    const claimed = await ActiveCampaignExecution.findOneAndUpdate(
-      {
-        operation,
-        $or: [
-          { status: 'failed' },
-          { status: 'completed', requestId: { $ne: requestId } },
-          { status: 'running', leaseExpiresAt: { $lte: at } },
-        ],
-      },
-      {
-        $set: {
-          operation,
-          requestId,
-          ownerId,
-          status: 'running',
-          startedAt: at,
-          leaseExpiresAt,
-        },
-        $unset: { finishedAt: 1, result: 1 },
-      },
-      { new: true, upsert: true },
-    )
-
-    if (claimed) return { kind: 'claimed', ownerId }
-  } catch (error: unknown) {
-    if (!isDuplicateKey(error)) throw error
+  const claimUpdate = {
+    $set: {
+      operation,
+      requestId,
+      ownerId,
+      status: 'running' as const,
+      startedAt: at,
+      leaseExpiresAt,
+    },
+    $unset: { finishedAt: 1, result: 1 },
+  }
+  const staleRunningFilter = {
+    operation,
+    status: 'running' as const,
+    $or: [
+      { leaseExpiresAt: { $lte: at } },
+      { leaseExpiresAt: { $exists: false } },
+    ],
   }
 
-  const current = classifyExisting<T>(await findExecution(operation), requestId, at)
-  return current ?? { kind: 'in-progress' }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const exact = classifyExisting<T>(
+      await findExecution({ operation, requestId }),
+      requestId,
+      at,
+    )
+    if (exact) return exact
+
+    try {
+      const reclaimed = await ActiveCampaignExecution.findOneAndUpdate(
+        {
+          operation,
+          requestId,
+          $or: [
+            { status: 'failed' },
+            { status: 'completed', result: { $exists: false } },
+            staleRunningFilter,
+          ],
+        },
+        claimUpdate,
+        { new: true },
+      )
+      if (reclaimed) return { kind: 'claimed', ownerId }
+    } catch (error: unknown) {
+      if (!isDuplicateKey(error)) throw error
+    }
+
+    try {
+      await ActiveCampaignExecution.findOneAndUpdate(
+        staleRunningFilter,
+        {
+          $set: { status: 'failed', finishedAt: at },
+          $unset: { leaseExpiresAt: 1 },
+        },
+        { new: true },
+      )
+    } catch (error: unknown) {
+      if (!isDuplicateKey(error)) throw error
+    }
+
+    try {
+      await ActiveCampaignExecution.create({
+        operation,
+        requestId,
+        ownerId,
+        status: 'running',
+        startedAt: at,
+        leaseExpiresAt,
+      })
+      return { kind: 'claimed', ownerId }
+    } catch (error: unknown) {
+      if (!isDuplicateKey(error)) throw error
+    }
+  }
+
+  const exact = classifyExisting<T>(
+    await findExecution({ operation, requestId }),
+    requestId,
+    at,
+  )
+  if (exact) return exact
+  const running = classifyExisting<T>(
+    await findExecution({ operation, status: 'running' }),
+    requestId,
+    at,
+  )
+  return running ?? { kind: 'in-progress' }
 }
 
 export async function completeActiveCampaignExecution<T>(
@@ -124,26 +192,30 @@ export async function completeActiveCampaignExecution<T>(
   ownerId: string,
   result: T,
 ): Promise<void> {
-  await ActiveCampaignExecution.findOneAndUpdate(
+  const updated = await ActiveCampaignExecution.findOneAndUpdate(
     { operation, ownerId, status: 'running' },
     {
       $set: { status: 'completed', finishedAt: new Date(), result },
       $unset: { leaseExpiresAt: 1 },
     },
+    { new: true },
   )
+  if (!updated) throw new ActiveCampaignExecutionOwnershipError(operation)
 }
 
 export async function failActiveCampaignExecution(
   operation: ActiveCampaignExecutionOperation,
   ownerId: string,
 ): Promise<void> {
-  await ActiveCampaignExecution.findOneAndUpdate(
+  const updated = await ActiveCampaignExecution.findOneAndUpdate(
     { operation, ownerId, status: 'running' },
     {
       $set: { status: 'failed', finishedAt: new Date() },
       $unset: { leaseExpiresAt: 1 },
     },
+    { new: true },
   )
+  if (!updated) throw new ActiveCampaignExecutionOwnershipError(operation)
 }
 
 export function requestIdFrom(

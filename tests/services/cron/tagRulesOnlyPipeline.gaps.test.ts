@@ -15,6 +15,7 @@ const orchestrateUserProduct = jest.fn()
 const getExecutionStats = jest.fn()
 const executionFindOne = jest.fn()
 const executionFindOneAndUpdate = jest.fn()
+const executionCreate = jest.fn()
 let activeExecution: {
   operation: string
   requestId: string
@@ -35,6 +36,7 @@ jest.mock('../../../src/models/ActiveCampaignExecution', () => ({
   default: {
     findOne: executionFindOne,
     findOneAndUpdate: executionFindOneAndUpdate,
+    create: executionCreate,
   },
 }))
 jest.mock('../../../src/models/acTags/TagRule', () => ({
@@ -154,6 +156,14 @@ beforeEach(() => {
       return activeExecution
     }
     return null
+  })
+  executionCreate.mockImplementation(async (document: { operation: string; requestId: string; ownerId: string; status: string; leaseExpiresAt: Date }) => {
+    if (activeExecution?.status === 'running') {
+      const duplicate = Object.assign(new Error('duplicate execution'), { code: 11000 })
+      throw duplicate
+    }
+    activeExecution = { ...document }
+    return activeExecution
   })
   productFindOne.mockReturnValue(query(null))
   productFind.mockReturnValue(query([]))

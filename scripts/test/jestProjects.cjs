@@ -49,6 +49,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/services/analytics/mongooseGlobalAnalytics.reader.test.ts',
   'tests/services/analytics/mongooseIndividualScoreRecalculation.repository.test.ts',
   'tests/services/analytics/mongooseMultiPlatformAnalytics.reader.test.ts',
+  'tests/services/activeCampaign/activeCampaignExecution.integration.test.ts',
   'tests/services/cron/mongooseCronTags.repository.test.ts',
   'tests/services/users/mongooseDiscordIdentityImportHistory.repository.test.ts',
   'tests/services/users/mongooseUserIdentityReconciliation.repository.test.ts',

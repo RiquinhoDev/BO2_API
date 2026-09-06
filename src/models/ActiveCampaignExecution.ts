@@ -36,7 +36,11 @@ const ActiveCampaignExecutionSchema = new Schema<IActiveCampaignExecution>(
   { timestamps: true },
 )
 
-ActiveCampaignExecutionSchema.index({ operation: 1 }, { unique: true })
+ActiveCampaignExecutionSchema.index({ operation: 1, requestId: 1 }, { unique: true })
+ActiveCampaignExecutionSchema.index(
+  { operation: 1 },
+  { unique: true, partialFilterExpression: { status: 'running' } },
+)
 
 export default mongoose.models.ActiveCampaignExecution
   || mongoose.model<IActiveCampaignExecution>('ActiveCampaignExecution', ActiveCampaignExecutionSchema)
