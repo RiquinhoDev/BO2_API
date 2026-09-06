@@ -13,6 +13,9 @@ const numberOf = (record: Record<string, unknown>, key: string): number => {
 export function sanitizeGuruTrialPlan(value: unknown): Record<string, unknown> | undefined {
   const plan = recordOf(value)
   if (plan.operation !== 'guru-trial-check') return undefined
+  for (const key of ['dryRun', 'truncated', 'anomaly']) {
+    if (plan[key] !== undefined && typeof plan[key] !== 'boolean') return undefined
+  }
   const numericKeys = ['candidates', 'synced', 'markedForInactivation', 'converted', 'stillInTrial', 'plannedMutations', 'errors', 'limit', 'remaining']
   const safe: Record<string, unknown> = {
     operation: 'guru-trial-check', dryRun: plan.dryRun === true,

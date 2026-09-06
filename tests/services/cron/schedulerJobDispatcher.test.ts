@@ -147,6 +147,24 @@ describe('CronJobDispatcher', () => {
     })
   })
 
+  it('drops a Guru plan with malformed boolean fields', async () => {
+    const dependencies = createDependencies()
+    dependencies.guruTrialCheck.mockResolvedValueOnce({
+      success: true,
+      total: 1,
+      synced: 1,
+      errors: 0,
+      dryRun: true,
+      plan: { operation: 'guru-trial-check', dryRun: 'yes', truncated: 0, candidates: 1 },
+    })
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('GuruTrialCheck', 'guru'))).resolves.toEqual({
+      success: true,
+      stats: { total: 1, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+      dryRun: true,
+    })
+  })
+
   it.each([
     [{ success: true, total: 1, errors: 0, error: 'provider-secret', errorMessage: 'private-email' }, true],
     [{ success: false, total: 1, errors: 1, error: 'provider-secret', errorMessage: 'private-email' }, false],
