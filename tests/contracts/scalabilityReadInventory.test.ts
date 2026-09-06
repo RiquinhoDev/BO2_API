@@ -60,6 +60,8 @@ test('SCALE-03 records constrained sequential dispositions with behavioral evide
   const guardCases = [
     ['src/services/guru/guruTrialCheckPlan.service.ts', 'limit(MAX_LOCAL_PRODUCT_READ_ITEMS + 1)', 'limit(MAX_LOCAL_PRODUCT_READ_ITEMS)', /guru-trials\.provider-writes: missing limit\(MAX_LOCAL_PRODUCT_READ_ITEMS \+ 1\)/],
     ['src/services/guru/guruTrialCheckPlan.service.ts', 'if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()', 'if (false) throw capExceeded()', /guru-trials\.provider-writes: missing if \(mutations\.length/],
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'filter: userPredicate(', 'filter: removedUserPredicate(', /guru-trials\.provider-writes: missing filter: userPredicate\(/],
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'User.updateOne', 'User.updateMany', /guru-trials\.provider-writes: missing User\.updateOne/],
     ['src/services/guru/guruTrialCheckPlan.service.ts', 'UserProduct.updateOne', 'UserProduct.updateMany', /guru-trials\.provider-writes: missing UserProduct\.updateOne/],
     ['src/services/guru/guruTrialCheckPlan.service.ts', 'options.phaseHooks?.assertOwnership?.()', 'removedOwnershipHook()', /guru-trials\.provider-writes: missing options\.phaseHooks/],
     ['src/jobs/guruTrialCheck.job.ts', 'runGuruTrialCheck(options)', 'runOtherGuruTrialCheck(options)', /guru-trials\.expired-writes: missing runGuruTrialCheck/],

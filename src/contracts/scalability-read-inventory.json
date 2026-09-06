@@ -842,7 +842,9 @@
           "const products = await readProducts(candidates.map(candidate => candidate.user._id))",
           "limit(MAX_LOCAL_PRODUCT_READ_ITEMS + 1)",
           "if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()",
+          "filter: userPredicate(",
           "filter: productPredicate(product, candidate.user._id)",
+          "User.updateOne",
           "UserProduct.updateOne",
           "options.phaseHooks?.localMutationStarted()",
           "options.phaseHooks?.assertOwnership?.()"
