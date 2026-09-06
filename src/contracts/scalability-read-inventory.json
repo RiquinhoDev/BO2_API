@@ -934,18 +934,20 @@
         "disposition": "changed",
         "constraint": "constrained-sequential: conditional provider reads, ordered UserProduct writes, 20-attempt provider budget, 300ms successful-read throttle and stale reconciliation identity remain observable",
         "evidence": [
-          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:34-245 (N=1/10/100, peak=1, ordered writes, partial write failures, provider throttle and 20-attempt budget)",
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:34-258 (N=1/10/100, peak=1, ordered writes, partial write failures, provider throttle and 20-attempt budget)",
           "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:148-170 (failed provider attempts are capped and counted as errors without writes)",
           "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:173-205 (stale reconciliation normalizes incoming email identity before set membership)",
-          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:208-245 (400 duplicate/case/space variants collapse before $in/$nin queries and minSyncSize stale gate)"
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:208-245 (400 duplicate/case/space variants collapse before $in/$nin queries and minSyncSize stale gate)",
+          "tests/scalability/scaleRound1GuruCrossReference.contract.test.ts:247-258 (blank-only scoped input remains `$in: []` and performs no product reads or writes)"
         ],
         "require": [
           "const canonicalSyncedEmails = syncedEmails === undefined",
+          "const hasScopedSyncInput = syncedEmails !== undefined && syncedEmails.length > 0",
           "for (const up of userProducts)",
           "apiCallsUsed++",
           "await new Promise(resolve => setTimeout(resolve, 300))",
           "result.errors++",
-          "query.email = { $in: canonicalSyncedEmails }",
+          "query.email = { $in: canonicalSyncedEmails ?? [] }",
           "email: { $nin: canonicalSyncedEmails }",
           "canonicalSyncedEmails.length >= minSize",
           "const syncedSet = new Set(canonicalSyncedEmails)",

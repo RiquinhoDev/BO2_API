@@ -142,14 +142,15 @@ export async function runCrossReferenceAfterCurseducaSync(
           .map(email => email.toLowerCase().trim())
           .filter(email => email.length > 0)
       )]
+  const hasScopedSyncInput = syncedEmails !== undefined && syncedEmails.length > 0
 
   // 1. Buscar users com dados Guru + CursEduca
   const query: FilterQuery<IUser> = {
     'guru.status': { $exists: true },
     'curseduca.curseducaUserId': { $exists: true }
   }
-  if (canonicalSyncedEmails && canonicalSyncedEmails.length > 0) {
-    query.email = { $in: canonicalSyncedEmails }
+  if (hasScopedSyncInput) {
+    query.email = { $in: canonicalSyncedEmails ?? [] }
   }
 
   const users = await User.find(query)

@@ -243,3 +243,16 @@ test('deduplicates the canonical email list before queries and stale threshold',
   expect(result.reconciledStale).toBe(0)
   expect(mockUserProductUpdateMany).not.toHaveBeenCalled()
 })
+
+test('does not widen a non-empty blank-only sync input to the full population', async () => {
+  jest.clearAllMocks()
+  mockUserFind.mockReturnValue(usersQuery([]))
+
+  const result = await runCrossReferenceAfterCurseducaSync(['   '])
+
+  expect(mockUserFind).toHaveBeenCalledTimes(1)
+  expect(mockUserFind.mock.calls[0][0].email.$in).toEqual([])
+  expect(mockUserProductFind).not.toHaveBeenCalled()
+  expect(mockUserProductUpdateMany).not.toHaveBeenCalled()
+  expect(result).toMatchObject({ processed: 0, errors: 0, reconciledStale: 0 })
+})
