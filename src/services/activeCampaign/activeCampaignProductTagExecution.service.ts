@@ -142,6 +142,9 @@ async function claimReceipt<T>(
     )
     if (exact) return exact
 
+    const indeterminate = await findReceipt({ operation, identity, status: 'indeterminate' })
+    if (indeterminate) return { kind: 'indeterminate' }
+
     try {
       const reclaimed = await ActiveCampaignProductTagReceipt.findOneAndUpdate(
         {
@@ -159,7 +162,7 @@ async function claimReceipt<T>(
     }
 
     try {
-      await ActiveCampaignProductTagReceipt.findOneAndUpdate(
+      const stale = await ActiveCampaignProductTagReceipt.findOneAndUpdate(
         staleRunningFilter,
         {
           $set: {
@@ -171,9 +174,17 @@ async function claimReceipt<T>(
         },
         { new: true },
       )
+      if (stale) return { kind: 'indeterminate' }
     } catch (error: unknown) {
       if (!isDuplicateKey(error)) throw error
     }
+
+    const indeterminateAfterStaleCheck = await findReceipt({
+      operation,
+      identity,
+      status: 'indeterminate',
+    })
+    if (indeterminateAfterStaleCheck) return { kind: 'indeterminate' }
 
     try {
       await ActiveCampaignProductTagReceipt.create({
@@ -198,6 +209,8 @@ async function claimReceipt<T>(
     at,
   )
   if (exact) return exact
+  const indeterminate = await findReceipt({ operation, identity, status: 'indeterminate' })
+  if (indeterminate) return { kind: 'indeterminate' }
   const running = classifyReceipt<T>(
     await findReceipt({ operation, identity, status: 'running' }),
     requestId,

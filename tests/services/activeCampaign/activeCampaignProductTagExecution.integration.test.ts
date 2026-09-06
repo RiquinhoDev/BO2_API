@@ -151,7 +151,51 @@ test('persists provider-success plus local-persist failure as indeterminate and 
   expect(replayWork).not.toHaveBeenCalled()
 })
 
-test('declares a unique request receipt and one running receipt per target', () => {
+test('blocks a new request after an indeterminate receipt without rerunning the work', async () => {
+  const firstWork = jest.fn(async (context: ActiveCampaignProductTagExecutionContext) => {
+    context.provider.begin()
+    context.provider.success()
+    throw new Error('local persist failed')
+  })
+  const secondWork = jest.fn(async () => ({ requestId: 'request-b' }))
+
+  await expect(executeActiveCampaignProductTag(runOptions('request-a', firstWork)))
+    .resolves.toEqual({ kind: 'indeterminate' })
+  await expect(executeActiveCampaignProductTag(runOptions('request-b', secondWork)))
+    .resolves.toEqual({ kind: 'indeterminate' })
+
+  expect(secondWork).not.toHaveBeenCalled()
+})
+
+test('converts stale running receipts to indeterminate without starting a new request', async () => {
+  const staleAt = new Date(Date.now() - 60_000)
+  await ActiveCampaignProductTagReceipt.create({
+    operation: 'apply',
+    identity: 'user-product-1:tag-1',
+    requestId: 'request-a',
+    ownerId: 'stale-owner',
+    status: 'running',
+    providerStatus: 'not-started',
+    startedAt: staleAt,
+    leaseExpiresAt: new Date(staleAt.getTime() + 1_000),
+  })
+  const secondWork = jest.fn(async () => ({ requestId: 'request-b' }))
+
+  await expect(executeActiveCampaignProductTag(runOptions('request-b', secondWork)))
+    .resolves.toEqual({ kind: 'indeterminate' })
+
+  expect(secondWork).not.toHaveBeenCalled()
+  await expect(ActiveCampaignProductTagReceipt.findOne({
+    operation: 'apply',
+    identity: 'user-product-1:tag-1',
+    requestId: 'request-a',
+  }).lean()).resolves.toEqual(expect.objectContaining({
+    status: 'indeterminate',
+    providerStatus: 'unknown',
+  }))
+})
+
+test('declares a unique request receipt and one active receipt per target', () => {
   const indexes = ActiveCampaignProductTagReceipt.schema.indexes()
   expect(indexes).toContainEqual([
     { operation: 1, identity: 1, requestId: 1 },
@@ -161,7 +205,7 @@ test('declares a unique request receipt and one running receipt per target', () 
     { operation: 1, identity: 1 },
     expect.objectContaining({
       unique: true,
-      partialFilterExpression: { status: 'running' },
+      partialFilterExpression: { status: { $in: ['running', 'indeterminate'] } },
     }),
   ])
 })

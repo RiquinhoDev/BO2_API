@@ -52,7 +52,10 @@ ActiveCampaignProductTagReceiptSchema.index(
 )
 ActiveCampaignProductTagReceiptSchema.index(
   { operation: 1, identity: 1 },
-  { unique: true, partialFilterExpression: { status: 'running' } },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ['running', 'indeterminate'] } },
+  },
 )
 
 export default mongoose.models.ActiveCampaignProductTagReceipt
