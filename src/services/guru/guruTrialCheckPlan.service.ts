@@ -5,40 +5,20 @@ import UserProduct from '../../models/UserProduct'
 import { HttpError } from '../../security/errorHandling'
 import { MAX_PROVIDER_READ_ITEMS, assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { fetchAllSubscriptionsComplete, fetchSubscriptionById } from './guruSync.service'
-import type { GuruPaginationLimits, GuruSubscription } from './sync/client'
-import { subscriptionEmail } from './sync/client'
+import { subscriptionEmail, type GuruPaginationLimits, type GuruStatus, type GuruSubscription } from './sync/client'
 import type { GuruTrialCheckResult, GuruTrialPlan, GuruTrialRunOptions } from './guruTrial.types'
+import {
+  assertProviderCodeIdentity, effectiveDates, MARK_STATUSES, normalizedCode, policyError, productPredicate,
+  RESTORE_STATUSES, signature, statusOf, TRIAL_STATUSES, userPredicate, validateResolved,
+  type ProductSnapshot, type UserSnapshot, validateDateShape,
+} from './guruTrialCheckPolicy'
 
 const PAGE_SIZE = 50
 const MAX_PAGES = Math.ceil(MAX_PROVIDER_READ_ITEMS / PAGE_SIZE)
-const VALID_STATUSES = new Set(['active', 'paid', 'trial', 'trialing', 'expired', 'canceled', 'cancelled'])
-const MARK_STATUSES = new Set(['expired', 'canceled', 'cancelled'])
-const RESTORE_STATUSES = new Set(['active', 'paid', 'trial', 'trialing'])
-
-type UserSnapshot = {
-  _id: string | Types.ObjectId
-  email: string
-  guru?: {
-    isTrial?: boolean
-    status?: string
-    subscriptionCode?: string
-    trialStartedAt?: Date | string
-    trialFinishedAt?: Date | string
-    trialConvertedAt?: Date | string
-  }
-}
-
-type ProductSnapshot = {
-  _id: string | Types.ObjectId
-  userId?: string | Types.ObjectId
-  status: string
-  metadata?: { guruTrialExpired?: boolean; guruTrialPreviousStatus?: string }
-}
-
 type Candidate = {
   user: UserSnapshot
   subscription: GuruSubscription
-  status: string
+  status: GuruStatus
   start: Date
   finish: Date
   products: ProductSnapshot[]
@@ -95,6 +75,7 @@ async function readAll(options: GuruTrialRunOptions, budget: ProviderBudget): Pr
 }
 
 async function readOne(options: GuruTrialRunOptions, code: string, budget: ProviderBudget): Promise<GuruSubscription> {
+  if (!code.trim()) throw policyError('GURU_TRIAL_PROVIDER_IDENTITY_INVALID')
   try {
     const result = await fetchSubscriptionById(code, providerLimits(options, budget))
     if (!result) throw new Error('GURU_TRIAL_PROVIDER_NOT_FOUND')
@@ -105,54 +86,23 @@ async function readOne(options: GuruTrialRunOptions, code: string, budget: Provi
   }
 }
 
-function normalizedCode(subscription: GuruSubscription): string | undefined {
-  const code = subscription.subscription_code || subscription.id
-  return typeof code === 'string' && code.trim() ? code.trim() : undefined
-}
-
-function validDate(value: unknown): Date | undefined {
-  if (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date)) return undefined
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? undefined : date
-}
-
-function effectiveDates(subscription: GuruSubscription): { start?: Date; finish?: Date } {
-  const dates = subscription.dates as unknown as Record<string, unknown> | undefined
-  return {
-    start: validDate(subscription.trial_started_at || subscription.dates?.started_at),
-    finish: validDate(subscription.trial_finished_at || dates?.finished_at || dates?.trial_finished_at),
-  }
-}
-
-function statusOf(subscription: GuruSubscription): string {
-  const status = typeof subscription.last_status === 'string' ? subscription.last_status.trim().toLowerCase() : ''
-  if (!VALID_STATUSES.has(status)) throw incomplete(new Error('GURU_TRIAL_PROVIDER_STATUS_INVALID'))
-  return status
-}
-
-function signature(subscription: GuruSubscription): string {
-  const dates = effectiveDates(subscription)
-  return JSON.stringify({ status: statusOf(subscription), start: dates.start?.toISOString(), finish: dates.finish?.toISOString() })
-}
-
 function effectiveTrials(subscriptions: GuruSubscription[]): GuruSubscription[] {
   const byEmail = new Map<string, GuruSubscription>()
+  const codeOwners = new Map<string, string>()
   for (const subscription of subscriptions) {
     const status = statusOf(subscription)
     const email = subscriptionEmail(subscription)
     const code = normalizedCode(subscription)
-    if (!email || !code) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
-    const dates = effectiveDates(subscription)
-    if (['trial', 'trialing'].includes(status) && dates.start && dates.finish && dates.start > dates.finish) {
-      throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
-    }
-    if (!['trial', 'trialing'].includes(status)) continue
+    if (!email || !code) throw policyError('GURU_TRIAL_PROVIDER_IDENTITY_INVALID')
+    assertProviderCodeIdentity(codeOwners, subscription)
+    validateDateShape(subscription)
+    if (!TRIAL_STATUSES.has(status)) continue
     const previous = byEmail.get(email)
     if (!previous) {
       byEmail.set(email, subscription)
       continue
     }
-    if (signature(previous) !== signature(subscription)) throw incomplete(new Error('GURU_TRIAL_PROVIDER_CONFLICT'))
+    if (signature(previous) !== signature(subscription)) throw policyError('GURU_TRIAL_PROVIDER_CONFLICT')
     if ((normalizedCode(subscription) || '').localeCompare(normalizedCode(previous) || '') < 0) byEmail.set(email, subscription)
   }
   const result = [...byEmail.values()].sort((left, right) => (subscriptionEmail(left) || '').localeCompare(subscriptionEmail(right) || ''))
@@ -183,11 +133,11 @@ async function readUsersByEmail(emails: string[]): Promise<UserSnapshot[]> {
   }
 }
 
-async function readExpiredUsers(): Promise<UserSnapshot[]> {
+async function readExpiredUsers(now: Date): Promise<UserSnapshot[]> {
   try {
     const users = await User.find({
       'guru.isTrial': true,
-      'guru.trialFinishedAt': { $lte: new Date() },
+      'guru.trialFinishedAt': { $lte: now },
       'guru.trialConvertedAt': { $exists: false },
     }).sort({ _id: 1 }).select('_id email guru').limit(MAX_PROVIDER_READ_ITEMS + 1).exec() as UserSnapshot[]
     if (users.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
@@ -250,45 +200,16 @@ function syncUpdate(subscription: GuruSubscription, start: Date, finish: Date): 
   }
 }
 
-function expected(value: unknown): unknown {
-  return value === undefined ? { $exists: false } : value
-}
-
-function userPredicate(user: UserSnapshot): Record<string, unknown> {
-  const guru = user.guru || {}
-  return {
-    _id: user._id,
-    email: user.email,
-    'guru.isTrial': expected(guru.isTrial),
-    'guru.status': expected(guru.status),
-    'guru.subscriptionCode': expected(guru.subscriptionCode),
-    'guru.trialStartedAt': expected(guru.trialStartedAt),
-    'guru.trialFinishedAt': expected(guru.trialFinishedAt),
-    'guru.trialConvertedAt': expected(guru.trialConvertedAt),
-  }
-}
-
-function productPredicate(product: ProductSnapshot, userId: string | Types.ObjectId): Record<string, unknown> {
-  return {
-    _id: product._id,
-    userId,
-    platform: 'curseduca',
-    status: product.status,
-    'metadata.guruTrialExpired': expected(product.metadata?.guruTrialExpired),
-    'metadata.guruTrialPreviousStatus': expected(product.metadata?.guruTrialPreviousStatus),
-  }
-}
-
-function expiryUpdate(status: string): Record<string, unknown> {
+function expiryUpdate(status: GuruStatus): Record<string, unknown> {
   if (RESTORE_STATUSES.has(status)) {
-    return status === 'trial' || status === 'trialing'
+    return status === 'trial'
       ? { 'guru.isTrial': true, 'guru.status': 'trial' }
       : { 'guru.isTrial': false, 'guru.status': 'active', 'guru.trialConvertedAt': new Date() }
   }
-  return { 'guru.isTrial': false, 'guru.status': status }
+  return { 'guru.isTrial': false, 'guru.status': status === 'canceled' ? 'canceled' : 'expired' }
 }
 
-function productUpdate(product: ProductSnapshot, status: string, email: string): Record<string, unknown> | undefined {
+function productUpdate(product: ProductSnapshot, status: GuruStatus, email: string): Record<string, unknown> | undefined {
   if (MARK_STATUSES.has(status) && ['ACTIVE', 'QUARENTENA'].includes(product.status)) {
     return {
       $set: {
@@ -312,8 +233,8 @@ function productUpdate(product: ProductSnapshot, status: string, email: string):
 }
 
 function buildPublicPlan(syncCount: number, candidates: Candidate[], mutations: Mutation[], dryRun: boolean): GuruTrialPlan {
-  const converted = candidates.filter(candidate => ['active', 'paid'].includes(candidate.status)).length
-  const stillInTrial = candidates.filter(candidate => ['trial', 'trialing'].includes(candidate.status)).length
+  const converted = candidates.filter(candidate => candidate.status === 'active').length
+  const stillInTrial = candidates.filter(candidate => TRIAL_STATUSES.has(candidate.status)).length
   const markedForInactivation = mutations.filter(mutation => mutation.countedMark).length
   if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
   return {
@@ -333,33 +254,12 @@ function projectedUser(user: UserSnapshot, row: { subscription: GuruSubscription
       subscriptionCode: normalizedCode(row.subscription),
       trialStartedAt: row.start,
       trialFinishedAt: row.finish,
-      trialConvertedAt: undefined,
     },
   }
 }
 
-function validateResolved(subscription: GuruSubscription, expectedCode?: string, expectedEmail?: string): { status: string; start: Date; finish: Date } {
-  const status = statusOf(subscription)
-  const code = normalizedCode(subscription)
-  const email = subscriptionEmail(subscription)
-  if (!code || !email || (expectedCode && code !== expectedCode) || (expectedEmail && email !== expectedEmail)) {
-    throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
-  }
-  const dates = effectiveDates(subscription)
-  if (!dates.start || !dates.finish || dates.start > dates.finish) throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
-  return { status, start: dates.start, finish: dates.finish }
-}
-
-function assertProviderCodeIdentity(owners: Map<string, string>, subscription: GuruSubscription): void {
-  const code = normalizedCode(subscription)
-  const email = subscriptionEmail(subscription)
-  if (!code || !email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
-  const owner = owners.get(code)
-  if (owner && owner !== email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_CONFLICT'))
-  owners.set(code, email)
-}
-
 async function prepare(options: GuruTrialRunOptions): Promise<Work> {
+  const now = new Date(Date.now())
   const providerBudget: ProviderBudget = { attempts: 0 }
   const subscriptions = effectiveTrials(await readAll(options, providerBudget))
   const codeOwners = new Map<string, string>()
@@ -373,7 +273,7 @@ async function prepare(options: GuruTrialRunOptions): Promise<Work> {
       if (!code || !email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
       const detail = await readOne(options, code, providerBudget)
       const detailInfo = validateResolved(detail, code, email)
-      if (!['trial', 'trialing'].includes(detailInfo.status)) throw incomplete(new Error('GURU_TRIAL_PROVIDER_STATUS_INVALID'))
+      if (!TRIAL_STATUSES.has(detailInfo.status)) throw policyError('GURU_TRIAL_PROVIDER_STATUS_INVALID')
       resolved = { ...subscription, ...detail }
     }
     validateResolved(resolved)
@@ -395,32 +295,25 @@ async function prepare(options: GuruTrialRunOptions): Promise<Work> {
     syncRows.push(row)
   }
 
-  const existingUsers = await readExpiredUsers()
+  const existingUsers = await readExpiredUsers(now)
   const syncById = new Map(syncRows.map(row => [String(row.original._id), row]))
   const candidateUsers = new Map<string, UserSnapshot>()
   for (const user of existingUsers) {
     if (user.guru?.isTrial !== false && !user.guru?.trialConvertedAt) candidateUsers.set(String(user._id), user)
   }
   for (const row of syncRows) {
-    if (row.finish.getTime() <= Date.now() && !row.projected.guru?.trialConvertedAt) candidateUsers.set(String(row.original._id), row.projected)
+    if (row.finish.getTime() <= now.getTime() && !row.projected.guru?.trialConvertedAt) candidateUsers.set(String(row.original._id), row.projected)
     else candidateUsers.delete(String(row.original._id))
   }
 
   const candidates: Candidate[] = []
   for (const user of [...candidateUsers.values()].sort((left, right) => String(left._id).localeCompare(String(right._id)))) {
     const synced = syncById.get(String(user._id))
-    let subscription = synced?.subscription
-    if (!subscription) {
-      const code = user.guru?.subscriptionCode || ''
-      const detail = await readOne(options, code, providerBudget)
-      const info = validateResolved(detail, code, user.email.toLowerCase().trim())
-      subscription = detail
-      if (info.status === 'trial' || info.status === 'trialing') {
-        if (info.finish.getTime() > Date.now()) continue
-      }
-    }
-    if (!subscription) throw incomplete(new Error('GURU_TRIAL_PROVIDER_NOT_FOUND'))
-    const info = validateResolved(subscription, normalizedCode(subscription), user.email.toLowerCase().trim())
+    const code = normalizedCode(synced?.subscription || ({ subscription_code: user.guru?.subscriptionCode } as GuruSubscription)) || ''
+    const detail = await readOne(options, code, providerBudget)
+    const info = validateResolved(detail, code, user.email.toLowerCase().trim())
+    if (TRIAL_STATUSES.has(info.status) && info.finish.getTime() > now.getTime()) continue
+    const subscription = detail
     assertProviderCodeIdentity(codeOwners, subscription)
     candidates.push({ user, subscription, status: info.status, start: info.start, finish: info.finish, products: [] })
   }
@@ -432,7 +325,7 @@ async function prepare(options: GuruTrialRunOptions): Promise<Work> {
   for (const row of syncRows) {
     mutations.push({
       kind: 'user', id: row.original._id, filter: userPredicate(row.original),
-      update: { $set: syncUpdate(row.subscription, row.start, row.finish), $unset: { 'guru.trialConvertedAt': 1 } },
+      update: { $set: syncUpdate(row.subscription, row.start, row.finish) },
     })
   }
   for (const candidate of candidates) {
@@ -440,7 +333,7 @@ async function prepare(options: GuruTrialRunOptions): Promise<Work> {
       const update = productUpdate(product, candidate.status, candidate.user.email)
       if (update) mutations.push({ kind: 'product', id: product._id, filter: productPredicate(product, candidate.user._id), update, countedMark: MARK_STATUSES.has(candidate.status) })
     }
-    if (MARK_STATUSES.has(candidate.status) || ['active', 'paid'].includes(candidate.status)) {
+    if (MARK_STATUSES.has(candidate.status) || candidate.status === 'active') {
       mutations.push({ kind: 'user', id: candidate.user._id, filter: userPredicate(candidate.user), update: { $set: expiryUpdate(candidate.status) } })
     }
   }
@@ -450,7 +343,10 @@ async function prepare(options: GuruTrialRunOptions): Promise<Work> {
 
 function matched(result: unknown): number {
   const record = result && typeof result === 'object' ? result as Record<string, unknown> : {}
-  if (record.acknowledged !== true || record.matchedCount !== 1) throw new Error('GURU_TRIAL_LOCAL_WRITE_CONFLICT')
+  if (record.acknowledged !== true || record.matchedCount !== 1
+    || typeof record.modifiedCount !== 'number' || !Number.isSafeInteger(record.modifiedCount) || record.modifiedCount !== 1) {
+    throw new Error('GURU_TRIAL_LOCAL_WRITE_CONFLICT')
+  }
   return record.matchedCount
 }
 
@@ -473,15 +369,20 @@ async function apply(options: GuruTrialRunOptions, work: Work): Promise<number> 
 }
 
 export async function runGuruTrialCheck(options: GuruTrialRunOptions = {}): Promise<GuruTrialCheckResult & { synced: number; dryRun?: true }> {
-  const work = await prepare(options)
-  const marked = options.dryRun === true ? work.plan.markedForInactivation : await apply(options, work)
-  return {
-    checked: work.candidates.length,
-    markedForInactivation: marked,
-    converted: work.plan.converted,
-    stillInTrial: work.plan.stillInTrial,
-    errors: 0,
-    synced: work.plan.synced,
-    ...(options.dryRun === true ? { dryRun: true as const, plan: work.plan } : {}),
+  try {
+    const work = await prepare(options)
+    const marked = options.dryRun === true ? work.plan.markedForInactivation : await apply(options, work)
+    return {
+      checked: work.candidates.length,
+      markedForInactivation: marked,
+      converted: work.plan.converted,
+      stillInTrial: work.plan.stillInTrial,
+      errors: 0,
+      synced: work.plan.synced,
+      ...(options.dryRun === true ? { dryRun: true as const, plan: work.plan } : {}),
+    }
+  } catch (error: unknown) {
+    if (error instanceof HttpError) throw error
+    throw incomplete(error)
   }
 }

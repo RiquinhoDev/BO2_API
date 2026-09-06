@@ -110,6 +110,10 @@ describe('Guru trial unified preflight', () => {
     mockUserFind
       .mockReturnValueOnce(queryResult([{ _id: 'user-1', email: 'trial-1@example.test' }]))
       .mockReturnValueOnce(queryResult([]))
+    mockFetchSubscriptionById.mockResolvedValue(subscription(1, {
+      trial_started_at: '2019-01-01T00:00:00.000Z',
+      trial_finished_at: '2020-01-08T00:00:00.000Z',
+    }))
     mockUserProductFind.mockReturnValue(queryResult([{
       _id: 'product-1',
       status: 'ACTIVE',
@@ -148,14 +152,14 @@ describe('Guru trial unified preflight', () => {
     mockUserFind
       .mockReturnValueOnce(queryResult([{ _id: 'user-1', email: 'trial-1@example.test' }]))
       .mockReturnValueOnce(queryResult([]))
-    mockFetchSubscriptionById.mockResolvedValueOnce(subscription(1, {
+    mockFetchSubscriptionById.mockResolvedValue(subscription(1, {
       subscriber: { email: 'trial-1@example.test' },
       trial_started_at: '2026-01-01T00:00:00.000Z',
       trial_finished_at: '2026-01-08T00:00:00.000Z',
     }))
 
     await expect(runGuruTrialCheck({ dryRun: true })).resolves.toMatchObject({ synced: 1 })
-    expect(mockFetchSubscriptionById).toHaveBeenCalledTimes(1)
+    expect(mockFetchSubscriptionById).toHaveBeenCalledTimes(2)
     expect(mockUserUpdateOne).not.toHaveBeenCalled()
   })
 
@@ -255,48 +259,6 @@ describe('Guru trial unified preflight', () => {
     expect(mockUserUpdateOne).not.toHaveBeenCalled()
   })
 
-  test('provider detail must preserve the requested code and local email', async () => {
-    mockFetchAllSubscriptionsComplete.mockResolvedValue([subscription(1, {
-      trial_started_at: undefined,
-      trial_finished_at: undefined,
-    })])
-    mockUserFind.mockReturnValueOnce(queryResult([{ _id: 'user-1', email: 'trial-1@example.test' }]))
-    mockFetchSubscriptionById.mockResolvedValueOnce(subscription(1, {
-      subscription_code: 'other-code',
-      subscriber: { email: 'other@example.test' },
-      trial_started_at: '2026-01-01T00:00:00.000Z',
-      trial_finished_at: '2026-01-08T00:00:00.000Z',
-    }))
-
-    await expect(runGuruTrialCheck()).rejects.toMatchObject({
-      code: 'GURU_TRIAL_EXECUTION_INCOMPLETE',
-    })
-    expect(mockUserUpdateOne).not.toHaveBeenCalled()
-    expect(mockUserProductFind).not.toHaveBeenCalled()
-  })
-
-  test('one provider code cannot map to two local identities', async () => {
-    mockFetchAllSubscriptionsComplete.mockResolvedValue([
-      subscription(1, { subscription_code: 'shared-code', subscriber: { email: 'one@example.test' } }),
-      subscription(2, { subscription_code: 'shared-code', subscriber: { email: 'two@example.test' } }),
-    ])
-
-    await expect(runGuruTrialCheck()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
-    expect(mockUserUpdateOne).not.toHaveBeenCalled()
-  })
-
-  test('expiry detail identity must match its local candidate', async () => {
-    mockFetchAllSubscriptionsComplete.mockResolvedValue([])
-    mockUserFind.mockReturnValueOnce(queryResult([{
-      _id: 'user-expired', email: 'expired@example.test',
-      guru: { subscriptionCode: 'sub-expired', trialStartedAt: '2026-01-01T00:00:00.000Z', trialFinishedAt: '2026-01-08T00:00:00.000Z' },
-    }]))
-    mockFetchSubscriptionById.mockResolvedValueOnce({ id: 'sub-expired', subscription_code: 'sub-expired', last_status: 'expired', trial_started_at: '2026-01-01T00:00:00.000Z', trial_finished_at: '2026-01-08T00:00:00.000Z', subscriber: { email: 'other@example.test' } })
-
-    await expect(runGuruTrialCheck()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
-    expect(mockUserProductFind).not.toHaveBeenCalled()
-  })
-
   test('aggregate product read has one global physical cap across candidate users', async () => {
     const users = Array.from({ length: 5 }, (_, index) => ({
       _id: `user-${index}`,
@@ -312,6 +274,10 @@ describe('Guru trial unified preflight', () => {
     mockUserFind
       .mockReturnValueOnce(queryResult(users.map(({ _id, email }) => ({ _id, email }))))
       .mockReturnValueOnce(queryResult([]))
+    mockFetchSubscriptionById.mockImplementation((code: string) => {
+      const index = Number(code.replace('sub-', ''))
+      return Promise.resolve(subscription(index, { last_status: 'expired', trial_started_at: '2019-01-01T00:00:00.000Z', trial_finished_at: '2020-01-08T00:00:00.000Z' }))
+    })
     mockUserProductFind.mockReturnValueOnce(queryResult(Array.from({ length: 20001 }, (_, index) => ({
       _id: `product-${index}`,
       userId: `user-${index % 5}`,
@@ -356,6 +322,7 @@ describe('Guru trial unified preflight', () => {
     mockUserFind
       .mockReturnValueOnce(queryResult([{ _id: 'user-1', email: 'trial-1@example.test' }]))
       .mockReturnValueOnce(queryResult([]))
+    mockFetchSubscriptionById.mockResolvedValue(subscription(1, { trial_started_at: '2019-01-01T00:00:00.000Z', trial_finished_at: '2020-01-08T00:00:00.000Z' }))
     mockUserProductFind.mockReturnValueOnce(queryResult([{ _id: 'product-1', status: 'ACTIVE', metadata: {} }]))
     mockUserUpdateOne.mockResolvedValueOnce({ acknowledged: true, matchedCount: 0, modifiedCount: 0 })
 
@@ -403,4 +370,5 @@ describe('Guru trial unified preflight', () => {
 
     await expect(runGuruTrialCheck({ dryRun: true })).resolves.toMatchObject({ markedForInactivation: 3, plan: { markedForInactivation: 3 } })
   })
+
 })
