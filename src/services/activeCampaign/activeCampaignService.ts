@@ -9,6 +9,7 @@ import { ActiveCampaignContactsService } from './activeCampaignContacts.service'
 import {
   ActiveCampaignTagsService,
   type ActiveCampaignContactTag,
+  type AuthoritativeContactTagsRead,
   type TagBatchResult,
 } from './activeCampaignTags.service'
 import {
@@ -82,6 +83,10 @@ class ActiveCampaignService {
 
   async getContactTagsByEmail(email: string): Promise<string[]> {
     return this.tags.getContactTagsByEmail(email)
+  }
+
+  async getContactTagsByEmailStrict(email: string): Promise<AuthoritativeContactTagsRead> {
+    return this.tags.getContactTagsByEmailStrict(email)
   }
 
   async removeTag(email: string, tagName: string): Promise<boolean> {

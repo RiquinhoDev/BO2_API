@@ -55,4 +55,26 @@ describe('ActiveCampaignTagsService', () => {
     await expect(service.removeTag('student@example.test', 'missing')).resolves.toBe(true)
     expect(remove).not.toHaveBeenCalled()
   })
+
+  it('returns authoritative empty tags when the contact is absent', async () => {
+    jest.spyOn(contacts, 'getContactByEmail').mockResolvedValue(null)
+    const get = jest.spyOn(transport.client, 'get')
+    const service = new ActiveCampaignTagsService(transport, contacts)
+
+    await expect(service.getContactTagsByEmailStrict('missing@example.test')).resolves.toEqual({
+      contactFound: false,
+      tags: [],
+    })
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('does not downgrade a generic tag-read error to authoritative empty', async () => {
+    const readError = new Error('ActiveCampaign HTTP 503')
+    jest.spyOn(contacts, 'getContactByEmail').mockResolvedValue(existingContact)
+    jest.spyOn(transport.client, 'get').mockRejectedValue(readError)
+    const service = new ActiveCampaignTagsService(transport, contacts)
+
+    await expect(service.getContactTagsByEmail('student@example.test')).resolves.toEqual([])
+    await expect(service.getContactTagsByEmailStrict('student@example.test')).rejects.toBe(readError)
+  })
 })

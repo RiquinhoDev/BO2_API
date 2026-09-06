@@ -235,7 +235,7 @@ class WeeklyTagMonitoringService {
       const normalizedEmail = email.trim().toLowerCase()
 
       // Buscar tags da ActiveCampaign
-      const allTags = await activeCampaignService.getContactTagsByEmail(email)
+      const { tags: allTags } = await activeCampaignService.getContactTagsByEmailStrict(normalizedEmail)
 
       if (!allTags || allTags.length === 0) {
         logger.debug(`${email} não tem tags na AC`)

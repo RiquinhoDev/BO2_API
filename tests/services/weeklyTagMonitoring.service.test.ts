@@ -31,7 +31,7 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   __esModule: true,
   default: {
     getAllContacts: mockGetAllContacts,
-    getContactTagsByEmail: mockGetContactTagsByEmail,
+    getContactTagsByEmailStrict: mockGetContactTagsByEmail,
   },
 }))
 
@@ -145,8 +145,8 @@ function makeHarness(size: number, failurePlan: FailurePlan = {}) {
     const index = indexFromEmail(email)
     await record(`provider:${index}`)
     if (failurePlan.provider?.has(index)) throw new Error(`provider-${index}`)
-    if (failurePlan.noNativeTags?.has(index)) return []
-    return ['TAG_CRITICAL']
+    if (failurePlan.noNativeTags?.has(index)) return { contactFound: true, tags: [] }
+    return { contactFound: true, tags: ['TAG_CRITICAL'] }
   })
   mockUserFindOne.mockImplementation((query: { email: string }) => ({
     select: jest.fn((projection: string) => {

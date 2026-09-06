@@ -86,7 +86,7 @@ export async function captureNativeTags(
     const normalizedEmail = email.trim().toLowerCase()
 
     // Buscar tags atuais da AC
-    const allTagsFromAC = await activeCampaignService.getContactTagsByEmail(normalizedEmail)
+    const { tags: allTagsFromAC } = await activeCampaignService.getContactTagsByEmailStrict(normalizedEmail)
 
     // Contacto sem tags e sem histórico não precisa de snapshot inicial.
     let snapshot = await ACNativeTagsSnapshot.findOne({ email: normalizedEmail })

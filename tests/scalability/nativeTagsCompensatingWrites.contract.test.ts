@@ -5,7 +5,7 @@ const mockSnapshotCreate = jest.fn()
 jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   __esModule: true,
   default: {
-    getContactTagsByEmail: mockGetContactTagsByEmail,
+    getContactTagsByEmailStrict: mockGetContactTagsByEmail,
   },
 }))
 
@@ -137,7 +137,7 @@ function makeHarness(
     const index = indexFromEmail(email)
     await record(`provider:${index}`)
     if (failurePlan.provider?.has(index)) throw new Error(`provider-${index}`)
-    return [...(currentTags.get(email) || [])]
+    return { contactFound: true, tags: [...(currentTags.get(email) || [])] }
   })
   mockSnapshotFindOne.mockImplementation(async ({ email }: { email: string }) => {
     const index = indexFromEmail(email)
@@ -280,6 +280,23 @@ test('retries a failed snapshot save without persisting partial state or duplica
   ])
 })
 
+test('does not mutate an existing snapshot when the strict provider read fails', async () => {
+  const email = 'user-0@example.test'
+  const harness = makeHarness(
+    1,
+    { provider: new Set([0]) },
+    new Map([[email, makeState(email)]]),
+  )
+
+  const result = await captureNativeTagsBatch(harness.emails, 'SCALE_TEST', 1)
+  const persisted = harness.persisted.get(email)
+
+  expect(result).toEqual({ success: false, processed: 1, captured: 0, errors: 1 })
+  expect(harness.events).toEqual(['provider:0'])
+  expect(persisted?.nativeTags).toEqual(['Cliente VIP'])
+  expect(persisted?.history).toHaveLength(1)
+})
+
 test('concurrent initial captures converge after a unique-email duplicate key', async () => {
   const email = 'user-0@example.test'
   const harness = makeHarness(1)
@@ -335,7 +352,7 @@ test('normalizes email before provider reads and snapshot identity writes', asyn
 
   mockGetContactTagsByEmail.mockImplementation(async (email: string) => {
     expect(email).toBe(normalizedEmail)
-    return ['Cliente VIP']
+    return { contactFound: true, tags: ['Cliente VIP'] }
   })
   mockSnapshotFindOne.mockImplementation(async ({ email }: { email: string }) => {
     expect(email).toBe(normalizedEmail)

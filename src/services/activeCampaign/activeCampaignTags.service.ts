@@ -41,6 +41,11 @@ export interface TagBatchResult {
   total: number
 }
 
+export interface AuthoritativeContactTagsRead {
+  contactFound: boolean
+  tags: string[]
+}
+
 const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
@@ -88,6 +93,18 @@ export class ActiveCampaignTagsService {
       this.transport.rethrowIntegrationUnavailable(error)
       logger.error(`Erro ao buscar tags: ${this.transport.formatError(error)}`)
       return []
+    }
+  }
+
+  async getContactTagsByEmailStrict(email: string): Promise<AuthoritativeContactTagsRead> {
+    this.transport.ensureAvailable()
+    const contact = await this.contacts.getContactByEmail(email)
+    if (!contact) return { contactFound: false, tags: [] }
+
+    const tags = await this.getContactTagsStrict(contact.contact.id)
+    return {
+      contactFound: true,
+      tags: tags.map((tag) => tag.tag).filter(Boolean),
     }
   }
 
@@ -188,6 +205,23 @@ export class ActiveCampaignTagsService {
       logger.error(`Erro ao buscar tags: ${this.transport.formatError(error)}`)
       throw error
     }
+  }
+
+  private async getContactTagsStrict(contactId: string): Promise<ActiveCampaignContactTag[]> {
+    this.transport.ensureAvailable()
+    await this.transport.checkRateLimit()
+    const response = await this.transport.client.get<ContactTagsResponse>(
+      `/api/3/contacts/${contactId}/contactTags`,
+      { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } },
+    )
+
+    return Promise.all((response.data.contactTags || []).map(async (link) => {
+      const detail = await this.transport.client.get<TagDetailResponse>(
+        `/api/3/tags/${link.tag}`,
+        { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } },
+      )
+      return { ...link, tag: detail.data.tag?.tag || link.tag }
+    }))
   }
 
   private async findTagByName(tagName: string): Promise<string | null> {

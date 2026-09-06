@@ -849,14 +849,16 @@
         "start": "export async function captureNativeTagsBatch",
         "status": "complete",
         "disposition": "changed",
-        "constraint": "constrained-sequential: provider reads, per-email snapshot/history writes and partial-error accounting remain ordered; unique normalized email identity converges duplicate initial captures by replay",
+        "constraint": "constrained-sequential: strict authoritative provider reads, per-email snapshot/history writes and partial-error accounting remain ordered; unique normalized email identity converges duplicate initial captures by replay",
         "evidence": [
           "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:172-258 (N=1/10/100, peak=1, provider -> snapshot order, partial failures, replay, total-removal history)",
           "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:260-281 (failed save leaves persisted state unchanged and replay writes one history transition)",
-          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:283-329 (concurrent initial captures converge after duplicate key)",
-          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:331-358 (email normalization before provider and snapshot identity)",
-          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:360-369 (invalid batchSize fails before provider I/O)",
-          "tests/models/ACNativeTagsSnapshot.test.ts:3-14 (unique normalized email index)"
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:283-298 (strict provider failure leaves existing snapshot/history unchanged)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:300-346 (concurrent initial captures converge after duplicate key)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:348-375 (email normalization before provider and snapshot identity)",
+          "tests/scalability/nativeTagsCompensatingWrites.contract.test.ts:377-386 (invalid batchSize fails before provider I/O)",
+          "tests/models/ACNativeTagsSnapshot.test.ts:3-14 (unique normalized email index)",
+          "tests/services/activeCampaign/activeCampaignTags.test.ts:59-80 (strict absent-contact result and generic read-error propagation; legacy method remains fail-soft)"
         ],
         "require": [
           "for (const email of batch)",
@@ -866,6 +868,9 @@
           "processed++",
           "captured++",
           "errors++"
+        ],
+        "globalRequire": [
+          "getContactTagsByEmailStrict("
         ]
       },
       {
@@ -898,7 +903,7 @@
         "start": "async performWeeklySnapshot(",
         "status": "complete",
         "disposition": "changed",
-        "constraint": "constrained-sequential: provider reads, user reads, weekly snapshot upserts, previous comparison, grouped notifications and cleanup remain ordered; snapshot and detail identities converge on replay",
+        "constraint": "constrained-sequential: strict authoritative provider reads, user reads, weekly snapshot upserts, previous comparison, grouped notifications and cleanup remain ordered; snapshot and detail identities converge on replay",
         "evidence": [
           "tests/services/weeklyTagMonitoring.service.test.ts:297-321 (N=1/10/100, peak=1 and provider -> user -> snapshot -> previous -> notification -> cleanup order)",
           "tests/services/weeklyTagMonitoring.service.test.ts:322-348 (N=1/10/100, partial provider/snapshot failures continue in input order and count errors)",
@@ -912,6 +917,7 @@
         "require": [
           "for (const email of batch)",
           "await this.captureStudentSnapshot(email, weekNumber, year)",
+          "getContactTagsByEmailStrict(",
           "includeResultMetadata: true",
           "if (result.created) snapshotsCreated++",
           "errors++",
