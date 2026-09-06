@@ -16,6 +16,8 @@ import {
   completeActiveCampaignExecution,
   failActiveCampaignExecution,
   requestIdFrom,
+  startActiveCampaignExecutionLease,
+  type ActiveCampaignExecutionLease,
 } from '../../services/activeCampaign/activeCampaignExecution.service'
 import { isActiveCampaignTagMutationEnabled } from '../../services/requestDrivenRuntimeConfig'
 import { HttpError, internalError } from '../../security/errorHandling'
@@ -107,6 +109,7 @@ export const testCron = async (
   const startTime = Date.now()
   const executionId = `MANUAL_${Date.now()}`
   let ownerId: string | undefined
+  let executionLease: ActiveCampaignExecutionLease | undefined
 
   try {
     if (!dryRun) {
@@ -123,6 +126,7 @@ export const testCron = async (
         return
       }
       ownerId = claim.ownerId
+      executionLease = startActiveCampaignExecutionLease('test-cron', ownerId)
     }
 
     logger.info('🧪 Iniciando avaliação manual (novo sistema)...')
@@ -148,6 +152,7 @@ export const testCron = async (
     )
 
     const resolvedProductReads = await Promise.all(productReads)
+    executionLease?.assertOwnership()
     const loadedUserProducts = resolvedProductReads.reduce(
       (total, read) => total + (read.ok ? read.userProducts.length : 0),
       0,
@@ -184,11 +189,17 @@ export const testCron = async (
         // ═══════════════════════════════════════════════════════════
         for (const up of userProducts) {
           try {
-            const result = await decisionEngine.evaluateUserProduct(
-              up.userId.toString(),
-              product._id.toString(),
-              dryRun,
-            )
+            const result = await (executionLease
+              ? executionLease.run(() => decisionEngine.evaluateUserProduct(
+                up.userId.toString(),
+                product._id.toString(),
+                dryRun,
+              ))
+              : decisionEngine.evaluateUserProduct(
+                up.userId.toString(),
+                product._id.toString(),
+                dryRun,
+              ))
 
             totalDecisions++
             totalExecutions += result.actionsExecuted || 0
@@ -222,6 +233,7 @@ export const testCron = async (
     // ═══════════════════════════════════════════════════════════
     // 4. REGISTAR EXECUÇÃO
     // ═══════════════════════════════════════════════════════════
+    executionLease?.assertOwnership()
     const duration = Date.now() - startTime
 
     if (!dryRun) {
@@ -294,6 +306,8 @@ export const testCron = async (
       ? error
       : internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
     return
+  } finally {
+    executionLease?.stop()
   }
 }
 

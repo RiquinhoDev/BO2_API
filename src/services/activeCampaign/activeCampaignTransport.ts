@@ -3,6 +3,7 @@ import { getRuntimeConfig } from '../../config/runtimeConfig'
 import type { ActiveCampaignIntegration } from '../../config/configTypes'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import logger from '../../utils/logger'
+import { assertActiveCampaignExecutionOwnership } from './activeCampaignExecutionGuard'
 
 export interface ActiveCampaignTransportPolicy {
   maxRequestsPerMinute: number
@@ -59,6 +60,7 @@ export class ActiveCampaignTransport {
   }
 
   get client(): AxiosInstance {
+    assertActiveCampaignExecutionOwnership()
     const integration = this.ensureAvailable()
     const configKey = `${integration.apiUrl}\u0000${integration.apiKey}`
     if (this.clientInstance && this.clientConfigKey === configKey) return this.clientInstance
@@ -76,6 +78,7 @@ export class ActiveCampaignTransport {
   }
 
   ensureAvailable(): ActiveCampaignIntegration {
+    assertActiveCampaignExecutionOwnership()
     return this.readIntegration()
   }
 
@@ -84,6 +87,7 @@ export class ActiveCampaignTransport {
   }
 
   async checkRateLimit(): Promise<void> {
+    assertActiveCampaignExecutionOwnership()
     this.ensureAvailable()
     const now = this.now()
     const elapsed = now - this.lastResetTime
@@ -97,6 +101,7 @@ export class ActiveCampaignTransport {
       const waitTime = this.policy.windowMs - elapsed
       logger.warn(`Rate limit ActiveCampaign atingido; pausa de ${waitTime}ms`)
       await this.sleep(waitTime)
+      assertActiveCampaignExecutionOwnership()
       this.requestCount = 0
       this.lastResetTime = this.now()
     }
@@ -106,14 +111,17 @@ export class ActiveCampaignTransport {
   }
 
   async retryRequest<T>(fn: () => Promise<T>, retries = this.policy.maxRetries): Promise<T> {
+    assertActiveCampaignExecutionOwnership()
     this.ensureAvailable()
     try {
+      assertActiveCampaignExecutionOwnership()
       return await fn()
     } catch (error) {
       this.rethrowIntegrationUnavailable(error)
       if (retries > 0 && this.isRetryableError(error)) {
         logger.warn(`Erro ActiveCampaign; nova tentativa (${retries} restantes)`)
         await this.sleep(this.policy.retryDelayMs)
+        assertActiveCampaignExecutionOwnership()
         return this.retryRequest(fn, retries - 1)
       }
       throw error

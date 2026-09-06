@@ -16,6 +16,7 @@ import {
   completeActiveCampaignExecution,
   failActiveCampaignExecution,
   requestIdFrom,
+  withActiveCampaignExecutionLease,
 } from '../activeCampaign/activeCampaignExecution.service'
 export interface TagRulesOnlyResult {
   success: boolean
@@ -84,10 +85,8 @@ export async function executeTagRulesOnly(
   )
   if (claim.kind === 'replay') return claim.result
   if (claim.kind === 'in-progress') throw new ActiveCampaignExecutionInProgressError()
-
   try {
-    await assertTagRulesOnlyLimit()
-    const result = await executeTagRulesOnlyLive()
+    const result = await withActiveCampaignExecutionLease('tag-rules-only', claim.ownerId, executeTagRulesOnlyLive)
     result.dryRun = false
     await completeActiveCampaignExecution('tag-rules-only', claim.ownerId, result)
     return result
@@ -106,6 +105,7 @@ export async function executeTagRulesOnly(
  * - Step 5: Evaluate Tag Rules (aplica/remove tags)
  */
 async function executeTagRulesOnlyLive(): Promise<TagRulesOnlyResult> {
+  await assertTagRulesOnlyLimit()
   logger.info('[TAG-RULES] â–¶ï¸ FunÃ§Ã£o iniciada!')
 
   const startTime = Date.now()

@@ -7,9 +7,23 @@ import ActiveCampaignExecution, {
 import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
 import { HttpError } from '../../security/errorHandling'
 import { ACTIVE_CAMPAIGN_REQUEST_TIMEOUT_MS } from './activeCampaignTransport'
+import {
+  runWithActiveCampaignExecutionGuard,
+  type ActiveCampaignExecutionGuard,
+} from './activeCampaignExecutionGuard'
 
 export const ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS =
   MAX_BULK_OPERATION_ITEMS * ACTIVE_CAMPAIGN_REQUEST_TIMEOUT_MS * 2
+export const ACTIVE_CAMPAIGN_EXECUTION_HEARTBEAT_MS = Math.min(
+  ACTIVE_CAMPAIGN_REQUEST_TIMEOUT_MS,
+  Math.floor(ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS / 3),
+)
+
+export interface ActiveCampaignExecutionLease extends ActiveCampaignExecutionGuard {
+  renew(at?: Date): Promise<void>
+  run<T>(work: () => Promise<T>): Promise<T>
+  stop(): void
+}
 
 export class ActiveCampaignExecutionLimitError extends HttpError {
   constructor() {
@@ -185,6 +199,92 @@ export async function claimActiveCampaignExecution<T>(
     at,
   )
   return running ?? { kind: 'in-progress' }
+}
+
+export async function renewActiveCampaignExecution(
+  operation: ActiveCampaignExecutionOperation,
+  ownerId: string,
+  at = new Date(),
+): Promise<void> {
+  const updated = await ActiveCampaignExecution.findOneAndUpdate(
+    {
+      operation,
+      ownerId,
+      status: 'running',
+      leaseExpiresAt: { $gt: at },
+    },
+    { $set: { leaseExpiresAt: new Date(at.getTime() + ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS) } },
+    { new: true },
+  )
+  if (!updated) throw new ActiveCampaignExecutionOwnershipError(operation)
+}
+
+interface ActiveCampaignExecutionLeaseOptions {
+  intervalMs?: number
+  now?: () => Date
+}
+
+export function startActiveCampaignExecutionLease(
+  operation: ActiveCampaignExecutionOperation,
+  ownerId: string,
+  options: ActiveCampaignExecutionLeaseOptions = {},
+): ActiveCampaignExecutionLease {
+  const intervalMs = options.intervalMs ?? ACTIVE_CAMPAIGN_EXECUTION_HEARTBEAT_MS
+  const now = options.now ?? (() => new Date())
+  let stopped = false
+  let renewalInFlight = false
+  let lostError: ActiveCampaignExecutionOwnershipError | undefined
+
+  const renew = async (at = now()): Promise<void> => {
+    if (stopped || renewalInFlight || lostError) return
+    renewalInFlight = true
+    try {
+      await renewActiveCampaignExecution(operation, ownerId, at)
+    } catch (error: unknown) {
+      lostError = error instanceof ActiveCampaignExecutionOwnershipError
+        ? error
+        : new ActiveCampaignExecutionOwnershipError(operation)
+    } finally {
+      renewalInFlight = false
+    }
+  }
+
+  const timer = setInterval(() => { void renew() }, intervalMs)
+  timer.unref?.()
+
+  const lease: ActiveCampaignExecutionLease = {
+    renew,
+    assertOwnership(): void {
+      if (lostError) throw lostError
+    },
+    async run<T>(work: () => Promise<T>): Promise<T> {
+      lease.assertOwnership()
+      return runWithActiveCampaignExecutionGuard(lease, async () => {
+        const result = await work()
+        lease.assertOwnership()
+        return result
+      })
+    },
+    stop(): void {
+      stopped = true
+      clearInterval(timer)
+    },
+  }
+
+  return lease
+}
+
+export async function withActiveCampaignExecutionLease<T>(
+  operation: ActiveCampaignExecutionOperation,
+  ownerId: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const lease = startActiveCampaignExecutionLease(operation, ownerId)
+  try {
+    return await lease.run(work)
+  } finally {
+    lease.stop()
+  }
 }
 
 export async function completeActiveCampaignExecution<T>(

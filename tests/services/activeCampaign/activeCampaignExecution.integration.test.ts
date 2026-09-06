@@ -2,10 +2,14 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import ActiveCampaignExecution from '../../../src/models/ActiveCampaignExecution'
 import {
+  ACTIVE_CAMPAIGN_EXECUTION_HEARTBEAT_MS,
+  ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS,
   claimActiveCampaignExecution,
   completeActiveCampaignExecution,
   failActiveCampaignExecution,
+  startActiveCampaignExecutionLease,
 } from '../../../src/services/activeCampaign/activeCampaignExecution.service'
+import { ActiveCampaignTransport } from '../../../src/services/activeCampaign/activeCampaignTransport'
 import { assertSafeTestMongoUri } from '../../../src/config/testDatabase'
 
 let mongoServer: MongoMemoryServer
@@ -92,4 +96,83 @@ test('declares composite receipt and partial running indexes', () => {
       partialFilterExpression: { status: 'running' },
     }),
   ])
+})
+
+test('reclaims an expired lease even while the original process remains alive', async () => {
+  const startedAt = new Date('2026-09-06T09:00:00.000Z')
+  const first = await claimActiveCampaignExecution('test-cron', 'request-a', startedAt)
+  expect(first.kind).toBe('claimed')
+  if (first.kind !== 'claimed') throw new Error('first request was not claimed')
+
+  const expiredAt = new Date(startedAt.getTime() + ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS + 1)
+  await expect(claimActiveCampaignExecution('test-cron', 'request-b', expiredAt))
+    .resolves.toEqual({ kind: 'claimed', ownerId: expect.any(String) })
+  expect(await ActiveCampaignExecution.countDocuments({ operation: 'test-cron', status: 'failed' })).toBe(1)
+  expect(await ActiveCampaignExecution.countDocuments({ operation: 'test-cron', status: 'running' })).toBe(1)
+})
+
+test('heartbeat renews a live owner before the original lease can be reclaimed', async () => {
+  let now = new Date('2026-09-06T10:00:00.000Z')
+  const first = await claimActiveCampaignExecution('test-cron', 'request-a', now)
+  expect(first.kind).toBe('claimed')
+  if (first.kind !== 'claimed') throw new Error('first request was not claimed')
+
+  const lease = startActiveCampaignExecutionLease('test-cron', first.ownerId, {
+    intervalMs: ACTIVE_CAMPAIGN_EXECUTION_HEARTBEAT_MS,
+    now: () => now,
+  })
+  try {
+    now = new Date(now.getTime() + ACTIVE_CAMPAIGN_EXECUTION_LEASE_MS - 1)
+    await lease.renew()
+    now = new Date(now.getTime() + 2)
+
+    await expect(claimActiveCampaignExecution('test-cron', 'request-b', now))
+      .resolves.toEqual({ kind: 'in-progress' })
+  } finally {
+    lease.stop()
+  }
+})
+
+test('a lost heartbeat prevents a new ActiveCampaign provider unit and fails the run closed', async () => {
+  const now = new Date('2026-09-06T11:00:00.000Z')
+  const first = await claimActiveCampaignExecution('test-cron', 'request-a', now)
+  expect(first.kind).toBe('claimed')
+  if (first.kind !== 'claimed') throw new Error('first request was not claimed')
+
+  const lease = startActiveCampaignExecutionLease('test-cron', first.ownerId, {
+    intervalMs: ACTIVE_CAMPAIGN_EXECUTION_HEARTBEAT_MS,
+    now: () => now,
+  })
+  const transport = new ActiveCampaignTransport({
+    readIntegration: () => ({
+      apiUrl: 'https://activecampaign.example.test',
+      apiKey: 'test-key',
+      webhookSecret: 'test-webhook-secret',
+      debugEnabled: false,
+      verifyDeleteEnabled: false,
+      lists: {},
+    }),
+  })
+  let providerCalls = 0
+
+  try {
+    await expect(lease.run(async () => {
+      await transport.retryRequest(async () => {
+        providerCalls += 1
+        return 'first-provider-unit'
+      })
+      await ActiveCampaignExecution.updateOne(
+        { operation: 'test-cron', ownerId: first.ownerId },
+        { $set: { status: 'failed' } },
+      )
+      await lease.renew()
+      await transport.retryRequest(async () => {
+        providerCalls += 1
+        return 'must-not-start'
+      })
+    })).rejects.toMatchObject({ code: 'AC_ACTIVE_CAMPAIGN_EXECUTION_OWNERSHIP_LOST' })
+  } finally {
+    lease.stop()
+  }
+  expect(providerCalls).toBe(1)
 })
