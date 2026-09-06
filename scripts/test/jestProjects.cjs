@@ -43,6 +43,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/services/guru/mongooseGuruDiscrepancy.repository.test.ts',
   'tests/services/guru/guruExternalInactivation.receipt.test.ts',
   'tests/services/renewal/discordMessageExecution.receipt.test.ts',
+  'tests/services/renewal/discordMessageExecution.scheduled.receipt.test.ts',
   'tests/services/syncUtilizadores/universalSyncCurseduca.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncHotmart.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncShared.characterization.test.ts',
