@@ -21,6 +21,7 @@ jest.mock('../../../src/models/UserProduct', () => ({
 }))
 
 import { runGuruTrialCheck } from '../../../src/services/guru/guruTrialCheckExecution.service'
+import { normalizeGuruStatus } from '../../../src/services/guru/sync/persistence'
 
 const subscription = (index: number, overrides: Record<string, unknown> = {}) => ({
   id: `sub-${index}`,
@@ -65,6 +66,17 @@ describe('Guru trial round3 safety', () => {
     mockUserProductFind.mockReturnValueOnce(queryResult([]))
 
     await expect(runGuruTrialCheck({ dryRun: true })).resolves.toMatchObject({ synced: 1, checked: 1 })
+  })
+
+  test.each([
+    ['active', 'active'], ['paid', 'active'], ['trialing', 'trial'], ['past_due', 'pastdue'],
+    ['unpaid', 'pastdue'], ['cancelled', 'canceled'], ['suspended', 'suspended'],
+  ])('normalizes canonical Guru alias %s safely', (raw, expected) => {
+    expect(normalizeGuruStatus(raw)).toBe(expected)
+  })
+
+  test.each(['constructor', '__proto__', 'toString'])('rejects non-status object keys: %s', raw => {
+    expect(normalizeGuruStatus(raw)).toBeUndefined()
   })
 
   test('known non-trial status with malformed dates fails before filtering', async () => {
@@ -125,6 +137,27 @@ describe('Guru trial round3 safety', () => {
 
     await expect(runGuruTrialCheck()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
     expect(mockUserFind).not.toHaveBeenCalled()
+  })
+
+  test('expiry detail shares code ownership from every list row', async () => {
+    mockFetchAllSubscriptionsComplete.mockResolvedValue([subscription(1, {
+      last_status: 'pending',
+      subscription_code: 'shared-code',
+      subscriber: { email: 'list-owner@example.test' },
+    })])
+    mockUserFind.mockReturnValueOnce(queryResult([{
+      _id: 'user-expired', email: 'expired@example.test',
+      guru: { subscriptionCode: 'shared-code', trialStartedAt: '2026-01-01T00:00:00.000Z', trialFinishedAt: '2026-01-08T00:00:00.000Z' },
+    }]))
+    mockFetchSubscriptionById.mockResolvedValueOnce({
+      id: 'shared-code', subscription_code: 'shared-code', last_status: 'expired',
+      trial_started_at: '2026-01-01T00:00:00.000Z', trial_finished_at: '2026-01-08T00:00:00.000Z',
+      subscriber: { email: 'expired@example.test' },
+    })
+
+    await expect(runGuruTrialCheck()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
+    expect(mockUserUpdateOne).not.toHaveBeenCalled()
+    expect(mockUserProductFind).not.toHaveBeenCalled()
   })
 
   test('provider detail must preserve the requested code and local email', async () => {

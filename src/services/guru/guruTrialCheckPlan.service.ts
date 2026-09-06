@@ -86,9 +86,8 @@ async function readOne(options: GuruTrialRunOptions, code: string, budget: Provi
   }
 }
 
-function effectiveTrials(subscriptions: GuruSubscription[]): GuruSubscription[] {
+function effectiveTrials(subscriptions: GuruSubscription[], codeOwners: Map<string, string>): GuruSubscription[] {
   const byEmail = new Map<string, GuruSubscription>()
-  const codeOwners = new Map<string, string>()
   for (const subscription of subscriptions) {
     const status = statusOf(subscription)
     const email = subscriptionEmail(subscription)
@@ -261,8 +260,8 @@ function projectedUser(user: UserSnapshot, row: { subscription: GuruSubscription
 async function prepare(options: GuruTrialRunOptions): Promise<Work> {
   const now = new Date(Date.now())
   const providerBudget: ProviderBudget = { attempts: 0 }
-  const subscriptions = effectiveTrials(await readAll(options, providerBudget))
   const codeOwners = new Map<string, string>()
+  const subscriptions = effectiveTrials(await readAll(options, providerBudget), codeOwners)
   const resolvedSubscriptions: GuruSubscription[] = []
   for (const subscription of subscriptions) {
     let resolved = subscription

@@ -826,21 +826,26 @@
       },
       {
         "id": "guru-trials.provider-writes",
-        "file": "src/services/guru/guruTrialCheckExecution.service.ts",
-        "start": "export async function runSyncTrialsFromGuru",
+        "file": "src/services/guru/guruTrialCheckPlan.service.ts",
+        "start": "async function readProducts(userIds: Array<string | Types.ObjectId>): Promise<Map<string, ProductSnapshot[]>>",
+        "end": "export async function runGuruTrialCheck",
         "status": "complete",
         "disposition": "changed",
-        "constraint": "bounded provider pagination and effective identity preflight complete before sequential local writes; failed local writes are counted without falsely succeeding",
+        "constraint": "unified Guru plan bounds aggregate products and mutations, carries optimistic per-ID predicates, and fences every local effect with ownership hooks",
         "evidence": [
-          "tests/services/guru/guruTrialCheckSafety.test.ts:54-100 (dry-run read-only, duplicate conflict before writes)",
-          "tests/services/guru/guruPaginationSafety.test.ts:28-64 (item cap and cursor non-progress fail closed)",
-          "tests/scalability/scaleFinalTask2.contract.test.ts:64-150 (N=1/10/100 effective dedup and ordered writes)"
+          "tests/services/guru/guruTrialCheckUnifiedSafety.test.ts:78-103 (physical product cap+1 and zero-write cap failure)",
+          "tests/services/guru/guruTrialCheckUnifiedSafety.test.ts:327-370 (optimistic per-ID user/product predicates and ownership loss)",
+          "tests/services/guru/guruTrialCheckRound3Safety.test.ts:145-166 (global code ownership across list and expiry detail)",
+          "tests/services/guru/guruPaginationSafety.test.ts:28-64 (bounded provider pagination and non-progress fail closed)"
         ],
         "require": [
-          "const prepared = await prepareSync(options)",
-          "if (options.dryRun === true)",
-          "for (const item of prepared)",
-          "beforeMutation(options)"
+          "const products = await readProducts(candidates.map(candidate => candidate.user._id))",
+          "limit(MAX_LOCAL_PRODUCT_READ_ITEMS + 1)",
+          "if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()",
+          "filter: productPredicate(product, candidate.user._id)",
+          "UserProduct.updateOne",
+          "options.phaseHooks?.localMutationStarted()",
+          "options.phaseHooks?.assertOwnership?.()"
         ]
       },
       {
@@ -992,22 +997,19 @@
       },
       {
         "id": "guru-trials.expired-writes",
-        "file": "src/services/guru/guruTrialCheckExecution.service.ts",
-        "start": "export async function runCheckExpiredTrials",
+        "file": "src/jobs/guruTrialCheck.job.ts",
+        "start": "  async run(options: GuruTrialRunOptions = {}): Promise<",
         "status": "complete",
         "disposition": "changed",
-        "constraint": "bounded deterministic candidate snapshot and all provider reads complete before any dependent product or terminal user write; dry-run remains read-only",
+        "policy": "entrypoint",
+        "constraint": "scheduled GuruTrialCheck delegates to the same unified bounded planner as manual execution; legacy specialized controllers remain separately covered",
         "evidence": [
-          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:69-150 (N=1/10/100, provider preflight and no partial failure writes)",
-          "tests/services/guru/guruTrialCheckSafety.test.ts:101-147 (provider failure and dry-run no local effects)",
-          "tests/security/ops02ReplayRepairOrdering.test.ts:48-63 (products before terminal user state)"
+          "tests/services/cron/schedulerGuruTrialExecution.test.ts:62-176 (manual/automatic receipt and unified runner dispatch)",
+          "tests/services/cron/schedulerJobDispatcher.test.ts:64-180 (exact capability, forwarding and public sanitization)",
+          "tests/services/guru/guruTrialCheckUnifiedSafety.test.ts:56-132 (unified preflight and dry-run no local effects)"
         ],
         "require": [
-          "const candidates: ExpiryCandidate[] = []",
-          "const currentSub = await readProvider(options",
-          "const plan = buildPlan(candidates",
-          "if (options.dryRun === true)",
-          "for (const { user, currentStatus } of candidates)"
+          "runGuruTrialCheck(options)"
         ]
       },
       {

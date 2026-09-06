@@ -99,7 +99,7 @@ function validateEntry(entry) {
   for (const match of value.matchAll(/\.limit\(\s*(\d+)/g)) {
     if (Number(match[1]) > 200) fail(`${entry.id}: cap exceeds 200`)
   }
-  if (!['aggregate', 'driver-cursor'].includes(entry.policy) && !value.includes('_id')) fail(`${entry.id}: missing stable _id tie-breaker`)
+  if (!['aggregate', 'driver-cursor', 'entrypoint'].includes(entry.policy) && !value.includes('_id')) fail(`${entry.id}: missing stable _id tie-breaker`)
   if (entry.policy === 'driver-cursor' && (!value.includes('.cursor({ batchSize: 200 })') || value.includes('.limit(50000)'))) fail(`${entry.id}: complete driver cursor is not bounded`)
   if (entry.policy === 'bounded') {
     if (!value.includes('.limit(') || !value.includes('boundedQueryLimit')) fail(`${entry.id}: selected limit is optional or unbounded`)

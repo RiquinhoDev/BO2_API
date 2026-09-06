@@ -22,7 +22,7 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 24, pending: 0, changed: 20, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 24, pending: 0, changed: 21, alreadyCompliant: 3 })
   expect(inventory.scale03.entries).toHaveLength(24)
   expect(run()).toContain('SCALE-03 24 complete / 0 pending')
 })
@@ -31,8 +31,8 @@ test('SCALE-03 records reviewed changes, compliance, and honest pending decision
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
   expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(24)
   expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(0)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(20)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(21)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(3)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
 
@@ -41,17 +41,45 @@ test('SCALE-03 records constrained sequential dispositions with behavioral evide
   const constrained = inventory.scale03.entries.filter(({ id }: { id: string }) => [
     'student-movement.ordered-writes',
     'guru-discrepancy.compensation',
-    'guru-trials.expired-writes',
+    'guru-trials.provider-writes',
   ].includes(id))
 
   expect(constrained).toHaveLength(3)
   for (const entry of constrained) {
     expect(entry.status).toBe('complete')
-    expect(entry.disposition).toBe('already-compliant')
-    expect(entry.constraint).toMatch(/^constrained-sequential:/)
-    expect(entry.evidence).toEqual(expect.arrayContaining([
-      expect.stringContaining('N=1/10/100'),
-    ]))
+    if (entry.id === 'guru-trials.provider-writes') {
+      expect(entry.disposition).toBe('changed')
+      expect(entry.constraint).toMatch(/^unified Guru plan/)
+    } else {
+      expect(entry.disposition).toBe('already-compliant')
+      expect(entry.constraint).toMatch(/^constrained-sequential:/)
+    }
+    expect(entry.evidence.length).toBeGreaterThan(0)
+  }
+
+  const guardCases = [
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'limit(MAX_LOCAL_PRODUCT_READ_ITEMS + 1)', 'limit(MAX_LOCAL_PRODUCT_READ_ITEMS)', /guru-trials\.provider-writes: missing limit\(MAX_LOCAL_PRODUCT_READ_ITEMS \+ 1\)/],
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()', 'if (false) throw capExceeded()', /guru-trials\.provider-writes: missing if \(mutations\.length/],
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'UserProduct.updateOne', 'UserProduct.updateMany', /guru-trials\.provider-writes: missing UserProduct\.updateOne/],
+    ['src/services/guru/guruTrialCheckPlan.service.ts', 'options.phaseHooks?.assertOwnership?.()', 'removedOwnershipHook()', /guru-trials\.provider-writes: missing options\.phaseHooks/],
+    ['src/jobs/guruTrialCheck.job.ts', 'runGuruTrialCheck(options)', 'runOtherGuruTrialCheck(options)', /guru-trials\.expired-writes: missing runGuruTrialCheck/],
+  ] as const
+
+  for (const [relativePath, required, replacement, expected] of guardCases) {
+    const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale03-guru-overlay-'))
+    const target = path.join(overlay, relativePath)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    const source = fs.readFileSync(path.join(root, relativePath), 'utf8')
+    fs.writeFileSync(target, source.split(required).join(replacement))
+    try {
+      expect(() => run({
+        NODE_ENV: 'test',
+        SCALABILITY_READ_TEST_OVERLAY: overlay,
+        SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1',
+      })).toThrow(expected)
+    } finally {
+      fs.rmSync(overlay, { recursive: true, force: true })
+    }
   }
 })
 

@@ -4,16 +4,16 @@ import UserProduct from '../../../models/UserProduct'
 import { GURU_CANCELED_STATUSES, getEffectiveStatus, isStatusBetterOrEqual as sharedIsStatusBetterOrEqual, type GuruDateInfo } from '../guru.constants'
 import { type GuruStatus, type GuruSubscription, type GuruSyncData, subscriptionEmail } from './client'
 
-const GURU_STATUS_MAP: Record<string, GuruStatus> = {
-  active: 'active', paid: 'active', trialing: 'trial', trial: 'trial',
-  past_due: 'pastdue', pastdue: 'pastdue', unpaid: 'pastdue',
-  canceled: 'canceled', cancelled: 'canceled', expired: 'expired',
-  pending: 'pending', refunded: 'refunded', suspended: 'suspended',
-}
+const GURU_STATUS_MAP: ReadonlyMap<string, GuruStatus> = new Map([
+  ['active', 'active'], ['paid', 'active'], ['trialing', 'trial'], ['trial', 'trial'],
+  ['past_due', 'pastdue'], ['pastdue', 'pastdue'], ['unpaid', 'pastdue'],
+  ['canceled', 'canceled'], ['cancelled', 'canceled'], ['expired', 'expired'],
+  ['pending', 'pending'], ['refunded', 'refunded'], ['suspended', 'suspended'],
+])
 
 export function normalizeGuruStatus(guruStatus: unknown): GuruStatus | undefined {
   if (typeof guruStatus !== 'string') return undefined
-  return GURU_STATUS_MAP[guruStatus.trim().toLowerCase()]
+  return GURU_STATUS_MAP.get(guruStatus.trim().toLowerCase())
 }
 
 export function mapGuruStatus(guruStatus: string): GuruStatus {
