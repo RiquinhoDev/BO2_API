@@ -38,6 +38,7 @@ import {
   assertPreparedRoleExecutionWithinCap,
   canonicalizePreparedRoleChanges,
   prepareDiscordRoleExecutionSnapshot,
+  type PreparedRoleExecutionGroup,
 } from './executionSnapshot'
 import {
   executeDiscordMessageReceipt,
@@ -166,6 +167,7 @@ export async function executeDiscordRolesPlan(options: {
   requestId?: string
   actorId?: string
   preparedChanges?: PreparedDiscordRoleChange[]
+  preparedGroups?: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   skipExpiry?: boolean
 }): Promise<DiscordExecuteReport> {
   if (options.requestId) {
@@ -209,6 +211,7 @@ async function executeDiscordRolesPlanInternal(options: {
   strictCap?: boolean
   phaseHooks?: CronExecutionPhaseHooks
   preparedChanges?: PreparedDiscordRoleChange[]
+  preparedGroups?: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   skipExpiry?: boolean
 }): Promise<DiscordExecuteReport> {
   const report: DiscordExecuteReport = {
@@ -225,9 +228,13 @@ async function executeDiscordRolesPlanInternal(options: {
     return report
   }
 
-  let toRun: PreparedDiscordRoleChange[]
-  if (options.preparedChanges) {
-    const canonical = canonicalizePreparedRoleChanges(options.preparedChanges)
+  let toRun: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
+  if (options.preparedGroups || options.preparedChanges) {
+    const rawChanges = [
+      ...(options.preparedGroups || []).flatMap((group) => group.members),
+      ...(options.preparedChanges || []),
+    ]
+    const canonical = canonicalizePreparedRoleChanges(rawChanges)
     if (options.strictCap) assertPreparedRoleExecutionWithinCap(canonical)
     const cap = maxOpsPerRun()
     toRun = canonical.slice(0, cap)
@@ -237,7 +244,7 @@ async function executeDiscordRolesPlanInternal(options: {
     const preparedSnapshot = await prepareDiscordRoleExecutionSnapshot(options)
     if (options.strictCap) assertRoleExecutionSnapshotWithinCap(preparedSnapshot)
     await expireStaleRoleChanges(options.phaseHooks)
-    toRun = preparedSnapshot.changes
+    toRun = preparedSnapshot.groups
     report.leftForNextRun = preparedSnapshot.remaining
   }
 
@@ -251,7 +258,7 @@ async function executeDiscordRolesPlanInternal(options: {
       const resp = await axios.post<DiscordRoleApplyResponse>(
         `${botUrl()}/renewal/roles/apply`,
         {
-          operations: batch.map((c) => ({
+          operations: batch.map(({ representative: c }) => ({
             discordUserId: c.discordUserId,
             addRoleIds: c.payload.addRoleId ? [c.payload.addRoleId] : [],
             removeRoleIds: c.payload.removeRoleIds || []
@@ -267,12 +274,14 @@ async function executeDiscordRolesPlanInternal(options: {
       throw error
     }
 
-    for (const change of batch) {
-      const r = resultByAccount.get(String(change.discordUserId))
+    for (const group of batch) {
+      const change = group.representative
+      const r = resultByAccount.get(String(group.discordUserId))
+      const memberIds = group.members.map((member) => member._id)
       if (r?.ok) {
         beforeLocalMutation(options.phaseHooks)
-        await DiscordRoleChange.updateOne(
-          { _id: change._id },
+        await DiscordRoleChange.updateMany(
+          { _id: { $in: memberIds } },
           { $set: { status: 'APPLIED', appliedAt: new Date() }, $inc: { attempts: 1 } }
         )
         if (change.payload.addRoleId) {
@@ -298,15 +307,15 @@ async function executeDiscordRolesPlanInternal(options: {
         report.applied += 1
       } else if (r?.notInGuild) {
         beforeLocalMutation(options.phaseHooks)
-        await DiscordRoleChange.updateOne(
-          { _id: change._id },
+        await DiscordRoleChange.updateMany(
+          { _id: { $in: memberIds } },
           { $set: { status: 'BLOCKED', notInGuild: true, blockedReason: 'Membro não está no servidor Discord' }, $inc: { attempts: 1 } }
         )
         report.notInGuild += 1
       } else {
         beforeLocalMutation(options.phaseHooks)
-        await DiscordRoleChange.updateOne(
-          { _id: change._id },
+        await DiscordRoleChange.updateMany(
+          { _id: { $in: memberIds } },
           { $set: { status: 'FAILED', error: r?.error || 'sem resultado do bot' }, $inc: { attempts: 1 } }
         )
         report.failed += 1

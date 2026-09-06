@@ -290,6 +290,126 @@ test('DiscordRoles prepared execution rejects conflicting duplicate payloads', a
   } as never)).rejects.toMatchObject({ status: 409, code: 'DISCORD_ROLES_DUPLICATE_CONFLICT' })
 })
 
+test('DiscordRoles prepared conflict has zero local effects before expiry', async () => {
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+
+  await expect(executeDiscordRolesPlan({
+    executedBy: 'test',
+    preparedChanges: [
+      { _id: 'change-1', discordUserId: 'discord-1', payload: { addRoleId: 'role-1', removeRoleIds: [] } },
+      { _id: 'change-2', discordUserId: 'discord-1', payload: { addRoleId: 'role-2', removeRoleIds: [] } },
+    ],
+  } as never)).rejects.toMatchObject({ status: 409, code: 'DISCORD_ROLES_DUPLICATE_CONFLICT' })
+  expect(updateChange).not.toHaveBeenCalled()
+  expect(updateOneChange).not.toHaveBeenCalled()
+})
+
+test('DiscordRoles direct bounded read caps equivalent docs by effective account operations', async () => {
+  const axios = await import('axios')
+  const operations: string[] = []
+  jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {
+    const payload = body as { operations: Array<{ discordUserId: string }> }
+    operations.push(...payload.operations.map(({ discordUserId }) => discordUserId))
+    return { data: { results: payload.operations.map(({ discordUserId }) => ({ discordUserId, ok: true })) } } as never
+  })
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+  findChange.mockReturnValue(chain(Array.from({ length: 101 }, (_, index) => ({
+    _id: `change-${index}`,
+    discordUserId: `discord-${index % 60}`,
+    status: 'APPROVED',
+    plannedAt: new Date(),
+    payload: { addRoleId: 'role-1', removeRoleIds: [] },
+  }))))
+
+  const result = await executeDiscordRolesPlan({ executedBy: 'test', strictCap: true, skipExpiry: true } as never)
+
+  expect(result).toMatchObject({ attempted: 60, leftForNextRun: 0 })
+  expect(operations).toHaveLength(60)
+})
+
+test('DiscordRoles generic conflicting live records fail before expiry or create', async () => {
+  const { runDiscordRolesSyncJob } = await import('../../src/services/renewal/discord/job')
+  findUser.mockReturnValue(chain([{
+    _id: 'user-1',
+    email: 'user@example.test',
+    discord: { discordIds: ['discord-1'] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }]))
+  findState.mockReturnValue(chain([]))
+  const conflicts = [
+    { _id: 'change-1', discordUserId: 'discord-1', sourceRef: 'discord-1', status: 'APPROVED', plannedAt: new Date(), payload: { addRoleId: 'role-1', removeRoleIds: [] } },
+    { _id: 'change-2', discordUserId: 'discord-1', sourceRef: 'discord-1', status: 'APPROVED', plannedAt: new Date(), payload: { addRoleId: 'role-2', removeRoleIds: [] } },
+  ]
+  findChange.mockReturnValueOnce(chain([])).mockReturnValueOnce(chain(conflicts))
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true, discordRolesAutoExecute: true }, true)
+
+  await expect(runDiscordRolesSyncJob({ triggeredBy: 'CRON' })).rejects.toMatchObject({
+    status: 409,
+    code: 'DISCORD_ROLES_DUPLICATE_CONFLICT',
+  })
+  expect(updateChange).not.toHaveBeenCalled()
+  expect(createChange).not.toHaveBeenCalled()
+})
+
+test('DiscordRoles scheduled backlog propagates bounded snapshot remainder', async () => {
+  const axios = await import('axios')
+  jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {
+    const payload = body as { operations: Array<{ discordUserId: string }> }
+    return { data: { results: payload.operations.map(({ discordUserId }) => ({ discordUserId, ok: true })) } } as never
+  })
+  const { runDiscordRolesSyncJob } = await import('../../src/services/renewal/discord/job')
+  findUser.mockReturnValue(chain([]))
+  findState.mockReturnValue(chain([]))
+  findChange.mockReturnValue(chain(Array.from({ length: 101 }, (_, index) => ({
+    _id: `change-${index}`,
+    discordUserId: `discord-${index}`,
+    sourceRef: `discord-${index}`,
+    status: 'APPROVED',
+    plannedAt: new Date(),
+    payload: { addRoleId: 'role-1', removeRoleIds: [] },
+  }))))
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true, discordRolesAutoExecute: true }, true)
+
+  const result = await runDiscordRolesSyncJob({ triggeredBy: 'CRON' })
+
+  expect(result.execution).toMatchObject({ attempted: 100, leftForNextRun: 1 })
+})
+
+test('DiscordRoles settles every equivalent document under one provider operation', async () => {
+  const axios = await import('axios')
+  jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {
+    const payload = body as { operations: Array<{ discordUserId: string }> }
+    return { data: { results: payload.operations.map(({ discordUserId }) => ({ discordUserId, ok: true })) } } as never
+  })
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+  const preparedChanges = [
+    ...Array.from({ length: 100 }, (_, index) => ({
+      _id: `existing-${index}`,
+      discordUserId: `discord-${index % 60}`,
+      payload: { addRoleId: 'role-1', removeRoleIds: [] },
+    })),
+    ...Array.from({ length: 39 }, (_, index) => ({
+      _id: `new-${index}`,
+      discordUserId: `new-${index}`,
+      payload: { addRoleId: 'role-1', removeRoleIds: [] },
+    })),
+  ]
+
+  const result = await executeDiscordRolesPlan({ executedBy: 'test', preparedChanges, skipExpiry: true } as never)
+
+  expect(result.attempted).toBe(99)
+  expect(updateChange).toHaveBeenCalledTimes(99)
+  expect(updateChange.mock.calls.some(([filter]) => Array.isArray(filter?._id?.$in) && filter._id.$in.length > 1)).toBe(true)
+})
+
 test('DiscordRoles cron bounds 101 prepared operations and reports one remaining', async () => {
   const axios = await import('axios')
   jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {

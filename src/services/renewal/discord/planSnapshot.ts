@@ -19,6 +19,10 @@ import {
   RENEWAL_ROLES,
   ROLE_NAME_BY_ID,
 } from './planning'
+import {
+  canonicalizePreparedRoleChanges,
+  type PreparedRoleExecutionGroup,
+} from './executionSnapshot'
 
 export interface DiscordPlanReport {
   dryRun: boolean
@@ -92,7 +96,9 @@ export interface DiscordRolePlanSnapshot {
   report: DiscordPlanReport
   pending: PreparedDiscordPlanChange[]
   existing: PreparedDiscordRoleChange[]
+  existingGroups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   existingOverflow: boolean
+  existingRemaining: number
 }
 
 function planCapExceeded(): HttpError {
@@ -153,9 +159,13 @@ function matchesExisting(
 
 async function loadExistingForPending(
   pending: PreparedDiscordPlanChange[],
-): Promise<{ changes: PreparedDiscordRoleChange[]; overflow: boolean }> {
+): Promise<{
+  changes: PreparedDiscordRoleChange[]
+  groups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
+  overflow: boolean
+}> {
   const sourceRefs = [...new Set(pending.map((change) => change.discordUserId))]
-  if (sourceRefs.length === 0) return { changes: [], overflow: false }
+  if (sourceRefs.length === 0) return { changes: [], groups: [], overflow: false }
   const now = Date.now()
   const raw = await DiscordRoleChange.find({
     sourceRef: { $in: sourceRefs },
@@ -174,15 +184,19 @@ async function loadExistingForPending(
     .lean()
     .exec() as unknown as PreparedDiscordRoleChange[]
   const relevant = raw.filter((change) => liveRoleChange(change, now))
+  const groups = canonicalizePreparedRoleChanges(relevant)
   return {
     changes: relevant.slice(0, MAX_PROVIDER_READ_ITEMS),
+    groups,
     overflow: relevant.length > MAX_PROVIDER_READ_ITEMS,
   }
 }
 
 async function loadExecutionCandidates(): Promise<{
   changes: PreparedDiscordRoleChange[]
+  groups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   overflow: boolean
+  remaining: number
 }> {
   const now = Date.now()
   const raw = await DiscordRoleChange.find({
@@ -196,8 +210,15 @@ async function loadExecutionCandidates(): Promise<{
     .limit(maxOpsPerRun() + 1)
     .lean()
     .exec() as unknown as PreparedDiscordRoleChange[]
-  const changes = raw.filter((change) => liveRoleChange(change, now)).slice(0, maxOpsPerRun())
-  return { changes, overflow: raw.length > maxOpsPerRun() }
+  const relevant = raw.filter((change) => liveRoleChange(change, now))
+  const groups = canonicalizePreparedRoleChanges(relevant)
+  const executableGroups = groups.slice(0, maxOpsPerRun())
+  return {
+    changes: executableGroups.map((group) => group.representative),
+    groups: executableGroups,
+    overflow: groups.length > maxOpsPerRun(),
+    remaining: Math.max(0, groups.length - executableGroups.length),
+  }
 }
 
 function buildDesiredPlan(inputs: DiscordPlanInputs, batchId: string, dryRun: boolean): {
@@ -280,18 +301,18 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
   const batchId = `discord-${new Date().toISOString().replace(/[:.]/g, '-')}`
   const prepared = buildDesiredPlan(inputs, batchId, false)
   if (prepared.report.anomalyAborted) {
-    return { ...prepared, existing: [], existingOverflow: false }
+    return { ...prepared, existing: [], existingGroups: [], existingOverflow: false, existingRemaining: 0 }
   }
   const existingForPendingResult = await loadExistingForPending(prepared.pending)
   if (existingForPendingResult.overflow) {
     prepared.report.truncated = true
     prepared.report.remaining = Math.max(1, prepared.report.remaining)
-    return { ...prepared, pending: [], existing: [], existingOverflow: false }
+    return { ...prepared, pending: [], existing: [], existingGroups: [], existingOverflow: false, existingRemaining: 0 }
   }
-  const existingForPending = existingForPendingResult.changes
+  const existingForPendingGroups = existingForPendingResult.groups
   const at = Date.now()
   const deduplicated = prepared.pending.filter((pending) => {
-    const duplicate = existingForPending.some((change) => matchesExisting(change, pending, at))
+    const duplicate = existingForPendingGroups.some((group) => matchesExisting(group.representative, pending, at))
     if (duplicate) prepared.report.skippedDuplicates += 1
     return !duplicate
   })
@@ -303,7 +324,9 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
     report: prepared.report,
     pending: deduplicated,
     existing: execution.changes,
+    existingGroups: execution.groups,
     existingOverflow: execution.overflow,
+    existingRemaining: execution.remaining,
   }
 }
 
@@ -333,6 +356,22 @@ export async function persistDiscordPlanSnapshot(
     pending,
     email: pending.email || pending.desired?.email || 'desconhecido',
   })))
+  canonicalizePreparedRoleChanges([
+    ...snapshot.existingGroups.flatMap((group) => group.members),
+    ...pendingWithEmail.map(({ pending }) => {
+      const addRoleId = pending.desired?.roleId || null
+      const removeRoleIds = ALL_RENEWAL_ROLE_IDS.filter((id) => id !== addRoleId)
+      return {
+        discordUserId: pending.discordUserId,
+        payload: {
+          addRoleId,
+          addRoleName: addRoleId ? ROLE_NAME_BY_ID.get(addRoleId) : null,
+          removeRoleIds,
+          removeRoleNames: removeRoleIds.map((id) => ROLE_NAME_BY_ID.get(id) || id),
+        },
+      }
+    }),
+  ])
   const created: PreparedDiscordRoleChange[] = []
   for (const { pending, email } of pendingWithEmail) {
     const addRoleId = pending.desired?.roleId || null

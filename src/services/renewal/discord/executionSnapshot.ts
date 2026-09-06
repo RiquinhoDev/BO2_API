@@ -5,8 +5,18 @@ import { maxOpsPerRun, APPROVED_TTL_HOURS, PLANNED_TTL_HOURS } from './planning'
 
 export interface PreparedRoleExecutionSnapshot {
   changes: IDiscordRoleChange[]
+  groups: PreparedRoleExecutionGroup<IDiscordRoleChange>[]
   remaining: number
   overflow: boolean
+  readOverflow: boolean
+}
+
+export interface PreparedRoleExecutionGroup<
+  T extends Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>,
+> {
+  discordUserId: string
+  representative: T
+  members: T[]
 }
 
 export interface RoleExecutionSnapshotOptions {
@@ -33,31 +43,36 @@ function rolePayloadFingerprint(payload: IDiscordRoleChange['payload']): string 
 
 export function canonicalizePreparedRoleChanges<
   T extends Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>,
->(changes: T[]): T[] {
-  const canonical = new Map<string, T>()
+>(changes: T[]): PreparedRoleExecutionGroup<T>[] {
+  const canonical = new Map<string, PreparedRoleExecutionGroup<T>>()
   for (const change of changes) {
     const account = String(change.discordUserId)
-    const existing = canonical.get(account)
-    if (!existing) {
-      canonical.set(account, change)
+    const group = canonical.get(account)
+    if (!group) {
+      canonical.set(account, { discordUserId: account, representative: change, members: [change] })
       continue
     }
-    if (rolePayloadFingerprint(existing.payload) !== rolePayloadFingerprint(change.payload)) {
+    if (rolePayloadFingerprint(group.representative.payload) !== rolePayloadFingerprint(change.payload)) {
       throw new HttpError({
         status: 409,
         code: 'DISCORD_ROLES_DUPLICATE_CONFLICT',
         publicMessage: 'Plano Discord contém operações duplicadas incompatíveis',
       })
     }
+    group.members.push(change)
   }
   return [...canonical.values()]
 }
 
 export function assertPreparedRoleExecutionWithinCap(
-  changes: Array<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>,
+  changes: Array<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>
+    | PreparedRoleExecutionGroup<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>[],
   cap = maxOpsPerRun(),
 ): void {
-  if (changes.length > cap) throw executionCapExceeded()
+  const groups = changes.length > 0 && 'members' in changes[0]
+    ? changes as PreparedRoleExecutionGroup<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>[]
+    : canonicalizePreparedRoleChanges(changes as Array<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>)
+  if (groups.length > cap) throw executionCapExceeded()
 }
 
 function effectiveLimit(requested: number | undefined): number {
@@ -90,11 +105,14 @@ export async function prepareDiscordRoleExecutionSnapshot(
     .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(limit + 1)
     .exec() as unknown as IDiscordRoleChange[]
-  const changes = raw.slice(0, limit)
+  const groups = canonicalizePreparedRoleChanges(raw)
+  const executableGroups = groups.slice(0, limit)
   return {
-    changes,
-    overflow: raw.length > limit,
-    remaining: Math.max(0, raw.length - changes.length),
+    changes: executableGroups.map((group) => group.representative),
+    groups: executableGroups,
+    overflow: groups.length > limit,
+    readOverflow: raw.length > limit,
+    remaining: Math.max(0, groups.length - executableGroups.length),
   }
 }
 
