@@ -42,12 +42,14 @@ export async function runDiscordRolesSyncJob(options: DiscordJobOptions = {}): P
 
   let snapshot = await prepareDiscordRolesPlanSnapshot()
   assertDiscordPlanInputsWithinCap(snapshot.report)
-  assertEffectiveRoleExecutionCapacity(
-    snapshot.existing,
-    snapshot.pending.map((change) => ({ sourceRef: change.discordUserId })),
-    undefined,
-    snapshot.existingOverflow,
-  )
+  if (options.triggeredBy === 'MANUAL') {
+    assertEffectiveRoleExecutionCapacity(
+      snapshot.existing,
+      snapshot.pending.map((change) => ({ sourceRef: change.discordUserId })),
+      undefined,
+      snapshot.existingOverflow,
+    )
+  }
   snapshot = await resolveDiscordPlanSnapshotEmails(snapshot)
   if (snapshot.report.anomalyAborted) {
     logger.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
@@ -63,7 +65,7 @@ export async function runDiscordRolesSyncJob(options: DiscordJobOptions = {}): P
     execution = await executeDiscordRolesPlan({
       includePlanned: true,
       executedBy: options.triggeredBy === 'MANUAL' ? 'manual:DiscordRolesSync' : 'cron:DiscordRolesSync',
-      strictCap: true,
+      strictCap: options.triggeredBy === 'MANUAL',
       preparedChanges: [...snapshot.existing, ...created],
       skipExpiry: true,
       phaseHooks: options.phaseHooks,

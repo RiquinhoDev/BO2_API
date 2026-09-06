@@ -61,7 +61,7 @@ export const botHeaders = () => {
 
 export const PLANNED_TTL_HOURS = 24
 export const APPROVED_TTL_HOURS = 48
-const NOT_IN_GUILD_RETRY_DAYS = 7 // não re-planear todas as noites quem saiu do servidor
+export const NOT_IN_GUILD_RETRY_DAYS = 7 // não re-planear todas as noites quem saiu do servidor
 
 // Cargos R.{Mês} — IDs verificados por leitura à API Discord (2026-07-10).
 export const RENEWAL_ROLES: Record<number, { roleId: string; roleName: string }> = {

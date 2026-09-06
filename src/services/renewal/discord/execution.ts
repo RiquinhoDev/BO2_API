@@ -35,8 +35,9 @@ import {
 } from './planning'
 import {
   assertRoleExecutionSnapshotWithinCap,
+  assertPreparedRoleExecutionWithinCap,
+  canonicalizePreparedRoleChanges,
   prepareDiscordRoleExecutionSnapshot,
-  type PreparedRoleExecutionSnapshot,
 } from './executionSnapshot'
 import {
   executeDiscordMessageReceipt,
@@ -78,13 +79,6 @@ function errorMessage(error: unknown): string {
 
 function errorStatus(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
-}
-
-function responseMessage(error: unknown): string | undefined {
-  if (!axios.isAxiosError(error)) return undefined
-  const data: unknown = error.response?.data
-  if (typeof data !== 'object' || data === null || !('message' in data)) return undefined
-  return typeof data.message === 'string' ? data.message : undefined
 }
 
 function beforeLocalMutation(phaseHooks?: CronExecutionPhaseHooks): void {
@@ -231,17 +225,21 @@ async function executeDiscordRolesPlanInternal(options: {
     return report
   }
 
-  let preparedSnapshot: PreparedRoleExecutionSnapshot | null = null
+  let toRun: PreparedDiscordRoleChange[]
   if (options.preparedChanges) {
+    const canonical = canonicalizePreparedRoleChanges(options.preparedChanges)
+    if (options.strictCap) assertPreparedRoleExecutionWithinCap(canonical)
+    const cap = maxOpsPerRun()
+    toRun = canonical.slice(0, cap)
+    report.leftForNextRun = Math.max(0, canonical.length - toRun.length)
     if (!options.skipExpiry) await expireStaleRoleChanges(options.phaseHooks)
   } else {
-    preparedSnapshot = await prepareDiscordRoleExecutionSnapshot(options)
+    const preparedSnapshot = await prepareDiscordRoleExecutionSnapshot(options)
     if (options.strictCap) assertRoleExecutionSnapshotWithinCap(preparedSnapshot)
     await expireStaleRoleChanges(options.phaseHooks)
+    toRun = preparedSnapshot.changes
+    report.leftForNextRun = preparedSnapshot.remaining
   }
-
-  const toRun = options.preparedChanges || preparedSnapshot?.changes || []
-  report.leftForNextRun = preparedSnapshot?.remaining || 0
 
   for (let i = 0; i < toRun.length; i += BOT_BATCH_SIZE) {
     const batch = toRun.slice(i, i + BOT_BATCH_SIZE)

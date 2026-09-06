@@ -24,6 +24,42 @@ function executionCapExceeded(): HttpError {
   })
 }
 
+function rolePayloadFingerprint(payload: IDiscordRoleChange['payload']): string {
+  return JSON.stringify({
+    addRoleId: payload.addRoleId,
+    removeRoleIds: [...(payload.removeRoleIds || [])].sort(),
+  })
+}
+
+export function canonicalizePreparedRoleChanges<
+  T extends Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>,
+>(changes: T[]): T[] {
+  const canonical = new Map<string, T>()
+  for (const change of changes) {
+    const account = String(change.discordUserId)
+    const existing = canonical.get(account)
+    if (!existing) {
+      canonical.set(account, change)
+      continue
+    }
+    if (rolePayloadFingerprint(existing.payload) !== rolePayloadFingerprint(change.payload)) {
+      throw new HttpError({
+        status: 409,
+        code: 'DISCORD_ROLES_DUPLICATE_CONFLICT',
+        publicMessage: 'Plano Discord contém operações duplicadas incompatíveis',
+      })
+    }
+  }
+  return [...canonical.values()]
+}
+
+export function assertPreparedRoleExecutionWithinCap(
+  changes: Array<Pick<IDiscordRoleChange, 'discordUserId' | 'payload'>>,
+  cap = maxOpsPerRun(),
+): void {
+  if (changes.length > cap) throw executionCapExceeded()
+}
+
 function effectiveLimit(requested: number | undefined): number {
   if (Number.isFinite(requested) && Number(requested) > 0) {
     return Math.min(Math.floor(Number(requested)), maxOpsPerRun())

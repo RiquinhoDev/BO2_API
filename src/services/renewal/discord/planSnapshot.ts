@@ -14,6 +14,7 @@ import {
   ALL_RENEWAL_ROLE_IDS,
   APPROVED_TTL_HOURS,
   maxOpsPerRun,
+  NOT_IN_GUILD_RETRY_DAYS,
   PLANNED_TTL_HOURS,
   RENEWAL_ROLES,
   ROLE_NAME_BY_ID,
@@ -133,7 +134,10 @@ function liveRoleChange(change: PreparedDiscordRoleChange, at: number): boolean 
   if (!Number.isFinite(plannedAt)) return false
   if (change.status === 'PLANNED') return plannedAt >= at - PLANNED_TTL_HOURS * 3600e3
   if (change.status === 'APPROVED') return plannedAt >= at - APPROVED_TTL_HOURS * 3600e3
-  if (change.status === 'BLOCKED') return change.notInGuild === true
+  if (change.status === 'BLOCKED') {
+    return change.notInGuild === true
+      && plannedAt >= at - NOT_IN_GUILD_RETRY_DAYS * 24 * 3600e3
+  }
   return false
 }
 
@@ -149,20 +153,31 @@ function matchesExisting(
 
 async function loadExistingForPending(
   pending: PreparedDiscordPlanChange[],
-): Promise<PreparedDiscordRoleChange[]> {
+): Promise<{ changes: PreparedDiscordRoleChange[]; overflow: boolean }> {
   const sourceRefs = [...new Set(pending.map((change) => change.discordUserId))]
-  if (sourceRefs.length === 0) return []
-  return await DiscordRoleChange.find({
+  if (sourceRefs.length === 0) return { changes: [], overflow: false }
+  const now = Date.now()
+  const raw = await DiscordRoleChange.find({
     sourceRef: { $in: sourceRefs },
     $or: [
-      { status: { $in: ['PLANNED', 'APPROVED'] } },
-      { status: 'BLOCKED', notInGuild: true },
+      { status: 'PLANNED', plannedAt: { $gte: new Date(now - PLANNED_TTL_HOURS * 3600e3) } },
+      { status: 'APPROVED', plannedAt: { $gte: new Date(now - APPROVED_TTL_HOURS * 3600e3) } },
+      {
+        status: 'BLOCKED',
+        notInGuild: true,
+        plannedAt: { $gte: new Date(now - NOT_IN_GUILD_RETRY_DAYS * 24 * 3600e3) },
+      },
     ],
   })
     .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(MAX_PROVIDER_READ_ITEMS + 1)
     .lean()
     .exec() as unknown as PreparedDiscordRoleChange[]
+  const relevant = raw.filter((change) => liveRoleChange(change, now))
+  return {
+    changes: relevant.slice(0, MAX_PROVIDER_READ_ITEMS),
+    overflow: relevant.length > MAX_PROVIDER_READ_ITEMS,
+  }
 }
 
 async function loadExecutionCandidates(): Promise<{
@@ -267,7 +282,13 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
   if (prepared.report.anomalyAborted) {
     return { ...prepared, existing: [], existingOverflow: false }
   }
-  const existingForPending = await loadExistingForPending(prepared.pending)
+  const existingForPendingResult = await loadExistingForPending(prepared.pending)
+  if (existingForPendingResult.overflow) {
+    prepared.report.truncated = true
+    prepared.report.remaining = Math.max(1, prepared.report.remaining)
+    return { ...prepared, pending: [], existing: [], existingOverflow: false }
+  }
+  const existingForPending = existingForPendingResult.changes
   const at = Date.now()
   const deduplicated = prepared.pending.filter((pending) => {
     const duplicate = existingForPending.some((change) => matchesExisting(change, pending, at))

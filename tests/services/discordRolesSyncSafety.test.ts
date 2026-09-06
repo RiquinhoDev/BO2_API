@@ -6,6 +6,9 @@ const findState = jest.fn()
 const findOneState = jest.fn()
 const createChange = jest.fn()
 const updateChange = jest.fn()
+const updateOneChange = jest.fn()
+const deleteOneState = jest.fn()
+const updateOneState = jest.fn()
 const findOneChange = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
@@ -18,11 +21,14 @@ jest.mock('../../src/models/discordRenewal', () => ({
     find: (...args: unknown[]) => findChange(...args),
     create: (...args: unknown[]) => createChange(...args),
     updateMany: (...args: unknown[]) => updateChange(...args),
+    updateOne: (...args: unknown[]) => updateOneChange(...args),
     findOne: (...args: unknown[]) => findOneChange(...args),
   },
   DiscordRoleState: {
     find: (...args: unknown[]) => findState(...args),
     findOne: (...args: unknown[]) => findOneState(...args),
+    updateOne: (...args: unknown[]) => updateOneState(...args),
+    deleteOne: (...args: unknown[]) => deleteOneState(...args),
   },
   DiscordMessageTemplate: {},
 }))
@@ -55,7 +61,8 @@ function install(overrides: Record<string, unknown> = {}, discord = false) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks()
+  jest.restoreAllMocks()
+  jest.resetAllMocks()
   resetRuntimeConfigForTests()
   install()
   findUser.mockReturnValue(chain([]))
@@ -67,6 +74,9 @@ beforeEach(() => {
   findOneChange.mockReturnValue({ select: () => ({ lean: () => ({ exec: async () => null }) }) })
   createChange.mockResolvedValue({})
   updateChange.mockResolvedValue({ modifiedCount: 0 })
+  updateOneChange.mockResolvedValue({ modifiedCount: 1 })
+  updateOneState.mockResolvedValue({ modifiedCount: 1 })
+  deleteOneState.mockResolvedValue({ deletedCount: 1 })
 })
 
 afterEach(() => resetRuntimeConfigForTests())
@@ -223,6 +233,196 @@ test('DiscordRoles direct execution respects batch and approval filters in prefl
   })
   expect(snapshot.changes.map((change) => String(change._id))).toEqual(['approved-target'])
   expect(() => assertRoleExecutionSnapshotWithinCap(snapshot)).not.toThrow()
+})
+
+test('DiscordRoles prepared execution deduplicates accounts before provider cap', async () => {
+  const axios = await import('axios')
+  const operations: string[] = []
+  jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {
+    const payload = body as { operations: Array<{ discordUserId: string }> }
+    operations.push(...payload.operations.map(({ discordUserId }) => discordUserId))
+    return {
+      data: {
+        results: payload.operations.map(({ discordUserId }) => ({ discordUserId, ok: true })),
+      },
+    } as never
+  })
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+  const preparedChanges = [
+    ...Array.from({ length: 100 }, (_, index) => ({
+      _id: `existing-${index}`,
+      discordUserId: `discord-${index % 60}`,
+      payload: { addRoleId: 'role-1', removeRoleIds: [] },
+    })),
+    ...Array.from({ length: 39 }, (_, index) => ({
+      _id: `new-${index}`,
+      discordUserId: `new-${index}`,
+      payload: { addRoleId: 'role-1', removeRoleIds: [] },
+    })),
+  ]
+
+  const result = await executeDiscordRolesPlan({
+    executedBy: 'test',
+    preparedChanges,
+    skipExpiry: true,
+  } as never)
+
+  expect(result).toMatchObject({ attempted: 99, leftForNextRun: 0 })
+  expect(new Set(operations).size).toBe(99)
+  expect(operations).toHaveLength(99)
+})
+
+test('DiscordRoles prepared execution rejects conflicting duplicate payloads', async () => {
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+
+  await expect(executeDiscordRolesPlan({
+    executedBy: 'test',
+    preparedChanges: [
+      { _id: 'change-1', discordUserId: 'discord-1', payload: { addRoleId: 'role-1', removeRoleIds: [] } },
+      { _id: 'change-2', discordUserId: 'discord-1', payload: { addRoleId: 'role-2', removeRoleIds: [] } },
+    ],
+    skipExpiry: true,
+  } as never)).rejects.toMatchObject({ status: 409, code: 'DISCORD_ROLES_DUPLICATE_CONFLICT' })
+})
+
+test('DiscordRoles cron bounds 101 prepared operations and reports one remaining', async () => {
+  const axios = await import('axios')
+  jest.spyOn(axios.default, 'post').mockImplementation(async (_url, body) => {
+    const payload = body as { operations: Array<{ discordUserId: string }> }
+    return {
+      data: { results: payload.operations.map(({ discordUserId }) => ({ discordUserId, ok: true })) },
+    } as never
+  })
+  const { runDiscordRolesSyncJob } = await import('../../src/services/renewal/discord/job')
+  const students = Array.from({ length: 101 }, (_, index) => ({
+    _id: `user-${index}`,
+    email: `user-${index}@example.test`,
+    discord: { discordIds: [`discord-${index}`] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }))
+  findUser.mockReturnValue(chain(students))
+  findChange.mockReturnValue(chain([]))
+  createChange.mockImplementation(async (change: Record<string, unknown>) => ({ ...change, _id: `created-${String(change.discordUserId)}` }))
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true, discordRolesAutoExecute: true }, true)
+
+  const result = await runDiscordRolesSyncJob({ triggeredBy: 'CRON' })
+
+  expect(result.plan.planned).toBe(101)
+  expect(result.execution).toMatchObject({ attempted: 100, leftForNextRun: 1 })
+})
+
+test('DiscordRoles manual execution still rejects 101 effective operations', async () => {
+  const { runDiscordRolesSyncJob } = await import('../../src/services/renewal/discord/job')
+  const students = Array.from({ length: 101 }, (_, index) => ({
+    _id: `user-${index}`,
+    email: `user-${index}@example.test`,
+    discord: { discordIds: [`discord-${index}`] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }))
+  findUser.mockReturnValue(chain(students))
+  findChange.mockReturnValue(chain([]))
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+
+  await expect(runDiscordRolesSyncJob({ triggeredBy: 'MANUAL' })).rejects.toMatchObject({
+    status: 413,
+    code: 'DISCORD_ROLES_EXECUTION_CAP_EXCEEDED',
+  })
+  expect(updateChange).not.toHaveBeenCalled()
+  expect(createChange).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['old blocked changes are eligible again', 8, 'role-1', 1],
+  ['the seven-day boundary remains suppressed', 7, '1525119933300740156', 0],
+  ['a rejoined account with a new role is eligible', 1, 'role-2', 1],
+] as const)('DiscordRoles %s', async (_name, ageDays, blockedRole, expectedPlanned) => {
+  const now = Date.parse('2026-09-06T12:00:00.000Z')
+  jest.spyOn(Date, 'now').mockReturnValue(now)
+  const { prepareDiscordRolesPlanSnapshot } = await import('../../src/services/renewal/discord/planSnapshot')
+  findUser.mockReturnValue(chain([{
+    _id: 'user-1',
+    email: 'user@example.test',
+    discord: { discordIds: ['discord-1'] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }]))
+  findState.mockReturnValue(chain([]))
+  findChange.mockReturnValueOnce(chain([{
+    _id: 'blocked-1',
+    sourceRef: 'discord-1',
+    discordUserId: 'discord-1',
+    status: 'BLOCKED',
+    notInGuild: true,
+    plannedAt: new Date(now - ageDays * 24 * 3600e3),
+    payload: { addRoleId: blockedRole, removeRoleIds: [] },
+  }])).mockReturnValueOnce(chain([]))
+
+  const snapshot = await prepareDiscordRolesPlanSnapshot()
+
+  expect(snapshot.report.planned).toBe(expectedPlanned)
+  jest.restoreAllMocks()
+})
+
+test('DiscordRoles relevant dedupe overflow propagates as a bounded planning failure', async () => {
+  const { runDiscordRolesSyncJob } = await import('../../src/services/renewal/discord/job')
+  const sentinel = Array.from({ length: 20_001 }, (_, index) => ({
+    _id: `blocked-${index}`,
+    sourceRef: 'discord-1',
+    discordUserId: 'discord-1',
+    status: 'BLOCKED',
+    notInGuild: true,
+    plannedAt: new Date(),
+    payload: { addRoleId: 'role-1', removeRoleIds: [] },
+  }))
+  findUser.mockReturnValue(chain([{
+    _id: 'user-1',
+    email: 'user@example.test',
+    discord: { discordIds: ['discord-1'] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }]))
+  findState.mockReturnValue(chain([]))
+  findChange.mockReturnValueOnce(chain(sentinel)).mockReturnValueOnce(chain([]))
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+
+  await expect(runDiscordRolesSyncJob({ triggeredBy: 'CRON' })).rejects.toMatchObject({
+    status: 413,
+    code: 'DISCORD_ROLES_PLAN_CAP_EXCEEDED',
+  })
+  expect(updateChange).not.toHaveBeenCalled()
+  expect(createChange).not.toHaveBeenCalled()
+})
+
+test('DiscordRoles stale dedupe records are filtered before the sentinel cap', async () => {
+  const { prepareDiscordRolesPlanSnapshot } = await import('../../src/services/renewal/discord/planSnapshot')
+  const stale = Array.from({ length: 20_001 }, (_, index) => ({
+    _id: `blocked-${index}`,
+    sourceRef: 'discord-1',
+    discordUserId: 'discord-1',
+    status: 'BLOCKED',
+    notInGuild: true,
+    plannedAt: new Date(Date.now() - 8 * 24 * 3600e3),
+    payload: { addRoleId: 'role-1', removeRoleIds: [] },
+  }))
+  findUser.mockReturnValue(chain([{
+    _id: 'user-1',
+    email: 'user@example.test',
+    discord: { discordIds: ['discord-1'] },
+    hotmart: { enrolledClasses: [{ className: 'Turma 1 | 2505', isActive: true }] },
+  }]))
+  findState.mockReturnValue(chain([]))
+  findChange.mockReturnValueOnce(chain(stale)).mockReturnValueOnce(chain([]))
+
+  const snapshot = await prepareDiscordRolesPlanSnapshot()
+
+  expect(snapshot.report.truncated).toBe(false)
+  expect(snapshot.report.planned).toBe(1)
 })
 
 test('DiscordRoles invalid business result does not complete provider phase or localize failure', async () => {
