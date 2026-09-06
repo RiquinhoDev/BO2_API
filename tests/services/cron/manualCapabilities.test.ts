@@ -19,6 +19,7 @@ describe('manual cron capabilities', () => {
     ['DailyPipeline', 'pipeline', 'daily-pipeline', 'implemented'],
     ['DiscordScheduledMessages', 'discord', 'discord-scheduled-messages', 'implemented'],
     ['CronExecutionCleanup', 'hotmart', 'cron-execution-cleanup', 'implemented'],
+    ['AchievementEvaluation', 'hotmart', 'achievement-evaluation', 'implemented'],
     ['StandardSync', 'hotmart', 'unsupported', 'blocked'],
   ] as const)('%s/%s resolves to %s', (name, syncType, capability, status) => {
     const result = getCronManualCapability(job(name, syncType))
@@ -54,15 +55,50 @@ describe('manual cron capabilities', () => {
     expect(result.identity(job('CronExecutionCleanup'))).toBe('cron-job:507f1f77bcf86cd799439011')
   })
 
-  test('view exposes cleanup mutable state and blocked reason only for unsupported jobs', () => {
+  test('exposes the exact bounded achievement evaluation capability metadata', () => {
+    const result = getCronManualCapability(job('AchievementEvaluation'))
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'achievement-evaluation',
+      status: 'implemented',
+      operation: 'cron-job',
+      cap: {
+        status: 'verified',
+        reason: 'achievement-evaluation-max-users',
+        limit: 20_000,
+      },
+      idempotency: {
+        status: 'verified',
+        reason: 'composite-execution-durable-receipt-and-owner-fence',
+      },
+      killSwitch: {
+        status: 'verified',
+        reason: 'ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED',
+      },
+      dryRun: {
+        status: 'verified',
+        reason: 'dry-run-no-provider-or-local-mutation',
+      },
+    }))
+  })
+
+  test('view exposes mutable state and backend blocked reason for disabled implemented jobs', () => {
     expect(cronManualExecutionView(job('CronExecutionCleanup'), false)).toMatchObject({
       capability: 'cron-execution-cleanup',
       status: 'implemented',
       mutableEnabled: false,
       dryRunSupported: true,
+      blockedReason: 'Execução mutável desativada pelo backend',
     })
     expect(cronManualExecutionView(job('CronExecutionCleanup'), true)).toMatchObject({
       mutableEnabled: true,
+    })
+    expect(cronManualExecutionView(job('AchievementEvaluation'), false)).toMatchObject({
+      capability: 'achievement-evaluation',
+      status: 'implemented',
+      mutableEnabled: false,
+      dryRunSupported: true,
+      blockedReason: 'Execução mutável desativada pelo backend',
     })
     expect(cronManualExecutionView(job('StandardSync'), false)).toMatchObject({
       capability: 'unsupported',

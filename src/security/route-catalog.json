@@ -195,7 +195,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:111"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:113"
   },
   {
     "method": "GET",
@@ -2427,7 +2427,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:68"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:70"
   },
   {
     "method": "POST",

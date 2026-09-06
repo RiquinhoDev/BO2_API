@@ -46,6 +46,10 @@ export function isCronExecutionCleanupMutableExecutionEnabled(): boolean {
   return getRuntimeConfig().core.cronExecutionCleanupMutableExecutionEnabled === true
 }
 
+export function isAchievementEvaluationMutableExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.achievementEvaluationMutableExecutionEnabled === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

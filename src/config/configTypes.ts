@@ -19,6 +19,7 @@ export interface CoreConfig {
   readonly enableDebugRoutes: boolean
   readonly syncMutableExecutionEnabled?: boolean
   readonly cronExecutionCleanupMutableExecutionEnabled?: boolean
+  readonly achievementEvaluationMutableExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }

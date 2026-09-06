@@ -1,5 +1,9 @@
 import { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
-import type { CronExecutionCleanupPlan, DailyPipelinePlan } from '../../../types/cron.types'
+import type {
+  AchievementEvaluationPlan,
+  CronExecutionCleanupPlan,
+  DailyPipelinePlan,
+} from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
@@ -23,7 +27,7 @@ export interface CronDispatchResult {
   stats: ILastRunStats
   errorMessage?: string
   dryRun?: boolean
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan
 }
 
 export interface CronDispatchOptions {
@@ -150,7 +154,11 @@ const defaultDependencies: CronDispatchDependencies = {
     (await import('../../renewal/discordRolesSync.service')).runDiscordRolesSyncJob(),
   runRenewalAcSync: async () =>
     (await import('../../renewal/renewalAcSync.service')).runRenewalAcSyncJob(),
-  evaluateAchievements: async () => evaluateAllAchievements({ backfillUnlockedAsSeen: true }),
+  evaluateAchievements: async (options) => evaluateAllAchievements({
+    backfillUnlockedAsSeen: true,
+    dryRun: options?.dryRun,
+    phaseHooks: options?.phaseHooks,
+  }),
   executeDailyPipeline,
   fetchHotmart: () =>
     hotmartAdapter.fetchHotmartDataForSync({
@@ -239,9 +247,19 @@ export class CronJobDispatcher {
         const total = numberOf(report, 'total')
         const evaluated = numberOf(report, 'evaluated')
         const errors = numberOf(report, 'errors')
+        const dryRun = booleanOf(report, 'dryRun') === true
+        const plan = report.plan
         return {
           success: errors === 0,
-          stats: { total, inserted: 0, updated: evaluated, errors, skipped: Math.max(0, total - evaluated) }
+          stats: {
+            total,
+            inserted: 0,
+            updated: dryRun ? 0 : evaluated,
+            errors,
+            skipped: Math.max(0, total - evaluated),
+          },
+          ...(dryRun ? { dryRun: true } : {}),
+          ...(plan && typeof plan === 'object' ? { plan: plan as AchievementEvaluationPlan } : {}),
         }
       }
 

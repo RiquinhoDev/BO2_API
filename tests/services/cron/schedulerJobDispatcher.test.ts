@@ -222,6 +222,42 @@ describe('CronJobDispatcher', () => {
     expect(dependencies.executeDailyPipeline).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
   })
 
+  it('passes dry-run and phase options to achievement evaluation and reports zero writes', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+    dependencies.evaluateAchievements.mockResolvedValueOnce({
+      total: 3,
+      processed: 3,
+      evaluated: 3,
+      errors: 0,
+      dryRun: true,
+      plan: {
+        operation: 'achievement-evaluation',
+        dryRun: true,
+        matching: 3,
+        evaluated: 3,
+        wouldEvaluate: 3,
+        limit: 20_000,
+        truncated: false,
+        remaining: 0,
+      },
+    })
+
+    await expect(dispatcher.execute(job('AchievementEvaluation'), { dryRun: true, phaseHooks }))
+      .resolves.toEqual({
+        success: true,
+        stats: { total: 3, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+        dryRun: true,
+        plan: expect.objectContaining({ operation: 'achievement-evaluation', matching: 3 }),
+      })
+    expect(dependencies.evaluateAchievements).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+  })
+
   it('passes dry-run and phase options to the scheduled Discord messages runner', async () => {
     const dependencies = createDependencies()
     const dispatcher = new CronJobDispatcher(dependencies)

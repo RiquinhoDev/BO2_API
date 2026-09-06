@@ -7,6 +7,7 @@ jest.mock('../../../src/models/SyncModels/CronJobConfig', () => ({
 jest.mock('../../../src/services/requestDrivenRuntimeConfig', () => ({
   isSyncMutableExecutionEnabled: jest.fn(),
   isCronExecutionCleanupMutableExecutionEnabled: jest.fn(),
+  isAchievementEvaluationMutableExecutionEnabled: jest.fn(),
 }))
 jest.mock('../../../src/services/cron/compositeExecution.service', () => ({
   compositeExecutionFingerprint: jest.fn(() => 'derived-fingerprint'),
@@ -21,6 +22,7 @@ jest.mock('../../../src/services/renewal/discord/planning', () => ({
 
 import CronJobConfig from '../../../src/models/SyncModels/CronJobConfig'
 import {
+  isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isSyncMutableExecutionEnabled,
 } from '../../../src/services/requestDrivenRuntimeConfig'
@@ -33,6 +35,7 @@ import { HttpError } from '../../../src/security/errorHandling'
 const findById = jest.mocked(CronJobConfig.findById)
 const mutableEnabled = jest.mocked(isSyncMutableExecutionEnabled)
 const cleanupEnabled = jest.mocked(isCronExecutionCleanupMutableExecutionEnabled)
+const achievementEnabled = jest.mocked(isAchievementEvaluationMutableExecutionEnabled)
 const runWithReceipt = jest.mocked(runCompositeExecutionWithReceipt)
 const messagesEnabled = jest.mocked(isMessagesEnabled)
 const scheduledMessagesEnabled = jest.mocked(isScheduledMessagesEnabled)
@@ -51,6 +54,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   mutableEnabled.mockReturnValue(true)
   cleanupEnabled.mockReturnValue(true)
+  achievementEnabled.mockReturnValue(true)
   messagesEnabled.mockReturnValue(true)
   scheduledMessagesEnabled.mockReturnValue(true)
   findById.mockResolvedValue(job() as never)
@@ -126,6 +130,49 @@ test('automatic cleanup ignores the manual kill switch and uses the shared recei
   ).resolves.toBeUndefined()
 
   expect(cleanupEnabled).not.toHaveBeenCalled()
+  expect(runWithReceipt).toHaveBeenCalledWith(expect.objectContaining({
+    operation: 'cron-job',
+    identity: `cron-job:${scheduledJob._id.toString()}`,
+    actorId: 'system:cron',
+  }))
+})
+
+test('manual achievement evaluation fails closed before receipt claim when disabled', async () => {
+  achievementEnabled.mockReturnValue(false)
+  const executor = { execute: jest.fn() }
+  const service = new CronManagementService(executor as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+  findById.mockResolvedValue(job('hotmart', 'AchievementEvaluation') as never)
+
+  await expect(service.executeJobManually(id, id, {
+    actorId: 'actor-a',
+    requestId: 'achievement-disabled',
+  })).rejects.toMatchObject({
+    code: 'ACHIEVEMENT_EVALUATION_DISABLED',
+    status: 503,
+  })
+  expect(runWithReceipt).not.toHaveBeenCalled()
+  expect(executor.execute).not.toHaveBeenCalled()
+})
+
+test('automatic achievement evaluation ignores the manual kill switch and uses the shared receipt', async () => {
+  achievementEnabled.mockReturnValue(false)
+  const executor = {
+    execute: jest.fn(async (_job: unknown, context: { triggeredBy: string; phaseHooks?: unknown }) => {
+      expect(context.triggeredBy).toBe('CRON')
+      expect(context.phaseHooks).toEqual(expect.any(Object))
+      return { success: true, duration: 1, stats: { total: 1, inserted: 0, updated: 1, errors: 0, skipped: 0 } }
+    }),
+  }
+  const service = new CronManagementService(executor as never)
+  const scheduledJob = job('hotmart', 'AchievementEvaluation')
+
+  await expect(
+    (service as unknown as { executeScheduledJob(job: unknown): Promise<void> })
+      .executeScheduledJob(scheduledJob),
+  ).resolves.toBeUndefined()
+
+  expect(achievementEnabled).not.toHaveBeenCalled()
   expect(runWithReceipt).toHaveBeenCalledWith(expect.objectContaining({
     operation: 'cron-job',
     identity: `cron-job:${scheduledJob._id.toString()}`,

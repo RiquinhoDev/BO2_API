@@ -191,6 +191,12 @@ test('limpeza de execuções CRON fica desligada por omissão e exige flag tipad
     .toBe(true)
 })
 
+test('avaliação mutável de conquistas fica desligada por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).core.achievementEvaluationMutableExecutionEnabled).toBe(false)
+  expect(loadConfig({ ...VALID_ENV, ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED: 'true' }).core.achievementEvaluationMutableExecutionEnabled)
+    .toBe(true)
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -226,6 +232,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     enableDebugRoutes: false,
     syncMutableExecutionEnabled: false,
     cronExecutionCleanupMutableExecutionEnabled: false,
+    achievementEvaluationMutableExecutionEnabled: false,
     allowedOrigins: config.allowedOrigins,
     port: 3001,
   })

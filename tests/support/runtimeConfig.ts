@@ -12,6 +12,7 @@ export function createTestRuntimeConfig(options: {
   activeCampaignProductTagsEnabled?: boolean
   syncMutableExecutionEnabled?: boolean
   cronExecutionCleanupMutableExecutionEnabled?: boolean
+  achievementEvaluationMutableExecutionEnabled?: boolean
 } = {}): AppConfig {
   const nodeEnv = options.nodeEnv ?? 'test'
   const core = {
@@ -26,6 +27,7 @@ export function createTestRuntimeConfig(options: {
     enableDebugRoutes: false,
     syncMutableExecutionEnabled: options.syncMutableExecutionEnabled ?? false,
     cronExecutionCleanupMutableExecutionEnabled: options.cronExecutionCleanupMutableExecutionEnabled ?? false,
+    achievementEvaluationMutableExecutionEnabled: options.achievementEvaluationMutableExecutionEnabled ?? false,
     allowedOrigins: ['http://localhost:3000'],
     port: 3001,
   }

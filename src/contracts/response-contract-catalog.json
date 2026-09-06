@@ -256,7 +256,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:146",
+    "evidence": "src/routes/achievements.routes.ts:148",
     "frontConsumer": null
   },
   {
@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:85",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:87",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:135",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:137",
     "frontConsumer": null
   },
   {
@@ -3318,7 +3318,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:105",
+    "evidence": "src/routes/achievements.routes.ts:107",
     "frontConsumer": null
   },
   {

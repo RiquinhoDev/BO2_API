@@ -302,6 +302,45 @@ test('manual and automatic cleanup share one durable identity and each run delet
   await CronExecution.deleteMany({ cronName: 'cleanup-fixture' })
 })
 
+test('manual and automatic achievement evaluation share identity, replay, and concurrency fencing', async () => {
+  const identity = 'cron-job:achievement-evaluation-fixture'
+  let started = false
+  let release!: () => void
+  let signalStarted!: () => void
+  const barrier = new Promise<void>((resolve) => { release = resolve })
+  const startedSignal = new Promise<void>((resolve) => { signalStarted = resolve })
+  const run = jest.fn(async () => {
+    started = true
+    signalStarted()
+    await barrier
+    return { success: true, total: 1, processed: 1, evaluated: 1, errors: 0 }
+  })
+  const entry = (actorId: string, requestId: string) => runCompositeExecutionWithReceipt({
+    operation: 'cron-job',
+    identity,
+    actorId,
+    fingerprint: 'achievement-evaluation-fingerprint',
+    requestId,
+    run,
+  })
+
+  const manual = entry('manual-actor', 'achievement-manual')
+  await startedSignal
+  expect(started).toBe(true)
+
+  await expect(entry('system:cron', 'achievement-automatic')).rejects.toMatchObject({
+    code: 'COMPOSITE_EXECUTION_IN_PROGRESS',
+    status: 409,
+  })
+
+  release()
+  expect(await manual).toEqual({ success: true, total: 1, processed: 1, evaluated: 1, errors: 0 })
+
+  const replay = await entry('manual-actor', 'achievement-manual')
+  expect(replay).toEqual({ success: true, total: 1, processed: 1, evaluated: 1, errors: 0 })
+  expect(run).toHaveBeenCalledTimes(1)
+})
+
 test('marks an expired running lease indeterminate without reopening work', async () => {
   const now = new Date()
   await CompositeExecutionReceipt.create({

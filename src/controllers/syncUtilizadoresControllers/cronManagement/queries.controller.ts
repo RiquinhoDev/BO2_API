@@ -12,6 +12,7 @@ import {
   type CronManualCapabilityJob,
 } from '../../../services/cron/scheduler/manualCapabilities'
 import {
+  isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isSyncMutableExecutionEnabled,
 } from '../../../services/requestDrivenRuntimeConfig'
@@ -22,6 +23,7 @@ function manualMutableEnabled(job: CronManualCapabilityJob): boolean {
   const capability = getCronManualCapability(job)
   if (capability.id === 'daily-pipeline') return isSyncMutableExecutionEnabled()
   if (capability.id === 'cron-execution-cleanup') return isCronExecutionCleanupMutableExecutionEnabled()
+  if (capability.id === 'achievement-evaluation') return isAchievementEvaluationMutableExecutionEnabled()
   if (capability.id === 'discord-scheduled-messages') {
     return isScheduledMessagesEnabled() && isMessagesEnabled()
   }

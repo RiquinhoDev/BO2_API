@@ -1,5 +1,9 @@
 import logger from '../../utils/logger'
 import User from '../../models/user'
+import { HttpError } from '../../security/errorHandling'
+import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
+import { MAX_PROVIDER_READ_ITEMS } from '../../security/providerReadBatchPolicy'
+import type { AchievementEvaluationPlan } from '../../types/cron.types'
 import {
   evaluateAchievements,
   type AchievementItem,
@@ -9,14 +13,36 @@ import {
 
 const DEFAULT_STALE_MS = 12 * 60 * 60 * 1000
 
-interface PersistOptions {
+export interface AchievementEvaluationOptions {
   force?: boolean
   staleMs?: number
   backfillUnlockedAsSeen?: boolean
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
-interface EvaluateAllOptions extends PersistOptions {
+interface EvaluateAllOptions extends AchievementEvaluationOptions {
   limit?: number
+}
+
+export class AchievementEvaluationLimitError extends HttpError {
+  constructor() {
+    super({
+      status: 413,
+      code: 'ACHIEVEMENT_EVALUATION_LIMIT_EXCEEDED',
+      publicMessage: `Avaliação de conquistas limitada a ${MAX_PROVIDER_READ_ITEMS} utilizadores`,
+    })
+  }
+}
+
+class AchievementEvaluationOwnershipError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause))
+    this.name = 'AchievementEvaluationOwnershipError'
+    this.cause = cause
+  }
+
+  readonly cause: unknown
 }
 
 type StoredAchievement = Omit<AchievementItem, 'unlockedAt' | 'seenAt'> & {
@@ -98,7 +124,7 @@ function mergeSeenAt(
 
 export async function evaluateAndPersistAchievements(
   user: AchievementPersistenceUser,
-  options: PersistOptions = {}
+  options: AchievementEvaluationOptions = {}
 ): Promise<{ evaluated: boolean; achievements: AchievementItem[]; stats: AchievementStats }> {
   const shouldEvaluate = options.force || isAchievementsCacheStale(user, options.staleMs)
 
@@ -133,11 +159,21 @@ export async function evaluateAndPersistAchievements(
   user.achievements = achievements
   user.achievementStats = result.stats
 
+  if (options.dryRun === true) {
+    return {
+      evaluated: true,
+      achievements,
+      stats: result.stats
+    }
+  }
+
   // Persistir SÓ os campos dos achievements via $set targeted.
   // NÃO usar user.save(): validaria o doc inteiro e rebenta em dados sujos
   // pré-existentes (ex: hotmart.engagement.engagementLevel='MEDIUM' fora do enum)
   // → partia o getStudentOgiSummary p/ ~37% dos alunos. $set não corre validators.
   if (user._id) {
+    markLocalMutation(options)
+    assertOwnership(options)
     await User.findByIdAndUpdate(user._id, {
       $set: {
         achievements,
@@ -145,6 +181,8 @@ export async function evaluateAndPersistAchievements(
       }
     })
   } else if (typeof user.save === 'function') {
+    markLocalMutation(options)
+    assertOwnership(options)
     await user.save()
   }
 
@@ -163,12 +201,21 @@ export async function evaluateAllAchievements(
   evaluated: number
   errors: number
   durationMs: number
+  dryRun?: true
+  plan?: AchievementEvaluationPlan
 }> {
   const query = { 'hotmart.purchaseDate': { $exists: true } }
-  const users = await User.find(query)
+  const limit = boundedLimit(options.limit)
+  const fetchedUsers = await User.find(query)
     .select('email name hotmart curseduca discord combined inactivation achievements achievementStats')
-    .limit(options.limit || 0)
+    .sort({ _id: 1 })
+    .limit(limit + 1)
     .exec()
+  const truncated = fetchedUsers.length > limit
+  if (truncated && limit === MAX_PROVIDER_READ_ITEMS && options.dryRun !== true) {
+    throw new AchievementEvaluationLimitError()
+  }
+  const users = fetchedUsers.slice(0, limit)
 
   let processed = 0
   let evaluated = 0
@@ -176,15 +223,19 @@ export async function evaluateAllAchievements(
   const startTime = Date.now()
 
   for (const user of users) {
+    assertOwnership(options)
     processed++
     try {
       const result = await evaluateAndPersistAchievements(user, {
         force: options.force,
         staleMs: options.staleMs,
-        backfillUnlockedAsSeen: options.backfillUnlockedAsSeen !== false
+        backfillUnlockedAsSeen: options.backfillUnlockedAsSeen !== false,
+        dryRun: options.dryRun,
+        phaseHooks: options.phaseHooks,
       })
       if (result.evaluated) evaluated++
     } catch (error: unknown) {
+      if (isOwnershipFailure(error)) throw error
       errors++
       logger.error(
         `Erro avaliação conquistas ${user.email}:`,
@@ -193,11 +244,60 @@ export async function evaluateAllAchievements(
     }
   }
 
-  return {
+  const result = {
     total: users.length,
     processed,
     evaluated,
     errors,
     durationMs: Date.now() - startTime
   }
+  return options.dryRun === true
+    ? {
+      ...result,
+      dryRun: true,
+      plan: {
+        operation: 'achievement-evaluation',
+        dryRun: true,
+        matching: users.length,
+        evaluated,
+        wouldEvaluate: evaluated,
+        limit,
+        truncated,
+        remaining: truncated ? 1 : 0,
+      },
+    }
+    : result
+}
+
+function boundedLimit(requested: number | undefined): number {
+  if (requested === undefined || requested === 0 || !Number.isFinite(requested) || requested < 1) {
+    return MAX_PROVIDER_READ_ITEMS
+  }
+  return Math.min(MAX_PROVIDER_READ_ITEMS, Math.floor(requested))
+}
+
+function assertOwnership(options: AchievementEvaluationOptions): void {
+  try {
+    options.phaseHooks?.assertOwnership?.()
+  } catch (error: unknown) {
+    if (isExternalOwnershipFailure(error)) throw error
+    throw new AchievementEvaluationOwnershipError(error)
+  }
+}
+
+function markLocalMutation(options: AchievementEvaluationOptions): void {
+  try {
+    options.phaseHooks?.localMutationStarted()
+  } catch (error: unknown) {
+    if (isExternalOwnershipFailure(error)) throw error
+    throw new AchievementEvaluationOwnershipError(error)
+  }
+}
+
+function isExternalOwnershipFailure(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError'
+}
+
+function isOwnershipFailure(error: unknown): boolean {
+  return error instanceof AchievementEvaluationOwnershipError || isExternalOwnershipFailure(error)
 }

@@ -90,6 +90,15 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name.includes('AchievementEvaluation'),
+    capability: implemented(
+      'achievement-evaluation',
+      'cron-job',
+      { status: 'verified', reason: 'achievement-evaluation-max-users', limit: 20_000 },
+      { status: 'verified', reason: 'ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.name.includes('DiscordScheduledMessages'),
     capability: implemented(
       'discord-scheduled-messages',
@@ -138,14 +147,17 @@ export function cronManualExecutionView(
   mutableEnabled: boolean,
 ): CronManualExecutionView {
   const capability = getCronManualCapability(job)
+  const isMutableEnabled = capability.status === 'implemented' && mutableEnabled
   return {
     capability: capability.id,
     status: capability.status,
     cap: capability.cap,
     dryRunSupported: capability.dryRun.status === 'verified',
-    mutableEnabled: capability.status === 'implemented' && mutableEnabled,
+    mutableEnabled: isMutableEnabled,
     ...(capability.status === 'blocked' && capability.blockedReason
       ? { blockedReason: capability.blockedReason }
+      : capability.status === 'implemented' && !isMutableEnabled
+        ? { blockedReason: 'Execução mutável desativada pelo backend' }
       : {}),
   }
 }

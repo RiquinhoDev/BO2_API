@@ -23,6 +23,8 @@ jest.mock('../../../src/utils/logger', () => ({
 }))
 
 import { evaluateAllAchievements } from '../../../src/services/achievements/achievementEvaluation.service'
+import { ActiveCampaignExecutionOwnershipError } from '../../../src/services/activeCampaign/activeCampaignExecution.service'
+import { MAX_PROVIDER_READ_ITEMS } from '../../../src/security/providerReadBatchPolicy'
 
 type FakeUser = {
   _id: string
@@ -51,6 +53,7 @@ type EvaluationResult = {
 function queryFor(users: FakeUser[]) {
   return {
     select: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
     exec: jest.fn().mockResolvedValue(users),
   }
@@ -82,6 +85,10 @@ function evaluationFor(index: number): EvaluationResult {
     },
   }
 }
+
+beforeEach(() => {
+  jest.clearAllMocks()
+})
 
 describe.each([1, 10, 100])('achievement evaluation batch N=%i', (size) => {
   beforeEach(() => {
@@ -169,4 +176,93 @@ describe.each([1, 10, 100])('achievement evaluation batch N=%i', (size) => {
     expect(mockEvaluateAchievements).toHaveBeenCalledTimes(size)
     expect(mockFindByIdAndUpdate).toHaveBeenCalledTimes(size - evaluationFailures.size)
   })
+})
+
+test('uses the shared sentinel cap and fails live before the first user write', async () => {
+  const users = makeUsers(MAX_PROVIDER_READ_ITEMS + 1)
+  const query = queryFor(users)
+  mockUserFind.mockReturnValue(query)
+
+  await expect(evaluateAllAchievements({ force: true })).rejects.toMatchObject({
+    status: 413,
+    code: 'ACHIEVEMENT_EVALUATION_LIMIT_EXCEEDED',
+  })
+
+  expect(query.limit).toHaveBeenCalledWith(MAX_PROVIDER_READ_ITEMS + 1)
+  expect(mockEvaluateAchievements).not.toHaveBeenCalled()
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+})
+
+test('never lets an explicit limit exceed the shared cap', async () => {
+  const users = makeUsers(MAX_PROVIDER_READ_ITEMS + 1)
+  const query = queryFor(users)
+  mockUserFind.mockReturnValue(query)
+
+  await expect(evaluateAllAchievements({ force: true, limit: MAX_PROVIDER_READ_ITEMS + 500, dryRun: true } as never))
+    .resolves.toMatchObject({
+      dryRun: true,
+      plan: {
+        limit: MAX_PROVIDER_READ_ITEMS,
+        truncated: true,
+        remaining: 1,
+      },
+    })
+
+  expect(query.limit).toHaveBeenCalledWith(MAX_PROVIDER_READ_ITEMS + 1)
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+})
+
+test('dry-run returns a bounded plan and performs no local writes', async () => {
+  const users = makeUsers(3)
+  const query = queryFor(users)
+  mockUserFind.mockReturnValue(query)
+  mockEvaluateAchievements.mockImplementation(async (user: FakeUser) => evaluationFor(indexFromId(user._id)))
+  const phaseHooks = {
+    assertOwnership: jest.fn(),
+    providerStarted: jest.fn(),
+    providerSucceeded: jest.fn(),
+    localMutationStarted: jest.fn(),
+  }
+
+  await expect(evaluateAllAchievements({ force: true, dryRun: true, phaseHooks } as never)).resolves.toMatchObject({
+    total: 3,
+    processed: 3,
+    evaluated: 3,
+    errors: 0,
+    dryRun: true,
+    plan: {
+      operation: 'achievement-evaluation',
+      matching: 3,
+      evaluated: 3,
+      wouldEvaluate: 3,
+      limit: MAX_PROVIDER_READ_ITEMS,
+      truncated: false,
+      remaining: 0,
+    },
+  })
+  expect(query.limit).toHaveBeenCalledWith(MAX_PROVIDER_READ_ITEMS + 1)
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+  expect(phaseHooks.localMutationStarted).not.toHaveBeenCalled()
+  expect(phaseHooks.providerStarted).not.toHaveBeenCalled()
+  expect(phaseHooks.providerSucceeded).not.toHaveBeenCalled()
+})
+
+test('ownership loss at the persistence boundary stops before any user update', async () => {
+  const users = makeUsers(1)
+  mockUserFind.mockReturnValue(queryFor(users))
+  mockEvaluateAchievements.mockResolvedValue(evaluationFor(0))
+  const events: string[] = []
+  const phaseHooks = {
+    assertOwnership: jest.fn(() => {
+      events.push('assert')
+      if (events.length === 3) throw new ActiveCampaignExecutionOwnershipError('achievement-evaluation')
+    }),
+    providerStarted: jest.fn(),
+    providerSucceeded: jest.fn(),
+    localMutationStarted: jest.fn(() => events.push('local')),
+  }
+
+  await expect(evaluateAllAchievements({ force: true, phaseHooks } as never)).rejects.toThrow('achievement-evaluation')
+  expect(events).toEqual(['assert', 'local', 'assert'])
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
 })

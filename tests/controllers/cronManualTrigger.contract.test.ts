@@ -21,6 +21,16 @@ const plan = {
   truncated: true,
   remaining: 1,
 }
+const achievementPlan = {
+  operation: 'achievement-evaluation',
+  dryRun: true,
+  matching: 20_000,
+  evaluated: 20_000,
+  wouldEvaluate: 20_000,
+  limit: 20_000,
+  truncated: true,
+  remaining: 1,
+}
 
 function response() {
   return {
@@ -86,6 +96,47 @@ test('live cleanup response stays compatible and does not expose the preview pla
 
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
     data: expect.not.objectContaining({ plan }),
+    meta: { message: 'Job executado com sucesso' },
+  }))
+})
+
+test('achievement evaluation dry-run exposes its bounded plan and live response stays compatible', async () => {
+  mockExecuteJobManually.mockResolvedValueOnce({
+    success: true,
+    duration: 1,
+    stats: { total: 20_000, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+    dryRun: true,
+    plan: achievementPlan,
+  })
+  const res = response()
+
+  await triggerJob(
+    { params: { id }, body: { dryRun: true } } as never,
+    request(true) as Request,
+    res as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({ dryRun: true, plan: achievementPlan }),
+    meta: { message: 'Plano do job calculado sem efeitos' },
+  }))
+
+  mockExecuteJobManually.mockResolvedValueOnce({
+    success: true,
+    duration: 1,
+    stats: { total: 20_000, inserted: 0, updated: 20_000, errors: 0, skipped: 0 },
+  })
+  const liveResponse = response()
+  await triggerJob(
+    { params: { id }, body: { dryRun: false } } as never,
+    request(false) as Request,
+    liveResponse as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+
+  expect(liveResponse.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.not.objectContaining({ plan: expect.anything() }),
     meta: { message: 'Job executado com sucesso' },
   }))
 })

@@ -16,6 +16,7 @@ import { createLoggingCronNotification } from './notificationPort'
 import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
 import {
+  isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isSyncMutableExecutionEnabled,
 } from '../../requestDrivenRuntimeConfig'
@@ -306,6 +307,13 @@ const job = await CronJobConfig.create({
         status: 503,
         code: 'CRON_EXECUTION_CLEANUP_DISABLED',
         publicMessage: 'Limpeza do histórico CRON desativada',
+      })
+    }
+    if (capability.id === 'achievement-evaluation' && !isAchievementEvaluationMutableExecutionEnabled()) {
+      throw new HttpError({
+        status: 503,
+        code: 'ACHIEVEMENT_EVALUATION_DISABLED',
+        publicMessage: 'Avaliação mutável de conquistas desativada',
       })
     }
     if (capability.id === 'daily-pipeline' && !isSyncMutableExecutionEnabled()) {

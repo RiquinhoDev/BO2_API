@@ -1,6 +1,6 @@
 import { NextFunction, Router, Request, Response } from 'express'
 import { asyncRoute } from '../security/asyncRoute'
-import { internalError } from '../security/errorHandling'
+import { HttpError, internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
 import User from '../models/user'
 import {
@@ -61,7 +61,9 @@ router.post('/evaluate-all', asyncRoute(async (req: Request, res: Response, next
       avgPerUser: result.total > 0 ? Math.round(result.durationMs / result.total) : 0,
     }, { message: 'Avaliação de conquistas concluída' }))
   } catch (error: unknown) {
-    next(internalError('Erro na avaliação em massa', 'ACHIEVEMENTS_EVALUATE_ALL_FAILED', error))
+    next(error instanceof HttpError
+      ? error
+      : internalError('Erro na avaliação em massa', 'ACHIEVEMENTS_EVALUATE_ALL_FAILED', error))
   }
 }))
 
