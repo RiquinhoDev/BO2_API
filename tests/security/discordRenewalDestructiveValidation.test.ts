@@ -51,6 +51,7 @@ jest.mock('../../src/models/SyncModels/CronJobConfig', () => ({
 
 import {
   executeDiscordRolesPlan,
+  generateDiscordRolesPlan,
   sendDiscordMessage,
 } from '../../src/services/renewal/discordRolesSync.service'
 import {
@@ -172,6 +173,19 @@ test('execute preserves actor from the body', async () => {
     actorId: 'reviewer@example.test',
     requestId: 'role-route-a',
   }))
+})
+
+test('specialised plan persists the reviewed local changes instead of using generic dry-run', async () => {
+  const generate = jest.mocked(generateDiscordRolesPlan)
+  generate.mockClear()
+  generate.mockResolvedValueOnce({ anomalyAborted: false, batchId: 'persisted-plan', planned: 1 } as never)
+
+  await request(buildApp())
+    .post('/api/discord-renewal/plan')
+    .query(marker)
+    .expect(200)
+
+  expect(generate).toHaveBeenCalledWith()
 })
 
 test('status exposes backend-owned manual block reason for the exact DiscordRoles job', async () => {

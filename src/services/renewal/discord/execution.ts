@@ -1,6 +1,5 @@
 import logger from '../../../utils/logger'
 import axios from 'axios'
-import mongoose from 'mongoose'
 import { HttpError } from '../../../security/errorHandling'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 import CronJobConfig from '../../../models/SyncModels/CronJobConfig'
@@ -20,7 +19,6 @@ import {
   IDiscordRoleChange
 } from '../../../models/discordRenewal'
 import {
-  APPROVED_TTL_HOURS,
   botHeaders,
   botUrl,
   configuredBotUrl,
@@ -31,11 +29,15 @@ import {
   isRolesAutoExecuteEnabled,
   isRolesSyncEnabled,
   maxOpsPerRun,
-  PLANNED_TTL_HOURS,
   RENEWAL_ROLES,
   ROLE_NAME_BY_ID,
   expireStaleRoleChanges,
 } from './planning'
+import {
+  assertRoleExecutionSnapshotWithinCap,
+  prepareDiscordRoleExecutionSnapshot,
+  type PreparedRoleExecutionSnapshot,
+} from './executionSnapshot'
 import {
   executeDiscordMessageReceipt,
   type DiscordMessageExecutionContext,
@@ -59,6 +61,11 @@ interface DiscordRoleApplyResult {
 interface DiscordRoleApplyResponse {
   results?: DiscordRoleApplyResult[]
 }
+
+type PreparedDiscordRoleChange = Pick<
+  IDiscordRoleChange,
+  '_id' | 'email' | 'userId' | 'discordUserId' | 'payload'
+>
 
 interface DiscordBotHealth {
   ok?: boolean
@@ -95,21 +102,45 @@ function afterProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
   phaseHooks?.providerSucceeded()
 }
 
-export async function preflightRoleExecutionCapacity(projectedPlanned: number): Promise<void> {
-  const cap = maxOpsPerRun()
-  const candidates = await DiscordRoleChange.find({ status: { $in: ['APPROVED', 'PLANNED'] } })
-    .sort({ status: 1, plannedAt: 1, _id: 1 })
-    .limit(cap + 1)
-    .select('_id')
-    .lean()
-    .exec()
-  if (candidates.length + Math.max(0, projectedPlanned) > cap) {
-    throw new HttpError({
-      status: 413,
-      code: 'DISCORD_ROLES_EXECUTION_CAP_EXCEEDED',
-      publicMessage: 'Execução Discord excede o limite por operação',
+function validateProviderResults(
+  values: unknown,
+  batch: Array<Pick<IDiscordRoleChange, 'discordUserId'>>,
+): Map<string, DiscordRoleApplyResult> {
+  if (!Array.isArray(values) || values.length !== batch.length) {
+    throw new Error('resultado completo do bot indisponível')
+  }
+  const expected = new Set(batch.map((change) => String(change.discordUserId)))
+  const resultByAccount = new Map<string, DiscordRoleApplyResult>()
+  for (const value of values) {
+    if (typeof value !== 'object' || value === null) {
+      throw new Error('resultado do bot inválido')
+    }
+    const result = value as Record<string, unknown>
+    if (typeof result.discordUserId !== 'string' || !result.discordUserId
+      || typeof result.ok !== 'boolean' || !expected.has(result.discordUserId)
+      || resultByAccount.has(result.discordUserId)) {
+      throw new Error('resultado do bot inválido')
+    }
+    if ('error' in result && typeof result.error !== 'undefined' && typeof result.error !== 'string') {
+      throw new Error('resultado do bot inválido')
+    }
+    if ('notInGuild' in result && typeof result.notInGuild !== 'undefined' && typeof result.notInGuild !== 'boolean') {
+      throw new Error('resultado do bot inválido')
+    }
+    const hasError = 'error' in result
+    const errorText = typeof result.error === 'string' ? result.error : ''
+    const notInGuild = result.notInGuild === true
+    if (hasError || result.ok && notInGuild || !result.ok && !notInGuild) {
+      throw new Error(hasError && errorText ? errorText : 'resultado do bot inconclusivo')
+    }
+    resultByAccount.set(result.discordUserId, {
+      discordUserId: result.discordUserId,
+      ok: result.ok,
+      ...(notInGuild ? { notInGuild: true } : {}),
     })
   }
+  if (resultByAccount.size !== expected.size) throw new Error('resultado completo do bot indisponível')
+  return resultByAccount
 }
 
 export async function approveRoleChanges(ids: string[], approvedBy: string): Promise<number> {
@@ -140,6 +171,8 @@ export async function executeDiscordRolesPlan(options: {
   phaseHooks?: CronExecutionPhaseHooks
   requestId?: string
   actorId?: string
+  preparedChanges?: PreparedDiscordRoleChange[]
+  skipExpiry?: boolean
 }): Promise<DiscordExecuteReport> {
   if (options.requestId) {
     const job = await CronJobConfig.findOne({ name: 'DiscordRolesSync' }) as unknown as CronManualCapabilityJob | null
@@ -181,6 +214,8 @@ async function executeDiscordRolesPlanInternal(options: {
   executedBy: string
   strictCap?: boolean
   phaseHooks?: CronExecutionPhaseHooks
+  preparedChanges?: PreparedDiscordRoleChange[]
+  skipExpiry?: boolean
 }): Promise<DiscordExecuteReport> {
   const report: DiscordExecuteReport = {
     attempted: 0,
@@ -196,32 +231,23 @@ async function executeDiscordRolesPlanInternal(options: {
     return report
   }
 
-  if (options.strictCap) await preflightRoleExecutionCapacity(0)
-  await expireStaleRoleChanges(options.phaseHooks)
+  let preparedSnapshot: PreparedRoleExecutionSnapshot | null = null
+  if (options.preparedChanges) {
+    if (!options.skipExpiry) await expireStaleRoleChanges(options.phaseHooks)
+  } else {
+    preparedSnapshot = await prepareDiscordRoleExecutionSnapshot(options)
+    if (options.strictCap) assertRoleExecutionSnapshotWithinCap(preparedSnapshot)
+    await expireStaleRoleChanges(options.phaseHooks)
+  }
 
-  const statuses: Array<IDiscordRoleChange['status']> = options.includePlanned
-    ? ['APPROVED', 'PLANNED']
-    : ['APPROVED']
-  const query: mongoose.FilterQuery<IDiscordRoleChange> = { status: { $in: statuses } }
-  if (options.batchId) query.planBatchId = options.batchId
-
-  const requested = Number(options.limit)
-  const cap = Number.isFinite(requested) && requested > 0
-    ? Math.min(Math.floor(requested), maxOpsPerRun())
-    : maxOpsPerRun()
-  const candidates = await DiscordRoleChange.find(query)
-    .sort({ status: 1, plannedAt: 1, _id: 1 })
-    .limit(cap + 1)
-    .exec()
-
-  const toRun = candidates.slice(0, cap)
-  report.leftForNextRun = Math.max(0, candidates.length - toRun.length)
+  const toRun = options.preparedChanges || preparedSnapshot?.changes || []
+  report.leftForNextRun = preparedSnapshot?.remaining || 0
 
   for (let i = 0; i < toRun.length; i += BOT_BATCH_SIZE) {
     const batch = toRun.slice(i, i + BOT_BATCH_SIZE)
     report.attempted += batch.length
 
-    let results: DiscordRoleApplyResult[] = []
+    let resultByAccount: Map<string, DiscordRoleApplyResult>
     try {
       beforeProviderWrite(options.phaseHooks)
       const resp = await axios.post<DiscordRoleApplyResponse>(
@@ -235,27 +261,14 @@ async function executeDiscordRolesPlanInternal(options: {
         },
         { headers: botHeaders(), timeout: 120000 }
       )
-      results = Array.isArray(resp.data.results) ? resp.data.results : []
-      const resultByAccount = new Map(results.map((r) => [String(r.discordUserId), r]))
-      if (results.length !== batch.length || resultByAccount.size !== batch.length
-        || batch.some((change) => !resultByAccount.has(String(change.discordUserId)))) {
-        throw new Error('resultado completo do bot indisponível')
-      }
+      resultByAccount = validateProviderResults(resp.data.results, batch)
       afterProviderWrite(options.phaseHooks)
     } catch (error: unknown) {
       const msg = `Chamada ao bot falhou: ${errorStatus(error) || ''} ${errorMessage(error)}`
       logger.error(`❌ [DiscordRoles] ${msg}`)
-      if (options.phaseHooks) throw error
-      beforeLocalMutation(options.phaseHooks)
-      await DiscordRoleChange.updateMany(
-        { _id: { $in: batch.map((c) => c._id) } },
-        { $set: { status: 'FAILED', error: msg }, $inc: { attempts: 1 } }
-      )
-      report.failed += batch.length
-      break
+      throw error
     }
 
-    const resultByAccount = new Map(results.map((r) => [String(r.discordUserId), r]))
     for (const change of batch) {
       const r = resultByAccount.get(String(change.discordUserId))
       if (r?.ok) {

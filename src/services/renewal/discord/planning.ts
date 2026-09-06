@@ -322,7 +322,12 @@ export async function generateDiscordRolesPlan(options: DiscordPlanOptions = {})
     return report
   }
 
-  for (const p of pending) {
+  const pendingWithEmail = await Promise.all(pending.map(async (p) => ({
+    pending: p,
+    email: p.desired?.email || await emailForState(p.discordUserId),
+  })))
+
+  for (const { pending: p, email } of pendingWithEmail) {
     const addRoleId = p.desired?.roleId || null
     const living = await DiscordRoleChange.findOne({
       sourceRef: p.discordUserId,
@@ -341,11 +346,10 @@ export async function generateDiscordRolesPlan(options: DiscordPlanOptions = {})
     // remover TODOS os outros R.* (o bot só retira os que o membro tiver) —
     // auto-corrige drift de cargos postos/tirados à mão no Discord
     const removeRoleIds = ALL_RENEWAL_ROLE_IDS.filter((id) => id !== addRoleId)
-
     options.phaseHooks?.assertOwnership?.()
     options.phaseHooks?.localMutationStarted()
     await DiscordRoleChange.create({
-      email: p.desired?.email || (await emailForState(p.discordUserId)),
+      email,
       userId: p.desired?.userId,
       discordUserId: p.discordUserId,
       action: 'SET_ROLE',

@@ -306,7 +306,11 @@ export class CronJobDispatcher {
       return {
         success: false,
         stats: { ...EMPTY_STATS, errors: 1 },
-        errorMessage: job.name === 'RenewalAcSync' ? 'Execução Renewal AC falhou' : errorMessageOf(error),
+        errorMessage: job.name === 'RenewalAcSync'
+          ? 'Execução Renewal AC falhou'
+          : job.name === 'DiscordRolesSync'
+            ? 'Execução Discord falhou'
+            : errorMessageOf(error),
       }
     }
   }

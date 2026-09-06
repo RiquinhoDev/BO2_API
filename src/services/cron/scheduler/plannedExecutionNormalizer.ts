@@ -14,11 +14,6 @@ const booleanOf = (record: Record<string, unknown>, key: string): boolean | unde
   return typeof value === 'boolean' ? value : undefined
 }
 
-const stringOf = (record: Record<string, unknown>, key: string): string | undefined => {
-  const value = record[key]
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
 export function normalizePlannedExecution(
   value: unknown,
   totalKey: 'accountsDesired' | 'classChangesSeen',
@@ -71,7 +66,9 @@ export function normalizePlannedExecution(
     : undefined
   const errorMessage = totalKey === 'classChangesSeen' && anomalyAborted
     ? 'Plano Renewal AC abortado por anomalia'
-    : stringOf(plan, 'anomalyDetail')
+    : totalKey === 'accountsDesired' && anomalyAborted
+      ? 'Plano Discord abortado por anomalia'
+      : undefined
   return {
     success: !anomalyAborted && failed === 0,
     stats: {

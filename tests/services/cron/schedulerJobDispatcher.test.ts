@@ -187,6 +187,17 @@ describe('CronJobDispatcher', () => {
     })
   })
 
+  it('redacts Discord runner failures to a stable public message', async () => {
+    const dependencies = createDependencies()
+    dependencies.runDiscordRolesSync.mockRejectedValueOnce(new Error('discord-user-id-secret'))
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await expect(dispatcher.execute(job('DiscordRolesSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução Discord falhou',
+    })
+  })
+
   it('passes dry-run and phase options to Renewal AC and returns only its bounded plan fields', async () => {
     const dependencies = createDependencies()
     dependencies.runRenewalAcSync.mockResolvedValueOnce({

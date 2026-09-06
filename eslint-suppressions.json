@@ -145,9 +145,6 @@
   },
   "src/services/renewal/discord/execution.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 3
-    },
-    "no-useless-assignment": {
       "count": 1
     }
   },

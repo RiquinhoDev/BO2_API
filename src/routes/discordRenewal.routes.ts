@@ -120,9 +120,9 @@ router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
   res.json({ success: true, data: { total, skip, limit, changes } })
 }))
 
-/** POST /api/discord-renewal/plan — reconciliação (dry-run, só BD) */
+/** POST /api/discord-renewal/plan — reconciliação e persistência local do plano */
 router.post('/plan', asyncRoute(async (_req: Request, res: Response) => {
-  const report = await generateDiscordRolesPlan({ dryRun: true })
+  const report = await generateDiscordRolesPlan()
   const outcome = report.anomalyAborted ? 'anomaly-aborted' : 'planned'
   res.json(successResponse({ outcome, report }))
 }))

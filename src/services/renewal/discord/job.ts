@@ -1,7 +1,6 @@
 import logger from '../../../utils/logger'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 import {
-  assertDiscordPlanInputsWithinCap,
   expireStaleRoleChanges,
   generateDiscordRolesPlan,
   isRolesAutoExecuteEnabled,
@@ -9,8 +8,14 @@ import {
   type DiscordPlanReport,
 } from './planning'
 import {
+  assertDiscordPlanInputsWithinCap,
+  persistDiscordPlanSnapshot,
+  prepareDiscordRolesPlanSnapshot,
+  resolveDiscordPlanSnapshotEmails,
+} from './planSnapshot'
+import { assertEffectiveRoleExecutionCapacity } from './executionSnapshot'
+import {
   executeDiscordRolesPlan,
-  preflightRoleExecutionCapacity,
   type DiscordExecuteReport,
 } from './execution'
 
@@ -35,21 +40,32 @@ export async function runDiscordRolesSyncJob(options: DiscordJobOptions = {}): P
     }
   }
 
-  const preview = await generateDiscordRolesPlan({ dryRun: true })
-  assertDiscordPlanInputsWithinCap(preview)
-  if (options.triggeredBy === 'MANUAL') await preflightRoleExecutionCapacity(preview.planned)
+  let snapshot = await prepareDiscordRolesPlanSnapshot()
+  assertDiscordPlanInputsWithinCap(snapshot.report)
+  assertEffectiveRoleExecutionCapacity(
+    snapshot.existing,
+    snapshot.pending.map((change) => ({ sourceRef: change.discordUserId })),
+    undefined,
+    snapshot.existingOverflow,
+  )
+  snapshot = await resolveDiscordPlanSnapshotEmails(snapshot)
+  if (snapshot.report.anomalyAborted) {
+    logger.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
+    return { expired: 0, plan: snapshot.report, execution: null }
+  }
 
   const expired = await expireStaleRoleChanges(options.phaseHooks)
-  const plan = await generateDiscordRolesPlan({ phaseHooks: options.phaseHooks })
+  const created = await persistDiscordPlanSnapshot(snapshot, options.phaseHooks)
+  const plan = snapshot.report
 
   let execution: DiscordExecuteReport | null = null
-  if (plan.anomalyAborted) {
-    logger.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
-  } else if (isRolesSyncEnabled() && (isRolesAutoExecuteEnabled() || options.triggeredBy === 'MANUAL')) {
+  if (isRolesSyncEnabled() && (isRolesAutoExecuteEnabled() || options.triggeredBy === 'MANUAL')) {
     execution = await executeDiscordRolesPlan({
       includePlanned: true,
       executedBy: options.triggeredBy === 'MANUAL' ? 'manual:DiscordRolesSync' : 'cron:DiscordRolesSync',
-      strictCap: false,
+      strictCap: true,
+      preparedChanges: [...snapshot.existing, ...created],
+      skipExpiry: true,
       phaseHooks: options.phaseHooks,
     })
   } else {
