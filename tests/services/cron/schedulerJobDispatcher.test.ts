@@ -51,8 +51,7 @@ describe('CronJobDispatcher', () => {
     ['ResetCounters', 'resetCounters'],
     ['RebuildDashboardStats', 'rebuildDashboardStats'],
     ['CronExecutionCleanup', 'cleanupExecutions'],
-    ['ClarezaRefresh', 'clarezaRefresh'],
-    ['GuruTrialCheck', 'guruTrialCheck']
+    ['ClarezaRefresh', 'clarezaRefresh']
   ] as const)('dispatches %s to its dedicated runner', async (name, dependency) => {
     const dependencies = createDependencies()
     const dispatcher = new CronJobDispatcher(dependencies)
@@ -60,6 +59,69 @@ describe('CronJobDispatcher', () => {
     await dispatcher.execute(job(`Nightly${name}`))
 
     expect(dependencies[dependency]).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards dry-run and ownership phases to the exact Guru runner', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      assertOwnership: jest.fn(),
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+
+    await dispatcher.execute(job('GuruTrialCheck', 'guru'), { dryRun: true, phaseHooks })
+
+    expect(dependencies.guruTrialCheck).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+  })
+
+  it('does not dispatch a name containing GuruTrialCheck as an alias', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await dispatcher.execute(job('NightlyGuruTrialCheck', 'hotmart'))
+
+    expect(dependencies.guruTrialCheck).not.toHaveBeenCalled()
+    expect(dependencies.fetchHotmart).toHaveBeenCalledTimes(1)
+  })
+
+  it('sanitizes the Guru preview plan to the canonical public fields', async () => {
+    const dependencies = createDependencies()
+    dependencies.guruTrialCheck.mockResolvedValueOnce({
+      success: true,
+      total: 2,
+      synced: 1,
+      errors: 0,
+      dryRun: true,
+      plan: {
+        operation: 'guru-trial-check',
+        dryRun: true,
+        candidates: 2,
+        plannedMutations: 3,
+        remaining: 0,
+        truncated: false,
+        anomaly: false,
+        email: 'private@example.test',
+        token: 'private-token',
+      },
+    })
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await expect(dispatcher.execute(job('GuruTrialCheck', 'guru'), { dryRun: true })).resolves.toEqual({
+      success: true,
+      stats: { total: 2, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+      dryRun: true,
+      plan: {
+        operation: 'guru-trial-check',
+        dryRun: true,
+        candidates: 2,
+        plannedMutations: 3,
+        remaining: 0,
+        truncated: false,
+        anomaly: false,
+      },
+    })
   })
 
   it('does not dispatch a job whose name only contains WeeklyTagSnapshot', async () => {

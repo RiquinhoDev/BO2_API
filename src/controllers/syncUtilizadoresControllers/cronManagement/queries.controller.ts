@@ -14,6 +14,7 @@ import {
 import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
+  isGuruTrialManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../../services/requestDrivenRuntimeConfig'
@@ -47,6 +48,10 @@ function manualMutableEnabled(
   }
   if (capability.id === 'renewal-ac-sync') return { enabled: isManualExecutionEnabled() }
   if (capability.id === 'discord-roles-sync') return { enabled: isRolesManualExecutionEnabled() }
+  if (capability.id === 'guru-trial-check') {
+    const enabled = isGuruTrialManualExecutionEnabled()
+    return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual dos trials Guru desativada' }) }
+  }
   return { enabled: false }
 }
 
@@ -92,9 +97,7 @@ async function weeklyManualStateForJobs(
 export const getAllJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { syncType, active } = req.query
-
     let jobs
-
     if (syncType) {
       // Legacy raw-query compatibility: invalid/repeated values reached the scheduler unchanged.
       jobs = await syncSchedulerService.getJobsByType(syncType as SyncType)
@@ -103,9 +106,7 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
     } else {
       jobs = await syncSchedulerService.getAllJobs()
     }
-
-    // Agendamentos que vivem FORA do CronJobConfig (sistemas legacy) — expostos
-    // aqui para que TODOS os crons apareçam listados no Backoffice.
+    // Agendamentos que vivem FORA do CronJobConfig (sistemas legacy) — expostos aqui para que TODOS os crons apareçam listados no Backoffice.
     // TAG_RULES_SYNC (TagCronManagement/CronConfig) não é agendado no arranque
     // actual (initializeCronJobs não é invocado no index.ts) — daí scheduledAtRuntime.
     let systemJobs: SystemJob[] = []
@@ -127,14 +128,12 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
         logger.warn('⚠�? Não foi possível ler jobs legacy (cronconfigs):', errorMessage(legacyError))
       }
     }
-
     const weeklyState = await weeklyManualStateForJobs(jobs)
     res.status(200).json(successResponse({
         total: jobs.length,
         jobs: await Promise.all(jobs.map(job => withManualExecutionView(job, weeklyState))),
         systemJobs
       }, { message: 'Jobs recuperados com sucesso' }))
-
   } catch (error: unknown) {
     next(internalError('Erro ao buscar jobs', 'CRON_JOB_LIST_FAILED', error))
   }
@@ -160,7 +159,6 @@ export const getJobById = async (
       })
       return
     }
-
     const job = await syncSchedulerService.getJobById(
       new mongoose.Types.ObjectId(id)
     )
@@ -178,6 +176,8 @@ export const getJobById = async (
       job.schedule.cronExpression,
       5
     )
+
+
 
     res.status(200).json(successResponse({
       job: await withManualExecutionView(job, await weeklyManualStateForJobs([job])),

@@ -34,13 +34,13 @@ describe('OPS-02 replay repair ordering', () => {
   })
 
   test('expired trial processing marks dependent products before committing terminal user state', () => {
-    const value = source('src/services/guru/guruTrialService.ts')
+    const value = source('src/services/guru/guruTrialCheckExecution.service.ts')
     const branch = between(
       value,
-      '// Trial expirou sem conversão → marcar para inativação',
-      '} catch (error: unknown)',
+      'const markedCount = await markUserProductsForInactivation',
+      'await user.save()',
     )
-    const productWrite = branch.indexOf('await markUserProductsForInactivation')
+    const productWrite = branch.indexOf('const markedCount = await markUserProductsForInactivation')
     const userWrite = branch.indexOf("user.set('guru.isTrial', false)")
 
     expect(productWrite).toBeGreaterThanOrEqual(0)
@@ -49,13 +49,8 @@ describe('OPS-02 replay repair ordering', () => {
   })
 
   test('trial provider-active paths repair stale trial inactivation marks', () => {
-    const value = source('src/services/guru/guruTrialService.ts')
-    const checkExpired = between(
-      value,
-      'export async function checkExpiredTrials()',
-      '// ─────────────────────────────────────────────────────────────\n// SYNC TRIALS DA API GURU',
-    )
-    const repairs = checkExpired.match(/await revertUserProductsFromTrialInactivation\(user\._id\)/g) ?? []
+    const value = source('src/services/guru/guruTrialCheckExecution.service.ts')
+    const repairs = value.match(/await revertUserProductsFromTrialInactivation\(user\._id, options\)/g) ?? []
 
     expect(repairs).toHaveLength(2)
   })

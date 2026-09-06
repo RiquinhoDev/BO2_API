@@ -137,6 +137,15 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'GuruTrialCheck',
+    capability: implemented(
+      'guru-trial-check',
+      'cron-job',
+      { status: 'verified', reason: 'guru-trial-check-max-effective-operations', limit: MAX_PROVIDER_READ_ITEMS },
+      { status: 'verified', reason: 'GURU_TRIAL_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.syncType === 'pipeline',
     capability: implemented(
       'daily-pipeline',

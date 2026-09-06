@@ -67,7 +67,7 @@ function applyFakeUpdate(product: FakeProduct, update: Record<string, unknown>):
 }
 
 describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
-  test('preserves provider, enrollment-write and user-save order with one item in flight', async () => {
+  test('reads every provider status before the first local mutation', async () => {
     jest.clearAllMocks()
     let active = 0
     let peak = 0
@@ -106,11 +106,12 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     const result = await checkExpiredTrials()
 
     expect(peak).toBe(1)
-    expect(events).toEqual(Array.from({ length: size }, (_, index) => [
-      `provider:${index}`,
-      `products:${index}`,
-      `save:${index}`,
-    ]).flat())
+    const sortedIndexes = Array.from({ length: size }, (_, index) => index)
+      .sort((left, right) => `user-${left}`.localeCompare(`user-${right}`))
+    expect(events).toEqual([
+      ...sortedIndexes.map(index => `provider:${index}`),
+      ...sortedIndexes.map(index => [`products:${index}`, `save:${index}`]).flat(),
+    ])
     expect(result).toEqual({
       checked: size,
       markedForInactivation: size,
@@ -120,7 +121,7 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     })
   })
 
-  test('accounts for each provider failure and continues in input order', async () => {
+  test('fails closed on provider failure without partial local effects', async () => {
     jest.clearAllMocks()
     const users = Array.from({ length: size }, (_, index) => ({
       _id: `user-${index}`,
@@ -137,16 +138,14 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     let call = 0
     mockFetchSubscriptionById.mockImplementation(async () => {
       const index = call++
-      if (index % 10 === 0) throw new Error(`provider-${index}`)
+      if (index === size - 1) throw new Error(`provider-${index}`)
       return { last_status: 'trial' }
     })
 
-    const result = await checkExpiredTrials()
-    const errors = Math.ceil(size / 10)
+    await expect(checkExpiredTrials()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
     expect(mockFetchSubscriptionById).toHaveBeenCalledTimes(size)
-    expect(result.errors).toBe(errors)
-    expect(result.stillInTrial).toBe(size - errors)
-    expect(mockUpdateMany).toHaveBeenCalledTimes((size - errors) * 2)
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(users.every(user => user.save.mock.calls.length === 0)).toBe(true)
   })
 })
 

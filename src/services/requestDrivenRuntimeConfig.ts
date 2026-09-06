@@ -54,6 +54,10 @@ export function isWeeklyTagSnapshotMutableExecutionEnabled(): boolean {
   return getRuntimeConfig().core.weeklyTagSnapshotMutableExecutionEnabled === true
 }
 
+export function isGuruTrialManualExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.guruTrialManualExecutionEnabled === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

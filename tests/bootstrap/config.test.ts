@@ -132,6 +132,7 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     acWebhookSecret: STRONG_AC_WEBHOOK_SECRET,
     authEnforce: true,
     enableDebugRoutes: false,
+    guruTrialManualExecutionEnabled: false,
     allowedOrigins: ['https://extra.example'],
     port: 4321,
     redis: {
@@ -141,6 +142,25 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
       password: 'secret',
     },
   }))
+})
+
+test('Guru manual execution is typed, disabled by default, and strict when supplied', () => {
+  const config = loadConfig(VALID_ENV)
+  expect(config.core.guruTrialManualExecutionEnabled).toBe(false)
+
+  expect(loadConfig({
+    ...VALID_ENV,
+    GURU_TRIAL_MANUAL_EXECUTION_ENABLED: 'true',
+    GURU_USER_TOKEN: 'guru-user-token',
+    GURU_ACCOUNT_TOKEN: 'guru-account-token',
+  }).core.guruTrialManualExecutionEnabled)
+    .toBe(true)
+
+  expect(() => loadConfig({ ...VALID_ENV, GURU_TRIAL_MANUAL_EXECUTION_ENABLED: 'true' }))
+    .toThrow('GURU_TRIAL_MANUAL_EXECUTION_ENABLED requer credenciais Guru completas')
+
+  expect(() => loadConfig({ ...VALID_ENV, GURU_TRIAL_MANUAL_EXECUTION_ENABLED: 'yes' }))
+    .toThrow('GURU_TRIAL_MANUAL_EXECUTION_ENABLED deve ser true ou false')
 })
 
 test('loadConfig preserva defaults loopback apenas fora de producao', () => {
@@ -263,6 +283,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     syncMutableExecutionEnabled: false,
     cronExecutionCleanupMutableExecutionEnabled: false,
     achievementEvaluationMutableExecutionEnabled: false,
+    guruTrialManualExecutionEnabled: false,
     weeklyTagSnapshotMutableExecutionEnabled: false,
     allowedOrigins: config.allowedOrigins,
     port: 3001,

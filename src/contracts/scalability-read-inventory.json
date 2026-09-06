@@ -629,8 +629,8 @@
       "planned": 24,
       "complete": 24,
       "pending": 0,
-      "changed": 20,
-      "alreadyCompliant": 4
+      "changed": 21,
+      "alreadyCompliant": 3
     },
     "entries": [
       {
@@ -826,10 +826,22 @@
       },
       {
         "id": "guru-trials.provider-writes",
-        "file": "src/services/guru/guruTrialService.ts",
-        "start": "export async function syncTrialsFromGuru",
+        "file": "src/services/guru/guruTrialCheckExecution.service.ts",
+        "start": "export async function runSyncTrialsFromGuru",
         "status": "complete",
-        "disposition": "changed"
+        "disposition": "changed",
+        "constraint": "bounded provider pagination and effective identity preflight complete before sequential local writes; failed local writes are counted without falsely succeeding",
+        "evidence": [
+          "tests/services/guru/guruTrialCheckSafety.test.ts:54-100 (dry-run read-only, duplicate conflict before writes)",
+          "tests/services/guru/guruPaginationSafety.test.ts:28-64 (item cap and cursor non-progress fail closed)",
+          "tests/scalability/scaleFinalTask2.contract.test.ts:64-150 (N=1/10/100 effective dedup and ordered writes)"
+        ],
+        "require": [
+          "const prepared = await prepareSync(options)",
+          "if (options.dryRun === true)",
+          "for (const item of prepared)",
+          "beforeMutation(options)"
+        ]
       },
       {
         "id": "activecampaign.manual-actions",
@@ -980,21 +992,22 @@
       },
       {
         "id": "guru-trials.expired-writes",
-        "file": "src/services/guru/guruTrialService.ts",
-        "start": "export async function checkExpiredTrials",
+        "file": "src/services/guru/guruTrialCheckExecution.service.ts",
+        "start": "export async function runCheckExpiredTrials",
         "status": "complete",
-        "disposition": "already-compliant",
-        "constraint": "constrained-sequential: provider read, dependent product writes and terminal user write stay ordered per trial",
+        "disposition": "changed",
+        "constraint": "bounded deterministic candidate snapshot and all provider reads complete before any dependent product or terminal user write; dry-run remains read-only",
         "evidence": [
-          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:69-150 (N=1/10/100, peak=1, order and partial failures)",
-          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:153-205 (status restoration and fail-closed legacy marks)",
+          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:69-150 (N=1/10/100, provider preflight and no partial failure writes)",
+          "tests/services/guru/guruTrialCheckSafety.test.ts:101-147 (provider failure and dry-run no local effects)",
           "tests/security/ops02ReplayRepairOrdering.test.ts:48-63 (products before terminal user state)"
         ],
         "require": [
-          "for (const user of expiredTrials)",
-          "await fetchSubscriptionById(subCode)",
-          "await markUserProductsForInactivation(user._id, user.email)",
-          "await user.save()"
+          "const candidates: ExpiryCandidate[] = []",
+          "const currentSub = await readProvider(options",
+          "const plan = buildPlan(candidates",
+          "if (options.dryRun === true)",
+          "for (const { user, currentStatus } of candidates)"
         ]
       },
       {

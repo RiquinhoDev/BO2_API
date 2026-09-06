@@ -22,6 +22,7 @@ describe('manual cron capabilities', () => {
     ['AchievementEvaluation', 'hotmart', 'achievement-evaluation', 'implemented'],
     ['WeeklyTagSnapshot', 'hotmart', 'weekly-tag-snapshot', 'implemented'],
     ['RenewalAcSync', 'hotmart', 'renewal-ac-sync', 'implemented'],
+    ['GuruTrialCheck', 'guru', 'guru-trial-check', 'implemented'],
     ['StandardSync', 'hotmart', 'unsupported', 'blocked'],
   ] as const)('%s/%s resolves to %s', (name, syncType, capability, status) => {
     const result = getCronManualCapability(job(name, syncType))
@@ -39,6 +40,29 @@ describe('manual cron capabilities', () => {
     const result = getCronManualCapability(job('BackupRenewalAcSync'))
     expect(result.id).toBe('unsupported')
     expect(result.status).toBe('blocked')
+  })
+
+  test('does not grant Guru capability to a name containing the canonical name', () => {
+    const result = getCronManualCapability(job('NightlyGuruTrialCheck', 'guru'))
+    expect(result.id).toBe('unsupported')
+    expect(result.status).toBe('blocked')
+  })
+
+  test('exposes the exact bounded Guru capability metadata', () => {
+    const result = getCronManualCapability(job('GuruTrialCheck', 'guru'))
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'guru-trial-check',
+      status: 'implemented',
+      operation: 'cron-job',
+      cap: expect.objectContaining({ status: 'verified', limit: 20_000 }),
+      idempotency: expect.objectContaining({ status: 'verified' }),
+      killSwitch: expect.objectContaining({
+        status: 'verified',
+        reason: 'GURU_TRIAL_MANUAL_EXECUTION_ENABLED',
+      }),
+      dryRun: expect.objectContaining({ status: 'verified' }),
+    }))
   })
 
   test('exposes bounded Renewal AC capability metadata with canonical identity', () => {

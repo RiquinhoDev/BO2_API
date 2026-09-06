@@ -36,7 +36,7 @@ describe('provider read batch cap wave two wiring', () => {
       "assertProviderReadBatchSize(allSubs.length, 'guru-snapshots-historical')",
     ],
     [
-      'src/services/guru/guruTrialService.ts',
+      'src/services/guru/guruTrialCheckExecution.service.ts',
       "assertProviderReadBatchSize(expiredTrials.length, 'guru-trials-expired')",
     ],
     [
@@ -48,7 +48,7 @@ describe('provider read batch cap wave two wiring', () => {
   })
 
   test('trial expiry query only materializes one item beyond the shared ceiling', () => {
-    expect(source('src/services/guru/guruTrialService.ts')).toContain(
+    expect(source('src/services/guru/guruTrialCheckExecution.service.ts')).toContain(
       '.limit(MAX_PROVIDER_READ_ITEMS + 1)',
     )
   })

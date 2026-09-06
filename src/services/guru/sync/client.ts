@@ -121,6 +121,13 @@ interface GuruListResponse {
   on_last_page?: number
 }
 
+export interface GuruPaginationLimits {
+  readonly maxPages?: number
+  readonly maxItems?: number
+}
+
+const DEFAULT_GURU_MAX_PAGES = 400
+
 interface GuruContactListResponse {
   data?: GuruContact[]
 }
@@ -233,7 +240,8 @@ export async function fetchAllSubscriptionsPaginated(
     status?: string
   },
   // Progresso página-a-página (fetched, totalEsperado) — usado pela barra de progresso do churn live
-  onProgress?: (fetched: number, total: number | null) => void
+  onProgress?: (fetched: number, total: number | null) => void,
+  limits: GuruPaginationLimits = {},
 ): Promise<GuruSubscription[]> {
   logger.info('📡 [GURU SYNC] Buscando TODAS as subscrições (cursor-based pagination)...')
   if (additionalParams?.started_at_ini || additionalParams?.started_at_end) {
@@ -245,10 +253,16 @@ export async function fetchAllSubscriptionsPaginated(
   let hasMore = true
   let pageNumber = 0
   let totalExpected: number | null = null
+  const maxPages = limits.maxPages ?? DEFAULT_GURU_MAX_PAGES
+  const maxItems = limits.maxItems ?? Number.MAX_SAFE_INTEGER
+  const seenCursors = new Set<string>()
 
   while (hasMore) {
     try {
       pageNumber++
+      if (pageNumber > maxPages) {
+        throw new Error(`GURU_PAGINATION_PAGE_LIMIT_EXCEEDED:${maxPages}`)
+      }
 
       // GURU usa cursor-based pagination, não page-based!
       const requestParams: {
@@ -294,20 +308,31 @@ export async function fetchAllSubscriptionsPaginated(
       // Guardar total na primeira página
       if (pageNumber === 1 && typeof totalRows === 'number') {
         totalExpected = totalRows
+        if (totalRows > maxItems) {
+          throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${totalRows}:${maxItems}`)
+        }
         logger.info(`📊 [GURU SYNC] Total esperado: ${totalRows} subscrições`)
       }
 
       logger.info(`📄 [GURU SYNC] Página ${pageNumber}: ${data.length} subscrições | has_more=${hasMorePages} | on_last=${onLastPage} | acumulado=${allSubscriptions.length + data.length}/${totalExpected || '?'}`)
 
-      // Adicionar dados ao array
+      if (allSubscriptions.length + data.length > maxItems) {
+        throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${allSubscriptions.length + data.length}:${maxItems}`)
+      }
+
+      // Adicionar dados ao array only after the bounded page check.
       allSubscriptions.push(...data)
       onProgress?.(allSubscriptions.length, totalExpected)
 
       // Verificar se há mais páginas usando os flags da API
-      if (onLastPage || !hasMorePages || data.length === 0 || !nextCursor) {
+      if (onLastPage || !hasMorePages) {
         hasMore = false
         logger.info('⏹️ [GURU SYNC] Última página alcançada!')
       } else {
+        if (data.length === 0 || !nextCursor || nextCursor === cursor || seenCursors.has(nextCursor)) {
+          throw new Error('GURU_PAGINATION_NON_PROGRESS')
+        }
+        seenCursors.add(nextCursor)
         cursor = nextCursor
         hasMore = true
         logger.info(`➡️ [GURU SYNC] Próximo cursor: ${nextCursor.substring(0, 50)}...`)
@@ -322,7 +347,7 @@ export async function fetchAllSubscriptionsPaginated(
       logger.error('   Status:', details.status)
       logger.error('   URL:', details.url)
       logger.error('   Data:', JSON.stringify(details.data, null, 2))
-      hasMore = false
+      throw error
     }
   }
 
@@ -355,12 +380,13 @@ export async function fetchSubscriptionsByMonth(year: number, month: number): Pr
  * Para criar snapshots históricos precisos
  */
 export async function fetchAllSubscriptionsComplete(
-  onProgress?: (fetched: number, total: number | null) => void
+  onProgress?: (fetched: number, total: number | null) => void,
+  limits?: GuruPaginationLimits,
 ): Promise<GuruSubscription[]> {
   logger.info('📡 [GURU SNAPSHOT] Buscando TODAS as subscrições (SEM FILTROS)...')
 
   // Chamar sem parâmetros = busca tudo
-  return fetchAllSubscriptionsPaginated(undefined, onProgress)
+  return fetchAllSubscriptionsPaginated(undefined, onProgress, limits)
 }
 
 /**

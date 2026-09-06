@@ -4,6 +4,7 @@ const mockGetJobsByType = jest.fn()
 const mockIsScheduledMessagesEnabled = jest.fn()
 const mockIsMessagesEnabled = jest.fn()
 const mockIsWeeklyTagSnapshotMutableExecutionEnabled = jest.fn()
+const mockIsGuruTrialManualExecutionEnabled = jest.fn()
 const mockWeeklyConfig = jest.fn()
 
 jest.mock('../../src/services/cron/scheduler', () => ({
@@ -18,6 +19,7 @@ jest.mock('../../src/services/renewal/discord/planning', () => ({
 }))
 jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
   isWeeklyTagSnapshotMutableExecutionEnabled: mockIsWeeklyTagSnapshotMutableExecutionEnabled,
+  isGuruTrialManualExecutionEnabled: mockIsGuruTrialManualExecutionEnabled,
 }))
 jest.mock('../../src/models/tagMonitoring/WeeklyTagMonitoringConfig', () => ({
   __esModule: true,
@@ -36,6 +38,11 @@ const weeklyJob = {
   ...job,
   name: 'WeeklyTagSnapshot',
 }
+const guruJob = {
+  ...job,
+  name: 'GuruTrialCheck',
+  syncType: 'guru',
+}
 
 function response() {
   return {
@@ -50,6 +57,7 @@ beforeEach(() => {
   mockIsScheduledMessagesEnabled.mockReturnValue(true)
   mockIsMessagesEnabled.mockReturnValue(true)
   mockIsWeeklyTagSnapshotMutableExecutionEnabled.mockReturnValue(false)
+  mockIsGuruTrialManualExecutionEnabled.mockReturnValue(true)
   mockWeeklyConfig.mockResolvedValue({ enabled: true, scope: 'ALL_CONTACTS' })
 })
 
@@ -136,6 +144,31 @@ test.each([
     data: expect.objectContaining({
       jobs: [expect.objectContaining({
         manualExecution: expect.objectContaining({ mutableEnabled: false }),
+      })],
+    }),
+  }))
+})
+
+test('list view exposes the exact Guru manual block reason from the backend switch', async () => {
+  mockGetJobsByType.mockResolvedValue([guruJob])
+  mockIsGuruTrialManualExecutionEnabled.mockReturnValue(false)
+  const res = response()
+
+  await getAllJobs(
+    { query: { syncType: 'guru' } } as unknown as Request,
+    res as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      jobs: [expect.objectContaining({
+        manualExecution: expect.objectContaining({
+          capability: 'guru-trial-check',
+          dryRunSupported: true,
+          mutableEnabled: false,
+          blockedReason: 'Execução manual dos trials Guru desativada',
+        }),
       })],
     }),
   }))

@@ -7,7 +7,6 @@ import type {
   CurseducaIntegration,
   DiscordIntegration,
   FmpIntegration,
-  GuruIntegration,
   HotmartIntegration,
   IntegrationConfig,
   IntegrationConfigs,
@@ -33,6 +32,7 @@ import {
   parseStrongSecret,
   readOptionalString
 } from './configPrimitives'
+import { parseGuru, parseGuruTrialManualExecutionEnabled } from './guruTrialConfig'
 export {
   configuredCredentialGroup,
   parseBooleanFlag,
@@ -143,23 +143,6 @@ function parseCurseduca(env: NodeJS.ProcessEnv): IntegrationConfig<CurseducaInte
     value: {
       ...credentials.value,
       inactivationEnabled,
-    },
-  }
-}
-
-function parseGuru(env: NodeJS.ProcessEnv): IntegrationConfig<GuruIntegration> {
-  const names = ['GURU_USER_TOKEN', 'GURU_ACCOUNT_TOKEN'] as const
-  if (!hasAnyValue(env, names)) return { configured: false }
-
-  return {
-    configured: true,
-    value: {
-      ...(readOptionalString(env, 'GURU_USER_TOKEN')
-        ? { userToken: readOptionalString(env, 'GURU_USER_TOKEN') }
-        : {}),
-      ...(readOptionalString(env, 'GURU_ACCOUNT_TOKEN')
-        ? { accountToken: readOptionalString(env, 'GURU_ACCOUNT_TOKEN') }
-        : {}),
     },
   }
 }
@@ -455,6 +438,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     'CRON_EXECUTION_CLEANUP_MUTABLE_EXECUTION_ENABLED',
   )
   const achievementEvaluationMutableExecutionEnabled = parseBooleanFlag(env.ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED, 'ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED')
+  const integrations = parseIntegrations(env, acWebhookSecret)
+  const guruTrialManualExecutionEnabled = parseGuruTrialManualExecutionEnabled(env, integrations.guru)
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
@@ -463,7 +448,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env, nodeEnv)
   const observability = parseObservability(env, nodeEnv)
-  const integrations = parseIntegrations(env, acWebhookSecret)
   const renewal = parseRenewal(env, integrations)
 
   const core = {
@@ -479,6 +463,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     syncMutableExecutionEnabled,
     cronExecutionCleanupMutableExecutionEnabled,
     achievementEvaluationMutableExecutionEnabled,
+    guruTrialManualExecutionEnabled,
     weeklyTagSnapshotMutableExecutionEnabled: parseBooleanFlag(
       env.WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED,
       'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED',

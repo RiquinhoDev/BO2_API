@@ -113,6 +113,13 @@ POST /api/guru/trials/revert       — reverter (body: { email })
 **Ver/gerir:** Backoffice → Sincronizar Utilizadores → crons. Ou `GET /api/cron/jobs`.
 **Trigger manual:** `POST /api/cron/jobs/:id/trigger` ou botão na UI.
 
+### Segurança do trigger manual
+
+`GURU_TRIAL_MANUAL_EXECUTION_ENABLED=false` é o default e deixa a mutação manual bloqueada.
+Para a activar, definir exactamente `true` e fornecer `GURU_USER_TOKEN` + `GURU_ACCOUNT_TOKEN`; valores
+inválidos ou credenciais incompletas falham no arranque. A pré-visualização manual continua read-only,
+com limites de provider/local, e o caminho automático das 07:00 não depende desta flag.
+
 ---
 
 ## Como Testar End-to-End

@@ -3,6 +3,7 @@ import { HttpError } from '../../../security/errorHandling'
 import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
+  isGuruTrialManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../requestDrivenRuntimeConfig'
@@ -71,6 +72,13 @@ export async function assertManualExecutionEnabled(capability: CronManualCapabil
       status: 503,
       code: 'DISCORD_ROLES_MANUAL_EXECUTION_DISABLED',
       publicMessage: 'Execução manual dos cargos Discord desativada',
+    })
+  }
+  if (capability.id === 'guru-trial-check' && !isGuruTrialManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'GURU_TRIAL_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual dos trials Guru desativada',
     })
   }
 }

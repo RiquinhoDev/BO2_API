@@ -79,7 +79,7 @@ const SPECIFIC_JOB_NAMES = [
 ] as const
 
 function matchesSpecificJob(jobName: string, specificName: string): boolean {
-  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync'
+  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync' || specificName === 'GuruTrialCheck'
     ? jobName === specificName
     : jobName.includes(specificName)
 }
@@ -109,6 +109,32 @@ const arrayOf = (record: Record<string, unknown>, key: string): unknown[] => {
 
 const nestedRecordOf = (record: Record<string, unknown>, key: string): Record<string, unknown> =>
   recordOf(record[key])
+
+function sanitizeGuruTrialPlan(value: unknown): Record<string, unknown> | undefined {
+  const plan = recordOf(value)
+  if (plan.operation !== 'guru-trial-check') return undefined
+  const numericKeys = [
+    'candidates',
+    'synced',
+    'markedForInactivation',
+    'converted',
+    'stillInTrial',
+    'plannedMutations',
+    'errors',
+    'limit',
+    'remaining',
+  ]
+  const safe: Record<string, unknown> = {
+    operation: 'guru-trial-check',
+    dryRun: plan.dryRun === true,
+    truncated: plan.truncated === true,
+    anomaly: plan.anomaly === true,
+  }
+  for (const key of numericKeys) {
+    if (typeof plan[key] === 'number' && Number.isFinite(plan[key])) safe[key] = plan[key]
+  }
+  return safe
+}
 
 const errorMessageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -157,7 +183,7 @@ const defaultDependencies: CronDispatchDependencies = {
   cleanupExecutions: async (options) => (await import('../../../jobs/cronExecutionCleanup.job')).default.run(options),
   weeklyTagSnapshot: async (options) => (await import('../../../jobs/weeklyTagSnapshot.job')).default.run(options),
   clarezaRefresh: async () => (await import('../../../jobs/clareza.job')).default.run(),
-  guruTrialCheck: async () => (await import('../../../jobs/guruTrialCheck.job')).default.run(),
+  guruTrialCheck: async (options) => (await import('../../../jobs/guruTrialCheck.job')).default.run(options),
   syncRenewalOffers,
   runScheduledMessages: async (options) =>
     (await import('../../renewal/discordScheduledMessages.service')).runScheduledMessagesJob(undefined, {
@@ -292,6 +318,15 @@ export class CronJobDispatcher {
       if (job.name.includes('CronExecutionCleanup')) {
         return this.normalizeCleanupExecution(await this.dependencies.cleanupExecutions(options))
       }
+      if (job.name === 'GuruTrialCheck') {
+        const report = recordOf(await this.dependencies.guruTrialCheck(options))
+        const plan = sanitizeGuruTrialPlan(report.plan)
+        return {
+          ...normalizeGenericResult(report),
+          ...(plan ? { plan: plan as never } : {}),
+          ...(booleanOf(report, 'dryRun') === true ? { dryRun: true } : {}),
+        }
+      }
       const runner = this.specificRunner(job.name)
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)
       return normalizeGenericResult(await runner(options))
@@ -322,7 +357,7 @@ export class CronJobDispatcher {
     if (name.includes('CronExecutionCleanup')) return this.dependencies.cleanupExecutions
     if (name === 'WeeklyTagSnapshot') return this.dependencies.weeklyTagSnapshot
     if (name.includes('ClarezaRefresh')) return this.dependencies.clarezaRefresh
-    if (name.includes('GuruTrialCheck')) return this.dependencies.guruTrialCheck
+    if (name === 'GuruTrialCheck') return this.dependencies.guruTrialCheck
     return undefined
   }
 

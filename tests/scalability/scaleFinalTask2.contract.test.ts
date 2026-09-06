@@ -61,7 +61,7 @@ describe.each([1, 10, 100])('Guru trial local set read N=%i', (size) => {
     mockUserUpdateOne.mockResolvedValue({ modifiedCount: 1 })
   })
 
-  test('loads all matching local users once and preserves directed write order', async () => {
+  test('loads effective matching users once and preserves deterministic write order', async () => {
     let active = 0
     let peak = 0
     mockUserUpdateOne.mockImplementation(async () => {
@@ -75,23 +75,29 @@ describe.each([1, 10, 100])('Guru trial local set read N=%i', (size) => {
     const result = await syncTrialsFromGuru()
 
     expect(mockUserFind).toHaveBeenCalledTimes(1)
+    const expectedEmails = Array.from(
+      { length: Math.ceil(size / 2) },
+      (_, index) => `user-${index}@example.test`,
+    ).sort((left, right) => left.localeCompare(right))
     expect(mockUserFind).toHaveBeenCalledWith({
       email: {
-        $in: Array.from({ length: Math.ceil(size / 2) }, (_, index) => `user-${index}@example.test`),
+        $in: expectedEmails,
       },
     })
     expect(mockUserFindOne).not.toHaveBeenCalled()
-    expect(mockUserUpdateOne).toHaveBeenCalledTimes(size)
+    expect(mockUserUpdateOne).toHaveBeenCalledTimes(Math.ceil(size / 2))
     expect(mockUserUpdateOne.mock.calls.map(([filter]) => filter._id)).toEqual(
-      Array.from({ length: size }, (_, index) => `user-${Math.floor(index / 2)}`),
+      Array.from({ length: Math.ceil(size / 2) }, (_, index) => `user-${index}`)
+        .sort((left, right) => left.localeCompare(right)),
     )
     expect(peak).toBe(1)
-    expect(result).toEqual({ synced: size, errors: 0 })
+    expect(result).toEqual({ synced: Math.ceil(size / 2), errors: 0 })
     expect(mockFetchSubscriptionById).not.toHaveBeenCalled()
   })
 
   test('accounts for every failed directed write without stopping later writes', async () => {
-    const failed = new Set(Array.from({ length: size }, (_, index) => index).filter(index => index % 10 === 0))
+    const effectiveSize = Math.ceil(size / 2)
+    const failed = new Set(Array.from({ length: effectiveSize }, (_, index) => index).filter(index => index % 10 === 0))
     let callIndex = 0
     mockUserUpdateOne.mockImplementation(async () => {
       const index = callIndex++
@@ -100,8 +106,8 @@ describe.each([1, 10, 100])('Guru trial local set read N=%i', (size) => {
     })
     const result = await syncTrialsFromGuru()
 
-    expect(mockUserUpdateOne).toHaveBeenCalledTimes(size)
-    expect(result).toEqual({ synced: size - failed.size, errors: failed.size })
+    expect(mockUserUpdateOne).toHaveBeenCalledTimes(effectiveSize)
+    expect(result).toEqual({ synced: effectiveSize - failed.size, errors: failed.size })
   })
 })
 
@@ -149,7 +155,7 @@ describe.each([1, 10, 100])('student movement contractual sequence N=%i', (size)
   })
 })
 
-test('falls back to per-subscription reads when the Guru trial set read fails', async () => {
+test('fails closed without per-subscription escape when the local set read fails', async () => {
   jest.clearAllMocks()
   mockFetchAllSubscriptionsComplete.mockResolvedValue([subscription(0), subscription(1)])
   mockUserFind.mockReturnValue({
@@ -157,12 +163,7 @@ test('falls back to per-subscription reads when the Guru trial set read fails', 
     lean: jest.fn().mockReturnThis(),
     exec: jest.fn().mockRejectedValue(new Error('set-read')),
   })
-  mockUserFindOne
-    .mockReturnValueOnce({ select: jest.fn().mockResolvedValue({ _id: 'user-0' }) })
-    .mockReturnValueOnce({ select: jest.fn().mockRejectedValue(new Error('single-read')) })
-  mockUserUpdateOne.mockResolvedValue({ modifiedCount: 1 })
-
-  await expect(syncTrialsFromGuru()).resolves.toEqual({ synced: 1, errors: 1 })
-  expect(mockUserFindOne).toHaveBeenCalledTimes(2)
-  expect(mockUserUpdateOne).toHaveBeenCalledTimes(1)
+  await expect(syncTrialsFromGuru()).rejects.toMatchObject({ code: 'GURU_TRIAL_EXECUTION_INCOMPLETE' })
+  expect(mockUserFindOne).not.toHaveBeenCalled()
+  expect(mockUserUpdateOne).not.toHaveBeenCalled()
 })
