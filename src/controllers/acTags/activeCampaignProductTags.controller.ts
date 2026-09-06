@@ -4,7 +4,6 @@ import type { Types } from 'mongoose'
 import User from '../../models/user'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
-import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
 import type {
   ActiveCampaignProductSyncInput,
   ActiveCampaignTagMutationInput,
@@ -13,10 +12,16 @@ import { HttpError, internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
 import type { ValidatedRequest } from '../../security/validatedInput'
 import { MAX_PRODUCT_TAG_SYNC_ITEMS } from '../../services/activeCampaign/activeCampaignProductTags.service'
+import { requestIdFrom } from '../../services/activeCampaign/activeCampaignExecution.service'
 import {
-  claimActiveCampaignProductTagMutation,
-  releaseActiveCampaignProductTagMutation,
-} from '../../services/activeCampaign/activeCampaignProductTagClaim.service'
+  applyProductTagOperation,
+  removeProductTagOperation,
+  syncProductTagOperation,
+} from '../../services/activeCampaign/activeCampaignProductTagOperations.service'
+import {
+  ActiveCampaignProductTagMutationIndeterminateError,
+  ActiveCampaignProductTagMutationInProgressError,
+} from '../../services/activeCampaign/activeCampaignProductTagExecution.service'
 import { isActiveCampaignTagMutationEnabled } from '../../services/requestDrivenRuntimeConfig'
 
 type SyncUserProduct = {
@@ -33,24 +38,13 @@ type ProductSyncResults = {
   errors: Array<{ userProductId: Types.ObjectId; error: string; inProgress?: boolean }>
 }
 
-const MUTATION_CLAIM_LOST_MESSAGE =
-  'Mutação de tag ActiveCampaign perdeu o claim antes de guardar o estado local'
-
-function mutationClaimLostError(): HttpError {
-  return new HttpError({
-    status: 409,
-    code: 'AC_PRODUCT_TAG_MUTATION_LOST',
-    publicMessage: MUTATION_CLAIM_LOST_MESSAGE,
-  })
-}
-
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
 export const applyTagToUserProduct = async (
   input: ActiveCampaignTagMutationInput,
-  _req: ValidatedRequest,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
@@ -69,7 +63,7 @@ export const applyTagToUserProduct = async (
     if (!userId || !productId || !tagName) {
       res.status(400).json({
         success: false,
-        message: 'Missing required fields: userId, productId, tagName'
+        message: 'Missing required fields: userId, productId, tagName',
       })
       return
     }
@@ -80,7 +74,7 @@ export const applyTagToUserProduct = async (
     if (!user || !product) {
       res.status(404).json({
         success: false,
-        message: 'User ou Product não encontrado'
+        message: 'User ou Product não encontrado',
       })
       return
     }
@@ -104,7 +98,7 @@ export const applyTagToUserProduct = async (
         userId,
         productId,
         status: 'ACTIVE',
-        progress: { percentage: 0 }
+        progress: { percentage: 0 },
       })
     }
 
@@ -120,78 +114,30 @@ export const applyTagToUserProduct = async (
       return
     }
 
-    if (userProduct._id === undefined) {
-      next(mutationClaimLostError())
+    const outcome = await applyProductTagOperation({
+      user,
+      product,
+      userProduct,
+      tagName,
+      requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+    })
+    if (outcome.kind === 'completed' || outcome.kind === 'replay') {
+      res.json(outcome.result)
       return
     }
-    const claim = await claimActiveCampaignProductTagMutation(userProduct._id, `tag:${tagName}`)
-    if (claim === undefined) {
-      next(new HttpError({
-        status: 409,
-        code: 'AC_PRODUCT_TAG_MUTATION_IN_PROGRESS',
-        publicMessage: 'Mutação de tag ActiveCampaign já está em processamento',
-      }))
+    if (outcome.kind === 'in-progress') {
+      next(new ActiveCampaignProductTagMutationInProgressError())
       return
     }
-
-    let terminalCommitted = false
-    try {
-      const acContact = await activeCampaignService.findOrCreateContact(user.email)
-      // ✅ USAR TAG DIRETAMENTE (sem adicionar prefixo!)
-      // Tag já vem formatada: "OGI_V1 - Inativo 7d"
-      await activeCampaignService.addTag(user.email, tagName)  // ← SEM PREFIXO!
-
-      const terminalUpdate = {
-        $set: {
-          'activeCampaignData.contactId': acContact.id,
-          'activeCampaignData.lastSyncAt': new Date(),
-          ...(!userProduct.activeCampaignData
-            ? { 'activeCampaignData.lists': [] }
-            : {}),
-        },
-        $addToSet: { 'activeCampaignData.tags': tagName },
-        $unset: { 'activeCampaignData.mutationClaim': 1 },
-      }
-      const committed = await UserProduct.findOneAndUpdate(
-        {
-          _id: userProduct._id,
-          'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
-        },
-        terminalUpdate,
-        { new: true },
-      )
-      if (!committed) {
-        next(mutationClaimLostError())
-        return
-      }
-      terminalCommitted = true
-
-      res.json({
-        success: true,
-        data: {
-          userId: user._id,
-          productId: product._id,
-          productName: product.name,
-          tagApplied: tagName,
-          acContactId: acContact.id
-        },
-      })
-    } finally {
-      if (!terminalCommitted) {
-        await releaseActiveCampaignProductTagMutation(userProduct._id, claim.ownerId)
-      }
-    }
-    return
+    next(new ActiveCampaignProductTagMutationIndeterminateError())
   } catch (error: unknown) {
     next(internalError('Erro ao aplicar tag', 'AC_PRODUCT_TAG_APPLY_FAILED', error))
-    return
   }
 }
 
-
 export const removeTagFromUserProduct = async (
   input: ActiveCampaignTagMutationInput,
-  _req: ValidatedRequest,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
@@ -210,7 +156,7 @@ export const removeTagFromUserProduct = async (
     if (!userId || !productId || !tagName) {
       res.status(400).json({
         success: false,
-        message: 'Missing required fields: userId, productId, tagName'
+        message: 'Missing required fields: userId, productId, tagName',
       })
       return
     }
@@ -220,7 +166,7 @@ export const removeTagFromUserProduct = async (
     if (!userProduct || !userProduct.activeCampaignData) {
       res.status(404).json({
         success: false,
-        message: 'UserProduct ou AC data não encontrado'
+        message: 'UserProduct ou AC data não encontrado',
       })
       return
     }
@@ -242,65 +188,24 @@ export const removeTagFromUserProduct = async (
       return
     }
 
-    if (userProduct._id === undefined) {
-      next(mutationClaimLostError())
+    const outcome = await removeProductTagOperation({
+      user,
+      userProduct,
+      productId,
+      tagName,
+      requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+    })
+    if (outcome.kind === 'completed' || outcome.kind === 'replay') {
+      res.json(outcome.result)
       return
     }
-    const claim = await claimActiveCampaignProductTagMutation(userProduct._id, `tag:${tagName}`)
-    if (claim === undefined) {
-      next(new HttpError({
-        status: 409,
-        code: 'AC_PRODUCT_TAG_MUTATION_IN_PROGRESS',
-        publicMessage: 'Mutação de tag ActiveCampaign já está em processamento',
-      }))
+    if (outcome.kind === 'in-progress') {
+      next(new ActiveCampaignProductTagMutationInProgressError())
       return
     }
-
-    let terminalCommitted = false
-    try {
-      await activeCampaignService.findOrCreateContact(user.email)
-      // ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
-      const removed = await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
-      if (!removed) {
-        next(internalError(
-          'Erro ao remover tag',
-          'AC_PRODUCT_TAG_REMOVE_FAILED',
-          new Error('ActiveCampaign não confirmou a remoção da tag'),
-        ))
-        return
-      }
-
-      const committed = await UserProduct.findOneAndUpdate(
-        {
-          _id: userProduct._id,
-          'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
-        },
-        {
-          $pull: { 'activeCampaignData.tags': tagName },
-          $set: { 'activeCampaignData.lastSyncAt': new Date() },
-          $unset: { 'activeCampaignData.mutationClaim': 1 },
-        },
-        { new: true },
-      )
-      if (!committed) {
-        next(mutationClaimLostError())
-        return
-      }
-      terminalCommitted = true
-
-      res.json({
-        success: true,
-        data: { userId, productId, tagRemoved: tagName },
-      })
-    } finally {
-      if (!terminalCommitted) {
-        await releaseActiveCampaignProductTagMutation(userProduct._id, claim.ownerId)
-      }
-    }
-    return
+    next(new ActiveCampaignProductTagMutationIndeterminateError())
   } catch (error: unknown) {
     next(internalError('Erro ao remover tag', 'AC_PRODUCT_TAG_REMOVE_FAILED', error))
-    return
   }
 }
 
@@ -314,7 +219,7 @@ export {
  */
 export const syncProductTags = async (
   input: ActiveCampaignProductSyncInput,
-  _req: ValidatedRequest,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
@@ -369,67 +274,43 @@ export const syncProductTags = async (
       return
     }
 
-    const results: ProductSyncResults = {
-      synced: 0,
-      failed: 0,
-      errors: []
-    }
+    const results: ProductSyncResults = { synced: 0, failed: 0, errors: [] }
+    const requestId = requestIdFrom(req.get('x-request-id') || res.locals.correlationId)
 
     for (const up of userProducts) {
       try {
         const user = up.userId
-        if (!user.email) {
-          throw new Error('Utilizador sem email para sincronização ActiveCampaign')
-        }
-        const claim = await claimActiveCampaignProductTagMutation(up._id, 'sync')
-        if (claim === undefined) {
-          results.failed++
-          results.errors.push({
-            userProductId: up._id,
-            error: 'Mutação de tag ActiveCampaign já está em processamento',
-            inProgress: true,
-          })
+        if (!user.email) throw new Error('Utilizador sem email para sincronização ActiveCampaign')
+
+        const outcome = await syncProductTagOperation({
+          user: { _id: user._id, email: user.email },
+          userProduct: up,
+          requestId,
+        })
+        if (outcome.kind === 'completed' || outcome.kind === 'replay') {
+          results.synced++
           continue
         }
-        let terminalCommitted = false
-        try {
-          const acContact = await activeCampaignService.findOrCreateContact(user.email)
-          const committed = await UserProduct.findOneAndUpdate(
-            {
-              _id: up._id,
-              'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
-            },
-            {
-              $set: {
-                'activeCampaignData.contactId': acContact.id,
-                'activeCampaignData.lastSyncAt': new Date(),
-              },
-              $unset: { 'activeCampaignData.mutationClaim': 1 },
-            },
-            { new: true },
-          )
-          if (!committed) throw new Error(MUTATION_CLAIM_LOST_MESSAGE)
 
-          terminalCommitted = true
-          results.synced++
-        } finally {
-          if (!terminalCommitted) {
-            await releaseActiveCampaignProductTagMutation(up._id, claim.ownerId)
-          }
-        }
+        results.failed++
+        results.errors.push({
+          userProductId: up._id,
+          error: outcome.kind === 'in-progress'
+            ? 'Mutação de tag ActiveCampaign já está em processamento'
+            : 'Resultado da mutação ActiveCampaign ficou indeterminado; requer reconciliação',
+          ...(outcome.kind === 'in-progress' ? { inProgress: true } : {}),
+        })
       } catch (error: unknown) {
         results.failed++
         results.errors.push({
           userProductId: up._id,
-          error: errorMessage(error, 'Erro ao sincronizar UserProduct')
+          error: errorMessage(error, 'Erro ao sincronizar UserProduct'),
         })
       }
     }
 
     res.json(successResponse(results, { productId, productName: product.name }))
-    return
   } catch (error: unknown) {
     next(internalError('Erro ao sincronizar tags', 'AC_PRODUCT_TAG_SYNC_FAILED', error))
-    return
   }
 }

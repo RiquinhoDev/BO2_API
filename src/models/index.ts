@@ -17,6 +17,7 @@ import './cron/CronExecution'
 import './cron/CronExecutionLog'
 import './cron/PipelineExecution'
 import './ActiveCampaignExecution'
+import './ActiveCampaignProductTagReceipt'
 import './HotmartWebhook'
 import './IdsDiferentes'
 import './InactivationList'
@@ -57,6 +58,7 @@ export { default as CronExecution } from './cron/CronExecution'
 export { default as CronExecutionLog } from './cron/CronExecutionLog'
 export { default as PipelineExecution } from './cron/PipelineExecution'
 export { default as ActiveCampaignExecution } from './ActiveCampaignExecution'
+export { default as ActiveCampaignProductTagReceipt } from './ActiveCampaignProductTagReceipt'
 export { default as HotmartWebhook } from './HotmartWebhook'
 export { default as IdsDiferentes } from './IdsDiferentes'
 export { default as InactivationList } from './InactivationList'
@@ -115,6 +117,7 @@ const modelsToCheck = [
   'CronExecutionLog',
   'PipelineExecution',
   'ActiveCampaignExecution',
+  'ActiveCampaignProductTagReceipt',
   'TagRule',
   'UserAction',
   'UserHistory',

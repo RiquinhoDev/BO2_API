@@ -7,32 +7,34 @@ type ExpectedRoute = {
   idempotency: string
 }
 
+const PRODUCT_TAG_RECEIPT_REASON = 'activecampaign-product-tag-durable-receipt-and-owner-fence'
+
 const routes: readonly ExpectedRoute[] = [
   {
     path: '/api/activecampaign/product-tags/apply',
     cap: { status: 'not-applicable', reason: 'not-caller-bulk' },
-    idempotency: 'activecampaign-product-tag-provider-link-create-not-atomic',
+    idempotency: PRODUCT_TAG_RECEIPT_REASON,
   },
   {
     path: '/api/activecampaign/product-tags/remove',
     cap: { status: 'not-applicable', reason: 'not-caller-bulk' },
-    idempotency: 'activecampaign-product-tag-provider-remove-replay-unverified',
+    idempotency: PRODUCT_TAG_RECEIPT_REASON,
   },
   {
     path: '/api/activecampaign/products/:productId/tags/sync',
     cap: { status: 'verified', reason: 'activecampaign-product-tag-sync-query-cap', limit: 200 },
-    idempotency: 'activecampaign-product-tag-contact-create-not-atomic',
+    idempotency: 'activecampaign-product-tag-durable-receipt-and-owner-fence',
   },
 ]
 
-describe('OPS-02 ActiveCampaign product-tag gaps', () => {
-  test.each(routes)('$path records its factual unresolved protections', (route) => {
+describe('OPS-02 ActiveCampaign product-tag protections', () => {
+  test.each(routes)('$path records its durable replay protection', (route) => {
     const result = getOps02Decision('POST', route.path)
     if (!result) throw new Error(`Missing OPS-02 decision for POST ${route.path}`)
 
     expect(result.cap).toEqual(route.cap)
     expect(result.idempotency).toEqual({
-      status: 'required',
+      status: 'verified',
       reason: route.idempotency,
     })
     expect(result.killSwitch).toEqual({
@@ -43,7 +45,7 @@ describe('OPS-02 ActiveCampaign product-tag gaps', () => {
       status: 'verified',
       reason: 'dry-run-no-provider-or-local-mutation',
     })
-    expect(result.status).toBe('needs-hardening')
+    expect(result.status).toBe('reviewed')
   })
 
   test('product sync is not covered by the central bulk guard', () => {

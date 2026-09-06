@@ -21,6 +21,8 @@ const mockRemoveTag = jest.fn()
 const mockSave = jest.fn()
 const mockFindByIdAndUpdate = jest.fn()
 const mockFindOneAndUpdate = jest.fn()
+const mockExecuteProductTag = jest.fn()
+const mockCompletedReceipts = new Map<string, unknown>()
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
@@ -61,6 +63,11 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
     removeTag: mockRemoveTag,
   },
 }))
+
+jest.mock('../../src/services/activeCampaign/activeCampaignProductTagExecution.service', () => {
+  const actual = jest.requireActual('../../src/services/activeCampaign/activeCampaignProductTagExecution.service')
+  return { ...actual, executeActiveCampaignProductTag: mockExecuteProductTag }
+})
 
 jest.mock('../../src/models/cron/CronExecutionLog', () => ({
   __esModule: true,
@@ -148,6 +155,38 @@ installTestRuntimeConfigHooks()
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockCompletedReceipts.clear()
+  mockExecuteProductTag.mockImplementation(async (options: {
+    operation: string
+    identity: string
+    requestId: string
+    run: (context: {
+      lease: { assertOwnership: () => void }
+      provider: { begin: () => void; success: () => void }
+    }) => Promise<unknown>
+  }) => {
+    const key = `${options.operation}:${options.identity}:${options.requestId}`
+    if (mockCompletedReceipts.has(key)) {
+      return { kind: 'replay', result: mockCompletedReceipts.get(key) }
+    }
+    try {
+      const result = await options.run({
+        lease: { assertOwnership: jest.fn() },
+        provider: { begin: jest.fn(), success: jest.fn() },
+      })
+      mockCompletedReceipts.set(key, result)
+      return { kind: 'completed', result }
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Mutação de tag ActiveCampaign já está em processamento') {
+        return { kind: 'in-progress' }
+      }
+      if (error instanceof Error && 'code' in error
+        && error.code === 'AC_PRODUCT_TAG_MUTATION_INDETERMINATE') {
+        return { kind: 'indeterminate' }
+      }
+      throw error
+    }
+  })
   mockFindProductById.mockResolvedValue({ _id: productId, name: 'Course' })
   mockFindUserById.mockResolvedValue({ _id: userId, email: 'student@example.test' })
   mockFindUserProduct.mockResolvedValue({
@@ -274,6 +313,26 @@ test('concurrent apply requests serialize on the local UserProduct claim', async
   expect(claimAttempts).toBe(2)
 })
 
+test('apply replays the same request without repeating provider or local mutation', async () => {
+  resetRuntimeConfigForTests()
+  useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
+
+  const first = await request(applyApp())
+    .post('/apply?__bo2_offline_loopback=1')
+    .set('x-request-id', 'product-tag-apply-replay')
+    .send({ userId, productId, tagName: 'COURSE - Active' })
+  const replay = await request(applyApp())
+    .post('/apply?__bo2_offline_loopback=1')
+    .set('x-request-id', 'product-tag-apply-replay')
+    .send({ userId, productId, tagName: 'COURSE - Active' })
+
+  expect(first.status).toBe(200)
+  expect(replay.status).toBe(200)
+  expect(mockFindOrCreateContact).toHaveBeenCalledTimes(1)
+  expect(mockAddTag).toHaveBeenCalledTimes(1)
+  expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(2)
+})
+
 test('concurrent remove requests serialize on the local UserProduct claim', async () => {
   resetRuntimeConfigForTests()
   useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
@@ -303,6 +362,26 @@ test('concurrent remove requests serialize on the local UserProduct claim', asyn
   expect(response.map((item) => item.status).sort()).toEqual([200, 409])
   expect(mockRemoveTag).toHaveBeenCalledTimes(1)
   expect(claimAttempts).toBe(2)
+})
+
+test('remove replays the same request without repeating provider or local mutation', async () => {
+  resetRuntimeConfigForTests()
+  useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
+
+  const first = await request(removeApp())
+    .post('/remove?__bo2_offline_loopback=1')
+    .set('x-request-id', 'product-tag-remove-replay')
+    .send({ userId, productId, tagName: 'COURSE - Active' })
+  const replay = await request(removeApp())
+    .post('/remove?__bo2_offline_loopback=1')
+    .set('x-request-id', 'product-tag-remove-replay')
+    .send({ userId, productId, tagName: 'COURSE - Active' })
+
+  expect(first.status).toBe(200)
+  expect(replay.status).toBe(200)
+  expect(mockFindOrCreateContact).toHaveBeenCalledTimes(1)
+  expect(mockRemoveTag).toHaveBeenCalledTimes(1)
+  expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(2)
 })
 
 test('concurrent sync requests serialize each local UserProduct and report in-progress items', async () => {
@@ -346,6 +425,29 @@ test('concurrent sync requests serialize each local UserProduct and report in-pr
   expect(claimAttempts).toBe(2)
 })
 
+test('sync replays the same request without repeating provider or local mutation', async () => {
+  resetRuntimeConfigForTests()
+  useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
+  mockFindUserProducts.mockImplementation(() => populatedQuery([{
+    _id: '507f1f77bcf86cd799439012',
+    userId: { _id: userId, email: 'student@example.test' },
+  }]))
+
+  const first = await request(syncApp())
+    .post(`/sync/${productId}?__bo2_offline_loopback=1`)
+    .set('x-request-id', 'product-tag-sync-replay')
+    .send({})
+  const replay = await request(syncApp())
+    .post(`/sync/${productId}?__bo2_offline_loopback=1`)
+    .set('x-request-id', 'product-tag-sync-replay')
+    .send({})
+
+  expect(first.status).toBe(200)
+  expect(replay.status).toBe(200)
+  expect(mockFindOrCreateContact).toHaveBeenCalledTimes(1)
+  expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(2)
+})
+
 test('apply does not commit tags after a lease takeover', async () => {
   resetRuntimeConfigForTests()
   useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
@@ -363,8 +465,8 @@ test('apply does not commit tags after a lease takeover', async () => {
     .post('/apply?__bo2_offline_loopback=1')
     .send({ userId, productId, tagName: 'COURSE - Active' })
 
-  expect(response.status).toBe(409)
-  expect(response.body).toEqual({ code: 'AC_PRODUCT_TAG_MUTATION_LOST' })
+  expect(response.status).toBe(503)
+  expect(response.body).toEqual({ code: 'AC_PRODUCT_TAG_MUTATION_INDETERMINATE' })
   expect(mockAddTag).toHaveBeenCalledTimes(1)
   expect(mockSave).not.toHaveBeenCalled()
   expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
@@ -397,8 +499,8 @@ test('remove does not commit tag removal after a lease takeover', async () => {
     .post('/remove?__bo2_offline_loopback=1')
     .send({ userId, productId, tagName: 'COURSE - Active' })
 
-  expect(response.status).toBe(409)
-  expect(response.body).toEqual({ code: 'AC_PRODUCT_TAG_MUTATION_LOST' })
+  expect(response.status).toBe(503)
+  expect(response.body).toEqual({ code: 'AC_PRODUCT_TAG_MUTATION_INDETERMINATE' })
   expect(mockRemoveTag).toHaveBeenCalledTimes(1)
   expect(mockSave).not.toHaveBeenCalled()
   expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
@@ -440,7 +542,7 @@ test('sync does not commit contact data after a lease takeover', async () => {
   expect(response.body.data.errors).toEqual([
     expect.objectContaining({
       userProductId: '507f1f77bcf86cd799439012',
-      error: 'Mutação de tag ActiveCampaign perdeu o claim antes de guardar o estado local',
+      error: 'Resultado da mutação ActiveCampaign ficou indeterminado; requer reconciliação',
     }),
   ])
   expect(mockFindOrCreateContact).toHaveBeenCalledTimes(1)

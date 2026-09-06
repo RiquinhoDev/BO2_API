@@ -9,6 +9,8 @@ const mockFindUserProducts = jest.fn()
 const mockFindByIdAndUpdate = jest.fn()
 const mockFindOneAndUpdate = jest.fn()
 const mockFindOrCreateContact = jest.fn()
+const mockExecuteProductTag = jest.fn()
+const mockCompletedReceipts = new Map<string, unknown>()
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
@@ -60,6 +62,11 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   },
 }))
 
+jest.mock('../../src/services/activeCampaign/activeCampaignProductTagExecution.service', () => {
+  const actual = jest.requireActual('../../src/services/activeCampaign/activeCampaignProductTagExecution.service')
+  return { ...actual, executeActiveCampaignProductTag: mockExecuteProductTag }
+})
+
 jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
   __esModule: true,
   default: {},
@@ -82,6 +89,38 @@ function populatedQuery(rows: object[]) {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockCompletedReceipts.clear()
+  mockExecuteProductTag.mockImplementation(async (options: {
+    operation: string
+    identity: string
+    requestId: string
+    run: (context: {
+      lease: { assertOwnership: () => void }
+      provider: { begin: () => void; success: () => void }
+    }) => Promise<unknown>
+  }) => {
+    const key = `${options.operation}:${options.identity}:${options.requestId}`
+    if (mockCompletedReceipts.has(key)) {
+      return { kind: 'replay', result: mockCompletedReceipts.get(key) }
+    }
+    try {
+      const result = await options.run({
+        lease: { assertOwnership: jest.fn() },
+        provider: { begin: jest.fn(), success: jest.fn() },
+      })
+      mockCompletedReceipts.set(key, result)
+      return { kind: 'completed', result }
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Mutação de tag ActiveCampaign já está em processamento') {
+        return { kind: 'in-progress' }
+      }
+      if (error instanceof Error && 'code' in error
+        && error.code === 'AC_PRODUCT_TAG_MUTATION_INDETERMINATE') {
+        return { kind: 'indeterminate' }
+      }
+      throw error
+    }
+  })
   mockFindProductById.mockResolvedValue({
     _id: '507f191e810c19729de860ea',
     name: 'Course',

@@ -58,7 +58,7 @@ export class ActiveCampaignExecutionInProgressError extends HttpError {
 export class ActiveCampaignExecutionOwnershipError extends Error {
   readonly code = 'AC_ACTIVE_CAMPAIGN_EXECUTION_OWNERSHIP_LOST'
 
-  constructor(operation: ActiveCampaignExecutionOperation) {
+  constructor(operation: string) {
     super(`Execução ActiveCampaign perdeu a posse de ${operation}`)
     this.name = 'ActiveCampaignExecutionOwnershipError'
   }
@@ -219,13 +219,14 @@ export async function renewActiveCampaignExecution(
   if (!updated) throw new ActiveCampaignExecutionOwnershipError(operation)
 }
 
-interface ActiveCampaignExecutionLeaseOptions {
+export interface ActiveCampaignExecutionLeaseOptions {
   intervalMs?: number
   now?: () => Date
+  renew?: (at: Date) => Promise<void>
 }
 
 export function startActiveCampaignExecutionLease(
-  operation: ActiveCampaignExecutionOperation,
+  operation: string,
   ownerId: string,
   options: ActiveCampaignExecutionLeaseOptions = {},
 ): ActiveCampaignExecutionLease {
@@ -239,7 +240,9 @@ export function startActiveCampaignExecutionLease(
     if (stopped || renewalInFlight || lostError) return
     renewalInFlight = true
     try {
-      await renewActiveCampaignExecution(operation, ownerId, at)
+      await (options.renew
+        ? options.renew(at)
+        : renewActiveCampaignExecution(operation as ActiveCampaignExecutionOperation, ownerId, at))
     } catch (error: unknown) {
       lostError = error instanceof ActiveCampaignExecutionOwnershipError
         ? error

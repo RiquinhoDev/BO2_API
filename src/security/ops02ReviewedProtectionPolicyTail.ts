@@ -163,8 +163,8 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
     'POST /api/activecampaign/product-tags/apply',
     {
       idempotency: {
-        status: 'required',
-        reason: 'activecampaign-product-tag-provider-link-create-not-atomic',
+        status: 'verified',
+        reason: 'activecampaign-product-tag-durable-receipt-and-owner-fence',
       },
       killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
       dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
@@ -174,8 +174,8 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
     'POST /api/activecampaign/product-tags/remove',
     {
       idempotency: {
-        status: 'required',
-        reason: 'activecampaign-product-tag-provider-remove-replay-unverified',
+        status: 'verified',
+        reason: 'activecampaign-product-tag-durable-receipt-and-owner-fence',
       },
       killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
       dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
@@ -190,8 +190,8 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
         limit: MAX_BULK_OPERATION_ITEMS,
       },
       idempotency: {
-        status: 'required',
-        reason: 'activecampaign-product-tag-contact-create-not-atomic',
+        status: 'verified',
+        reason: 'activecampaign-product-tag-durable-receipt-and-owner-fence',
       },
       killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
       dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
