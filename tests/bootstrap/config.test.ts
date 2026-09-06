@@ -203,6 +203,12 @@ test('snapshot semanal mutável fica desligado por omissão e exige flag tipada'
     .toBe(true)
 })
 
+test('execução mutável manual de Renewal AC fica desligada por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).renewal.manualExecutionEnabled).toBe(false)
+  expect(loadConfig({ ...VALID_ENV, RENEWAL_AC_MANUAL_EXECUTION_ENABLED: 'true' }).renewal.manualExecutionEnabled)
+    .toBe(true)
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -512,6 +518,7 @@ test('renewal settings are parsed once into the typed startup boundary', () => {
 
   expect(config.renewal).toEqual({
     acSyncEnabled: true,
+    manualExecutionEnabled: false,
     writeDatesEnabled: true,
     writeTagsEnabled: true,
     processRefundsEnabled: true,

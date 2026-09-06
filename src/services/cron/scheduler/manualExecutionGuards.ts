@@ -8,6 +8,7 @@ import {
 } from '../../requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../renewal/discord/planning'
+import { isManualExecutionEnabled } from '../../renewal/renewalAcSync.service'
 import type { CronManualCapability } from './manualCapabilities'
 
 export async function assertManualExecutionEnabled(capability: CronManualCapability): Promise<void> {
@@ -55,6 +56,13 @@ export async function assertManualExecutionEnabled(capability: CronManualCapabil
       status: 503,
       code: 'CRON_DISCORD_SCHEDULED_MESSAGES_DISABLED',
       publicMessage: 'Mensagens Discord agendadas desativadas',
+    })
+  }
+  if (capability.id === 'renewal-ac-sync' && !isManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'RENEWAL_AC_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual do sync AC de renovação desativada',
     })
   }
 }

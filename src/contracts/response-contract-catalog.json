@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:128",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:130",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:178",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:180",
     "frontConsumer": null
   },
   {
@@ -2272,7 +2272,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:68",
+    "evidence": "src/routes/renewalAc.routes.ts:69",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2283,7 +2283,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:48",
+    "evidence": "src/routes/renewalAc.routes.ts:49",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4263,7 +4263,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:105",
+    "evidence": "src/routes/renewalAc.routes.ts:106",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4275,7 +4275,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:129",
+    "evidence": "src/routes/renewalAc.routes.ts:132",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4286,7 +4286,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:120",
+    "evidence": "src/routes/renewalAc.routes.ts:123",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4297,7 +4297,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:79",
+    "evidence": "src/routes/renewalAc.routes.ts:80",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4308,7 +4308,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:89",
+    "evidence": "src/routes/renewalAc.routes.ts:90",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {

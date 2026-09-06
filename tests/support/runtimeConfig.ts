@@ -71,6 +71,7 @@ export function createTestRuntimeConfig(options: {
     },
     renewal: {
       acSyncEnabled: false,
+      manualExecutionEnabled: false,
       writeDatesEnabled: false,
       writeTagsEnabled: false,
       processRefundsEnabled: false,

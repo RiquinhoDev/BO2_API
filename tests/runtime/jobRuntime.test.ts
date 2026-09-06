@@ -48,6 +48,7 @@ const config = (nodeEnv: AppConfig['nodeEnv']): AppConfig => ({
   },
   renewal: {
     acSyncEnabled: false,
+    manualExecutionEnabled: false,
     writeDatesEnabled: false,
     writeTagsEnabled: false,
     processRefundsEnabled: false,

@@ -19,6 +19,7 @@ import {
 } from '../../../services/requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../../services/renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../../services/renewal/discord/planning'
+import { isManualExecutionEnabled } from '../../../services/renewal/renewalAcSync.service'
 import WeeklyTagMonitoringConfig from '../../../models/tagMonitoring/WeeklyTagMonitoringConfig'
 
 interface WeeklyManualState {
@@ -43,6 +44,7 @@ function manualMutableEnabled(
   if (capability.id === 'discord-scheduled-messages') {
     return { enabled: isScheduledMessagesEnabled() && isMessagesEnabled() }
   }
+  if (capability.id === 'renewal-ac-sync') return { enabled: isManualExecutionEnabled() }
   return { enabled: false }
 }
 

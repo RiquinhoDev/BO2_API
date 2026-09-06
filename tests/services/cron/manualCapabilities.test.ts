@@ -21,6 +21,7 @@ describe('manual cron capabilities', () => {
     ['CronExecutionCleanup', 'hotmart', 'cron-execution-cleanup', 'implemented'],
     ['AchievementEvaluation', 'hotmart', 'achievement-evaluation', 'implemented'],
     ['WeeklyTagSnapshot', 'hotmart', 'weekly-tag-snapshot', 'implemented'],
+    ['RenewalAcSync', 'hotmart', 'renewal-ac-sync', 'implemented'],
     ['StandardSync', 'hotmart', 'unsupported', 'blocked'],
   ] as const)('%s/%s resolves to %s', (name, syncType, capability, status) => {
     const result = getCronManualCapability(job(name, syncType))
@@ -32,6 +33,30 @@ describe('manual cron capabilities', () => {
     const result = getCronManualCapability(job('FooWeeklyTagSnapshot'))
     expect(result.id).toBe('unsupported')
     expect(result.status).toBe('blocked')
+  })
+
+  test('does not grant Renewal AC capability to a name containing the canonical name', () => {
+    const result = getCronManualCapability(job('BackupRenewalAcSync'))
+    expect(result.id).toBe('unsupported')
+    expect(result.status).toBe('blocked')
+  })
+
+  test('exposes bounded Renewal AC capability metadata with canonical identity', () => {
+    const result = getCronManualCapability(job('RenewalAcSync'))
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'renewal-ac-sync',
+      status: 'implemented',
+      operation: 'cron-job',
+      cap: expect.objectContaining({ status: 'verified' }),
+      idempotency: expect.objectContaining({ status: 'verified' }),
+      killSwitch: expect.objectContaining({
+        status: 'verified',
+        reason: 'RENEWAL_AC_MANUAL_EXECUTION_ENABLED',
+      }),
+      dryRun: expect.objectContaining({ status: 'verified' }),
+    }))
+    expect(result.identity(job('RenewalAcSync'))).toBe('cron-job:507f1f77bcf86cd799439011')
   })
 
   test('exposes the exact bounded cleanup capability metadata', () => {

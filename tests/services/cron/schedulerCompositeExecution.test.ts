@@ -24,6 +24,9 @@ jest.mock('../../../src/services/renewal/discordScheduledMessages.service', () =
 jest.mock('../../../src/services/renewal/discord/planning', () => ({
   isMessagesEnabled: jest.fn(() => true),
 }))
+jest.mock('../../../src/services/renewal/renewalAcSync.service', () => ({
+  isManualExecutionEnabled: jest.fn(),
+}))
 
 import CronJobConfig from '../../../src/models/SyncModels/CronJobConfig'
 import {
@@ -38,6 +41,7 @@ import { isMessagesEnabled } from '../../../src/services/renewal/discord/plannin
 import { isScheduledMessagesEnabled } from '../../../src/services/renewal/discordScheduledMessages.service'
 import { HttpError } from '../../../src/security/errorHandling'
 import WeeklyTagMonitoringConfig from '../../../src/models/tagMonitoring/WeeklyTagMonitoringConfig'
+import { isManualExecutionEnabled } from '../../../src/services/renewal/renewalAcSync.service'
 
 const findById = jest.mocked(CronJobConfig.findById)
 const findOne = jest.mocked(CronJobConfig.findOne)
@@ -49,6 +53,7 @@ const runWithReceipt = jest.mocked(runCompositeExecutionWithReceipt)
 const messagesEnabled = jest.mocked(isMessagesEnabled)
 const scheduledMessagesEnabled = jest.mocked(isScheduledMessagesEnabled)
 const weeklyConfig = jest.mocked(WeeklyTagMonitoringConfig.getConfig)
+const renewalManualEnabled = jest.mocked(isManualExecutionEnabled)
 
 function job(syncType: 'pipeline' | 'hotmart' | 'discord' = 'pipeline', name = 'Daily Pipeline') {
   return {
@@ -69,6 +74,7 @@ beforeEach(() => {
   weeklyConfig.mockResolvedValue({ enabled: true, scope: 'ALL_CONTACTS' } as never)
   messagesEnabled.mockReturnValue(true)
   scheduledMessagesEnabled.mockReturnValue(true)
+  renewalManualEnabled.mockReturnValue(true)
   findById.mockResolvedValue(job() as never)
   findOne.mockResolvedValue(job() as never)
   runWithReceipt.mockImplementation(async (options) => options.run({
@@ -283,6 +289,46 @@ test('pipeline dry-run bypasses receipt and job/history writes', async () => {
   })
   expect(runWithReceipt).not.toHaveBeenCalled()
   expect(executor.execute).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dryRun: true }))
+})
+
+test('Renewal AC manual dry-run bypasses receipt and forwards dry-run to the concrete runner', async () => {
+  const executor = {
+    execute: jest.fn(async (_job: unknown, context: { dryRun?: boolean }) => ({
+      success: true,
+      duration: 0,
+      stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 0 },
+      dryRun: context.dryRun,
+      plan: { operation: 'renewal-ac-sync', dryRun: true },
+    })),
+  }
+  const renewalJob = job('hotmart', 'RenewalAcSync')
+  findById.mockResolvedValue(renewalJob as never)
+  const service = new CronManagementService(executor as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+
+  await expect(service.executeJobManually(id, id, { dryRun: true })).resolves.toMatchObject({
+    dryRun: true,
+    plan: { operation: 'renewal-ac-sync' },
+  })
+  expect(runWithReceipt).not.toHaveBeenCalled()
+  expect(executor.execute).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dryRun: true }))
+})
+
+test('Renewal AC mutable manual execution fails closed when its dedicated switch is off', async () => {
+  renewalManualEnabled.mockReturnValue(false)
+  const executor = { execute: jest.fn() }
+  const renewalJob = job('hotmart', 'RenewalAcSync')
+  findById.mockResolvedValue(renewalJob as never)
+  const service = new CronManagementService(executor as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+
+  await expect(service.executeJobManually(id, id, { requestId: 'renewal-disabled' }))
+    .rejects.toMatchObject({
+      code: 'RENEWAL_AC_MANUAL_EXECUTION_DISABLED',
+      status: 503,
+    })
+  expect(runWithReceipt).not.toHaveBeenCalled()
+  expect(executor.execute).not.toHaveBeenCalled()
 })
 
 test('manual Discord scheduled messages use their own capability and durable receipt', async () => {

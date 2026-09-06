@@ -69,7 +69,7 @@ export interface CronExecutionResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan
 }
 
 export interface DailyPipelinePlan {
@@ -129,6 +129,23 @@ export interface WeeklyTagSnapshotPlan {
   limit: number
   truncated: boolean
   /** Lower bound of contacts beyond the bounded sample; never an exact count. */
+  remaining: number
+}
+
+export interface RenewalAcSyncPlan {
+  operation: 'renewal-ac-sync'
+  dryRun: true
+  windowHours: number
+  classChangesSeen: number
+  anomalyAborted: boolean
+  planned: number
+  blocked: number
+  skippedDuplicates: number
+  refundReverts: number
+  overCap: boolean
+  limit: number
+  truncated: boolean
+  /** Lower bound of source rows beyond the bounded sample. */
   remaining: number
 }
 

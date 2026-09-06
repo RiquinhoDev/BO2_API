@@ -1,4 +1,5 @@
 import type { CompositeExecutionOperation } from '../../../models/CompositeExecutionReceipt'
+import { MAX_PROVIDER_READ_ITEMS } from '../../../security/providerReadBatchPolicy'
 
 export type CronManualCapabilityStatus = 'implemented' | 'blocked'
 
@@ -81,7 +82,7 @@ const capabilityEntries: readonly {
   capability: CronManualCapability
 }[] = [
   {
-    matches: job => job.name.includes('CronExecutionCleanup'),
+    matches: job => job.name === 'CronExecutionCleanup',
     capability: implemented(
       'cron-execution-cleanup',
       'cron-job',
@@ -90,7 +91,7 @@ const capabilityEntries: readonly {
     ),
   },
   {
-    matches: job => job.name.includes('AchievementEvaluation'),
+    matches: job => job.name === 'AchievementEvaluation',
     capability: implemented(
       'achievement-evaluation',
       'cron-job',
@@ -109,12 +110,21 @@ const capabilityEntries: readonly {
     ),
   },
   {
-    matches: job => job.name.includes('DiscordScheduledMessages'),
+    matches: job => job.name === 'DiscordScheduledMessages',
     capability: implemented(
       'discord-scheduled-messages',
       'cron-job',
       { status: 'verified', reason: 'discord-scheduled-messages-max-rules', limit: 50 },
       { status: 'verified', reason: 'DISCORD_SCHEDULED_MESSAGES_ENABLED+DISCORD_MESSAGES_ENABLED' },
+    ),
+  },
+  {
+    matches: job => job.name === 'RenewalAcSync',
+    capability: implemented(
+      'renewal-ac-sync',
+      'cron-job',
+      { status: 'verified', reason: 'renewal-ac-sync-max-planning-and-refund-inputs', limit: MAX_PROVIDER_READ_ITEMS },
+      { status: 'verified', reason: 'RENEWAL_AC_MANUAL_EXECUTION_ENABLED' },
     ),
   },
   {

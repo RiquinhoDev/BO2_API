@@ -19,9 +19,7 @@ import type {
   SlackIntegration,
   StudentSummaryIntegration,
 } from './configTypes'
-
 export type { AppConfig } from './configTypes'
-
 import {
   configuredCredentialGroup,
   DEFAULT_LOG_DIRECTORY,
@@ -35,7 +33,6 @@ import {
   parseStrongSecret,
   readOptionalString
 } from './configPrimitives'
-
 export {
   configuredCredentialGroup,
   parseBooleanFlag,
@@ -62,13 +59,11 @@ function parseActiveCampaign(
     }
     return { configured: false }
   }
-
   const apiUrl = parseRequiredUrl(env.AC_API_URL, 'AC_API_URL')
   const apiKey = readOptionalString(env, 'AC_API_KEY')
   if (!apiKey) throw new Error('CONFIG_INVALIDA: AC_API_KEY e obrigatorio')
   const clarezaList = readOptionalString(env, 'AC_LIST_CLAREZA')
   const ogiList = readOptionalString(env, 'AC_LIST_OGI')
-
   return {
     configured: true,
     value: {
@@ -276,6 +271,10 @@ function parseMessageChannels(value: string | undefined): readonly string[] {
 
 function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs): RenewalConfig {
   const acSyncEnabled = parseBooleanFlag(env.RENEWAL_AC_SYNC_ENABLED, 'RENEWAL_AC_SYNC_ENABLED')
+  const manualExecutionEnabled = parseBooleanFlag(
+    env.RENEWAL_AC_MANUAL_EXECUTION_ENABLED,
+    'RENEWAL_AC_MANUAL_EXECUTION_ENABLED',
+  )
   const writeDatesEnabled = parseBooleanFlag(env.RENEWAL_AC_WRITE_DATES, 'RENEWAL_AC_WRITE_DATES')
   const writeTagsEnabled = parseBooleanFlag(env.RENEWAL_AC_WRITE_TAGS, 'RENEWAL_AC_WRITE_TAGS')
   const processRefundsEnabled = parseBooleanFlag(
@@ -352,6 +351,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
 
   return {
     acSyncEnabled,
+    manualExecutionEnabled,
     writeDatesEnabled,
     writeTagsEnabled,
     processRefundsEnabled,

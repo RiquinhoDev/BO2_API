@@ -7,7 +7,7 @@ installTestRuntimeConfigHooks()
 
 jest.mock('../../src/services/renewal/renewalAcSync.service', () => ({
   approveChanges: jest.fn(async () => 0),
-  executePlan: jest.fn(async () => ({
+  executeManualPlan: jest.fn(async () => ({
     attempted: 0,
     applied: 0,
     alreadyInSync: 0,
@@ -43,7 +43,7 @@ import renewalAcRouter from '../../src/routes/renewalAc.routes'
 const renewalAcService = jest.requireMock(
   '../../src/services/renewal/renewalAcSync.service',
 ) as {
-  executePlan: jest.Mock
+  executeManualPlan: jest.Mock
   revertChange: jest.Mock
 }
 
@@ -115,13 +115,15 @@ test.each(routes)('$name rejects a nested Mongo operator', async (route) => {
 })
 
 test('execute preserves actor from the validated body', async () => {
-  const execute = renewalAcService.executePlan
+  const execute = renewalAcService.executeManualPlan
   execute.mockClear()
 
   await callRoute(routes[0], { actor: 'reviewer@example.test' }).expect(200)
 
   expect(execute).toHaveBeenCalledWith(expect.objectContaining({
     executedBy: 'reviewer@example.test',
+    actorId: 'reviewer@example.test',
+    requestId: 'renewal-ac-validation-id',
   }))
 })
 

@@ -15,13 +15,17 @@ import logger from '../../utils/logger'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
+import { HttpError } from '../../security/errorHandling'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
+import { MAX_PROVIDER_READ_ITEMS } from '../../security/providerReadBatchPolicy'
+import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const REFUND_STATUSES = ['REFUNDED', 'CHARGEBACK'] as const
+export const MAX_RENEWAL_REFUND_SALES = MAX_PROVIDER_READ_ITEMS
 
 export interface DetectedRefund {
   email: string
@@ -153,6 +157,13 @@ async function fetchRefundedSales(
 
       for (const item of extractSalesItems(response.data)) {
         salesChecked += 1
+        if (salesChecked > MAX_RENEWAL_REFUND_SALES) {
+          throw new HttpError({
+            status: 413,
+            code: 'RENEWAL_AC_REFUND_SCAN_CAP_EXCEEDED',
+            publicMessage: 'Leitura de reembolsos Renewal AC excede o limite permitido',
+          })
+        }
 
         const productId = extractProductIdFromSale(item)
         if (!productId || productId !== hotmartProductId) continue
@@ -182,11 +193,19 @@ async function fetchRefundedSales(
  * Detecta reembolsos Hotmart recentes do OGI e marca os UserProducts.
  * Escreve apenas metadata.refunded/refundedAt na nossa BD.
  */
-export async function detectHotmartRefunds(windowDays: number = 30): Promise<RefundDetectionReport> {
+export async function detectHotmartRefunds(
+  windowDays: number = 30,
+  options: { phaseHooks?: CronExecutionPhaseHooks } = {},
+): Promise<RefundDetectionReport> {
   const accessToken = await getHotmartAccessToken()
   const { hotmartProductId, objectId: ogiObjectId } = await resolveOgiProduct()
 
-  const { salesChecked, refunds } = await fetchRefundedSales(accessToken, hotmartProductId, windowDays)
+  const { salesChecked, refunds: unsortedRefunds } = await fetchRefundedSales(accessToken, hotmartProductId, windowDays)
+  const refunds = unsortedRefunds.sort((left, right) =>
+    left.refundDate.getTime() - right.refundDate.getTime()
+    || left.email.localeCompare(right.email)
+    || (left.transaction || '').localeCompare(right.transaction || '')
+    || left.transactionStatus.localeCompare(right.transactionStatus))
 
   const report: RefundDetectionReport = {
     windowDays,
@@ -209,6 +228,8 @@ export async function detectHotmartRefunds(windowDays: number = 30): Promise<Ref
       continue
     }
 
+    options.phaseHooks?.localMutationStarted()
+    options.phaseHooks?.assertOwnership?.()
     const result = await UserProduct.updateOne(
       {
         userId: user._id,

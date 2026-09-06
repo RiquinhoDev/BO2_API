@@ -1,0 +1,89 @@
+const mockAxiosGet = jest.fn()
+const mockProductFindOne = jest.fn()
+const mockUserFindOne = jest.fn()
+const mockUserProductUpdateOne = jest.fn()
+const mockGetHotmartAccessToken = jest.fn()
+
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: { get: mockAxiosGet },
+}))
+jest.mock('../../src/models/product/Product', () => ({
+  __esModule: true,
+  default: { findOne: mockProductFindOne },
+}))
+jest.mock('../../src/models/user', () => ({
+  __esModule: true,
+  default: { findOne: mockUserFindOne },
+}))
+jest.mock('../../src/models/UserProduct', () => ({
+  __esModule: true,
+  default: { updateOne: mockUserProductUpdateOne },
+}))
+jest.mock('../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers', () => ({
+  getHotmartAccessToken: mockGetHotmartAccessToken,
+}))
+jest.mock('../../src/config/runtimeConfig', () => ({
+  getRuntimeConfig: () => ({ renewal: { hotmartOgiProductId: 'hotmart-product' } }),
+}))
+
+import { MAX_PROVIDER_READ_ITEMS } from '../../src/security/providerReadBatchPolicy'
+import { detectHotmartRefunds } from '../../src/services/renewal/hotmartRefunds.service'
+
+function query<T>(result: T) {
+  const chain = {
+    select: jest.fn(),
+    lean: jest.fn(),
+    exec: jest.fn().mockResolvedValue(result),
+  }
+  chain.select.mockReturnValue(chain)
+  chain.lean.mockReturnValue(chain)
+  return chain
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockGetHotmartAccessToken.mockResolvedValue('token')
+  mockProductFindOne.mockReturnValue(query({ _id: 'ogi-id', hotmartProductId: 'hotmart-product' }))
+  mockUserFindOne.mockReturnValue(query({ _id: 'user-id' }))
+  mockUserProductUpdateOne.mockResolvedValue({ modifiedCount: 1 })
+})
+
+test('refund provider scan rejects the cap sentinel before local writes', async () => {
+  mockAxiosGet.mockResolvedValue({
+    data: { items: Array.from({ length: MAX_PROVIDER_READ_ITEMS + 1 }, () => ({})) },
+  })
+
+  await expect(detectHotmartRefunds()).rejects.toMatchObject({
+    status: 413,
+    code: 'RENEWAL_AC_REFUND_SCAN_CAP_EXCEEDED',
+  })
+  expect(mockUserProductUpdateOne).not.toHaveBeenCalled()
+})
+
+test('refund local writes run behind the execution phase hook', async () => {
+  mockAxiosGet.mockResolvedValue({
+    data: {
+      items: [{
+        purchase: {
+          product: { id: 'hotmart-product' },
+          buyer: { email: 'buyer@example.test' },
+          transaction: 'transaction-1',
+          approved_date: 1_700_000_000_000,
+        },
+      }],
+    },
+  })
+  const phaseHooks = {
+    localMutationStarted: jest.fn(),
+    assertOwnership: jest.fn(),
+    providerStarted: jest.fn(),
+    providerSucceeded: jest.fn(),
+  }
+
+  await detectHotmartRefunds(30, { phaseHooks })
+
+  expect(phaseHooks.localMutationStarted).toHaveBeenCalledTimes(1)
+  expect(phaseHooks.assertOwnership).toHaveBeenCalledTimes(1)
+  expect(mockUserProductUpdateOne).toHaveBeenCalledTimes(1)
+})

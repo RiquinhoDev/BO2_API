@@ -30,6 +30,9 @@ import User from '../../../models/user'
 import UserProduct from '../../../models/UserProduct'
 import Product from '../../../models/product/Product'
 import { parseTurmaName, resolveAccessEnd } from '../turmaParser'
+import { HttpError } from '../../../security/errorHandling'
+import { MAX_PROVIDER_READ_ITEMS } from '../../../security/providerReadBatchPolicy'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 // ─────────────────────────────────────────────────────────────
 // SWITCHES E CONFIG (validados no boot; consultados em runtime)
@@ -38,6 +41,7 @@ import { parseTurmaName, resolveAccessEnd } from '../turmaParser'
 const renewalConfig = () => getRuntimeConfig().renewal
 
 export const isMasterEnabled = () => renewalConfig().acSyncEnabled
+export const isManualExecutionEnabled = () => renewalConfig().manualExecutionEnabled
 export const isWriteDatesEnabled = () => renewalConfig().writeDatesEnabled
 export const isWriteTagsEnabled = () => renewalConfig().writeTagsEnabled
 export const isProcessRefundsEnabled = () => renewalConfig().processRefundsEnabled
@@ -45,6 +49,7 @@ export const isAutoExecuteEnabled = () => renewalConfig().autoExecute
 
 export const expiryFieldId = () => renewalConfig().expiryFieldId
 export const maxChangesPerRun = () => renewalConfig().maxChangesPerRun
+export const MAX_RENEWAL_PLAN_INPUTS = MAX_PROVIDER_READ_ITEMS
 
 // Frescura: PLANNED expira em 24h; APPROVED (revisto por humano) em 48h.
 export const PLANNED_TTL_HOURS = 24
@@ -137,11 +142,13 @@ async function hasLivingChange(sourceRef: string, action: string): Promise<boole
 // EXPIRAÇÃO DE PLANOS VELHOS (freshness — 13.5)
 // ─────────────────────────────────────────────────────────────
 
-export async function expireStaleChanges(): Promise<number> {
+export async function expireStaleChanges(phaseHooks?: CronExecutionPhaseHooks): Promise<number> {
   const now = Date.now()
   const plannedCutoff = new Date(now - PLANNED_TTL_HOURS * 60 * 60 * 1000)
   const approvedCutoff = new Date(now - APPROVED_TTL_HOURS * 60 * 60 * 1000)
 
+  phaseHooks?.localMutationStarted()
+  phaseHooks?.assertOwnership?.()
   const res = await RenewalAcChange.updateMany(
     {
       $or: [
@@ -159,6 +166,8 @@ export async function expireStaleChanges(): Promise<number> {
 // ─────────────────────────────────────────────────────────────
 
 export interface PlanReport {
+  operation: 'renewal-ac-sync'
+  dryRun: boolean
   batchId: string
   windowHours: number
   classChangesSeen: number
@@ -169,15 +178,95 @@ export interface PlanReport {
   skippedDuplicates: number
   refundReverts: number
   overCap: boolean
+  limit: number
+  truncated: boolean
+  remaining: number
 }
 
-export async function generatePlan(windowHours: number = 26): Promise<PlanReport> {
-  const batchId = `plan-${new Date().toISOString().replace(/[:.]/g, '-')}`
+export interface PlanInput {
+  ogiId: mongoose.Types.ObjectId | null
+  changes: Array<{
+    _id: mongoose.Types.ObjectId
+    studentId: mongoose.Types.ObjectId
+    className: string
+    previousClassName?: string
+    dateMoved: Date
+  }>
+  refundedUps: Array<{
+    userId: mongoose.Types.ObjectId
+    metadata?: { refundedAt?: Date }
+    platformData?: { renewalAc?: { appliedTurmaTag?: string } }
+  }>
+  truncated: boolean
+  remaining: number
+}
+
+export interface GeneratePlanOptions {
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
+  preparedInputs?: PlanInput
+}
+
+function capExceeded(): HttpError {
+  return new HttpError({
+    status: 413,
+    code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
+    publicMessage: 'Plano Renewal AC excede o limite de leitura permitido',
+  })
+}
+
+export async function preparePlanInputs(windowHours: number): Promise<PlanInput> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000)
   const ogiId = await resolveOgiProductObjectId()
+  const changes = await StudentClassHistory.find({
+    dateMoved: { $gte: since },
+    movedBy: 'Sistema - Sync Automático',
+    previousClassName: { $exists: true, $ne: null }
+  })
+    .sort({ dateMoved: 1, _id: 1 })
+    .limit(MAX_RENEWAL_PLAN_INPUTS + 1)
+    .lean()
+    .exec() as PlanInput['changes']
+
+  const refundedUps = ogiId
+    ? await UserProduct.find({
+      productId: ogiId,
+      platform: 'hotmart',
+      'metadata.refunded': true,
+      'platformData.renewalAc.appliedTurmaTag': { $exists: true, $ne: null }
+    })
+      .sort({ 'metadata.refundedAt': 1, _id: 1 })
+      .limit(MAX_RENEWAL_PLAN_INPUTS + 1)
+      .select('userId metadata platformData')
+      .lean()
+      .exec() as PlanInput['refundedUps']
+    : []
+
+  const changesTruncated = changes.length > MAX_RENEWAL_PLAN_INPUTS
+  const refundsTruncated = refundedUps.length > MAX_RENEWAL_PLAN_INPUTS
+  return {
+    ogiId,
+    changes: changes.slice(0, MAX_RENEWAL_PLAN_INPUTS),
+    refundedUps: refundedUps.slice(0, MAX_RENEWAL_PLAN_INPUTS),
+    truncated: changesTruncated || refundsTruncated,
+    remaining: (changesTruncated ? 1 : 0) + (refundsTruncated ? 1 : 0),
+  }
+}
+
+export async function generatePlan(
+  windowHours: number = 26,
+  options: GeneratePlanOptions = {},
+): Promise<PlanReport> {
+  const batchId = `plan-${new Date().toISOString().replace(/[:.]/g, '-')}`
+  const dryRun = options.dryRun === true
+  const inputs = options.preparedInputs ?? await preparePlanInputs(windowHours)
+  if (inputs.truncated && !dryRun) throw capExceeded()
+  const { ogiId } = inputs
 
   const report: PlanReport = {
-    batchId,
+    operation: 'renewal-ac-sync',
+    dryRun,
+    batchId: dryRun ? 'preview' : batchId,
     windowHours,
     classChangesSeen: 0,
     anomalyAborted: false,
@@ -185,21 +274,21 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
     blocked: 0,
     skippedDuplicates: 0,
     refundReverts: 0,
-    overCap: false
+    overCap: false,
+    limit: MAX_RENEWAL_PLAN_INPUTS,
+    truncated: inputs.truncated,
+    remaining: inputs.remaining,
+  }
+
+  const persistChange = async (change: Record<string, unknown>): Promise<void> => {
+    if (dryRun) return
+    options.phaseHooks?.localMutationStarted()
+    options.phaseHooks?.assertOwnership?.()
+    await RenewalAcChange.create(change)
   }
 
   // 1. Mudanças de turma recentes gravadas pelo sync "1º"
-  const changes = await StudentClassHistory.find({
-    dateMoved: { $gte: since },
-    movedBy: 'Sistema - Sync Automático',
-    previousClassName: { $exists: true, $ne: null }
-  }).lean().exec() as Array<{
-    _id: mongoose.Types.ObjectId
-    studentId: mongoose.Types.ObjectId
-    className: string
-    previousClassName?: string
-    dateMoved: Date
-  }>
+  const changes = inputs.changes
 
   report.classChangesSeen = changes.length
 
@@ -245,7 +334,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
     // 3a. Turma nova sem parse válido (ex: turma genérica) → BLOCKED p/ visibilidade (F4, edge 1)
     if (!newParsed.valid || !newTag) {
       if (!(await hasLivingChange(sourceRef, 'APPLY_TAG'))) {
-        await RenewalAcChange.create({
+        await persistChange({
           ...baseDoc,
           action: 'APPLY_TAG',
           status: 'BLOCKED',
@@ -261,7 +350,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
     if (await hasLivingChange(sourceRef, 'UPDATE_EXPIRY')) {
       report.skippedDuplicates += 1
     } else if (refunded) {
-      await RenewalAcChange.create({
+      await persistChange({
         ...baseDoc,
         action: 'UPDATE_EXPIRY',
         status: 'BLOCKED',
@@ -273,7 +362,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
       const purchaseDate = up?.metadata?.purchaseDate ? new Date(up.metadata.purchaseDate) : null
       const accessEnd = resolveAccessEnd(purchaseDate, ch.className)
       if (accessEnd && isSaneExpiryDate(accessEnd)) {
-        await RenewalAcChange.create({
+        await persistChange({
           ...baseDoc,
           action: 'UPDATE_EXPIRY',
           status: 'PLANNED',
@@ -281,7 +370,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
         })
         report.planned += 1
       } else {
-        await RenewalAcChange.create({
+        await persistChange({
           ...baseDoc,
           action: 'UPDATE_EXPIRY',
           status: 'BLOCKED',
@@ -298,7 +387,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
     if (await hasLivingChange(sourceRef, 'APPLY_TAG')) {
       report.skippedDuplicates += 1
     } else {
-      await RenewalAcChange.create({
+      await persistChange({
         ...baseDoc,
         action: 'APPLY_TAG',
         status: 'PLANNED',
@@ -312,7 +401,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
       if (await hasLivingChange(sourceRef, 'REMOVE_TAG')) {
         report.skippedDuplicates += 1
       } else {
-        await RenewalAcChange.create({
+        await persistChange({
           ...baseDoc,
           action: 'REMOVE_TAG',
           status: 'PLANNED',
@@ -325,16 +414,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
 
   // 4. Reversões por reembolso (Fase 3): tag aplicada pelo BO + reembolso novo
   if (ogiId) {
-    const refundedUps = await UserProduct.find({
-      productId: ogiId,
-      platform: 'hotmart',
-      'metadata.refunded': true,
-      'platformData.renewalAc.appliedTurmaTag': { $exists: true, $ne: null }
-    }).select('userId metadata platformData').lean().exec() as Array<{
-      userId: mongoose.Types.ObjectId
-      metadata?: { refundedAt?: Date }
-      platformData?: { renewalAc?: { appliedTurmaTag?: string } }
-    }>
+    const refundedUps = inputs.refundedUps
 
     for (const up of refundedUps) {
       const appliedTag = up.platformData?.renewalAc?.appliedTurmaTag
@@ -349,7 +429,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
         continue
       }
 
-      await RenewalAcChange.create({
+      await persistChange({
         email: user.email.toLowerCase(),
         userId: up.userId,
         action: 'REMOVE_TAG',

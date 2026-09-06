@@ -1,5 +1,17 @@
 import logger from '../../../utils/logger'
 import mongoose from 'mongoose'
+import { HttpError } from '../../../security/errorHandling'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
+import CronJobConfig from '../../../models/SyncModels/CronJobConfig'
+import {
+  compositeExecutionFingerprint,
+  runCompositeExecutionWithReceipt,
+} from '../../cron/compositeExecution.service'
+import {
+  cronManualFingerprintPayload,
+  getCronManualCapability,
+  type CronManualCapabilityJob,
+} from '../../cron/scheduler/manualCapabilities'
 import RenewalAcChange, { IRenewalAcChange } from '../../../models/RenewalAcChange'
 import UserProduct from '../../../models/UserProduct'
 import activeCampaignService from '../../activeCampaign/activeCampaignService'
@@ -11,19 +23,35 @@ import {
   generatePlan,
   getOgiUserProduct,
   isAutoExecuteEnabled,
+  isManualExecutionEnabled,
   isMasterEnabled,
   isProcessRefundsEnabled,
   isWriteDatesEnabled,
   isWriteTagsEnabled,
   maxChangesPerRun,
+  preparePlanInputs,
   PlanReport,
   PLANNED_TTL_HOURS,
   resolveOgiProductObjectId,
   TURMA_TAG_REGEX
 } from './planning'
-
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function beforeLocalMutation(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.localMutationStarted()
+  phaseHooks?.assertOwnership?.()
+}
+
+function beforeProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.providerStarted()
+  phaseHooks?.assertOwnership?.()
+}
+
+function afterProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.providerSucceeded()
+  phaseHooks?.assertOwnership?.()
 }
 
 export async function approveChanges(ids: string[], approvedBy: string): Promise<number> {
@@ -48,6 +76,8 @@ interface ExecuteOptions {
   includePlanned?: boolean
   batchId?: string
   executedBy: string
+  strictCap?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 interface RenewalChangeQuery {
@@ -71,17 +101,31 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
     return report
   }
 
-  await expireStaleChanges()
-
   const statuses = options.includePlanned ? ['APPROVED', 'PLANNED'] : ['APPROVED']
   const query: RenewalChangeQuery = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
 
   const cap = maxChangesPerRun()
-  const candidates = await RenewalAcChange.find(query)
-    .sort({ status: 1, plannedAt: 1 })
+  const readCandidates = () => RenewalAcChange.find(query)
+    .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(cap + 1)
-    .exec() as IRenewalAcChange[]
+    .exec() as Promise<IRenewalAcChange[]>
+
+  if (options.strictCap) {
+    options.phaseHooks?.assertOwnership?.()
+    const preflightCandidates = await readCandidates()
+    if (preflightCandidates.length > cap) {
+      throw new HttpError({
+        status: 413,
+        code: 'RENEWAL_AC_EXECUTION_CAP_EXCEEDED',
+        publicMessage: 'Execução Renewal AC excede o limite por operação',
+      })
+    }
+  }
+
+  await expireStaleChanges(options.phaseHooks)
+
+  const candidates = await readCandidates()
 
   const toRun = candidates.slice(0, cap)
   report.leftForNextRun = Math.max(0, candidates.length - toRun.length)
@@ -91,14 +135,19 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
   for (const change of toRun) {
     report.attempted += 1
     try {
-      const outcome = await executeSingleChange(change, ogiId, options.executedBy)
+      const outcome = await executeSingleChange(change, ogiId, options.executedBy, options.phaseHooks)
       if (outcome === 'applied') report.applied += 1
       else if (outcome === 'already') report.alreadyInSync += 1
       else if (outcome === 'switch') report.blockedBySwitch += 1
       else report.failed += 1
     } catch (error: unknown) {
+      // Receipt-backed executions must surface provider/local uncertainty to
+      // the composite fence; converting it into a normal report would allow
+      // a partial provider write to look completed on replay.
+      if (options.phaseHooks) throw error
       const message = errorText(error)
       report.failed += 1
+      beforeLocalMutation(options.phaseHooks)
       await RenewalAcChange.updateOne(
         { _id: change._id },
         { $set: { status: 'FAILED', error: message }, $inc: { attempts: 1 } }
@@ -111,14 +160,69 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
   return report
 }
 
+export async function executeManualPlan(options: {
+  includePlanned?: boolean
+  batchId?: string
+  executedBy: string
+  actorId: string
+  requestId: string
+}): Promise<ExecuteReport> {
+  const job = await CronJobConfig.findOne({ name: 'RenewalAcSync' }) as unknown as CronManualCapabilityJob | null
+  if (!job) {
+    throw new HttpError({
+      status: 404,
+      code: 'CRON_JOB_NOT_FOUND',
+      publicMessage: 'Job Renewal AC não encontrado',
+    })
+  }
+  const capability = getCronManualCapability(job)
+  if (capability.status === 'blocked') {
+    throw new HttpError({
+      status: 503,
+      code: 'CRON_JOB_CAPABILITY_BLOCKED',
+      publicMessage: capability.blockedReason || 'Capability manual bloqueada',
+    })
+  }
+  if (!isManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'RENEWAL_AC_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual do sync AC de renovação desativada',
+    })
+  }
+
+  const fingerprint = compositeExecutionFingerprint(options.actorId, {
+    ...cronManualFingerprintPayload(job),
+    entryPoint: 'renewal-ac-execute',
+    includePlanned: options.includePlanned === true,
+    batchId: options.batchId || null,
+  })
+  return runCompositeExecutionWithReceipt({
+    operation: capability.operation,
+    identity: capability.identity(job),
+    actorId: options.actorId,
+    fingerprint,
+    requestId: options.requestId,
+    run: phaseHooks => executePlan({
+      includePlanned: options.includePlanned,
+      batchId: options.batchId,
+      executedBy: options.executedBy,
+      strictCap: true,
+      phaseHooks,
+    }),
+  })
+}
+
 type SingleOutcome = 'applied' | 'already' | 'switch' | 'failed'
 
 async function executeSingleChange(
   change: IRenewalAcChange,
   ogiId: mongoose.Types.ObjectId | null,
-  executedBy: string
+  executedBy: string,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<SingleOutcome> {
   const markApplied = async (before: string | null, note?: string) => {
+    beforeLocalMutation(phaseHooks)
     await RenewalAcChange.updateOne(
       { _id: change._id },
       {
@@ -139,6 +243,7 @@ async function executeSingleChange(
     if (change.userId && ogiId) {
       const up = await getOgiUserProduct(change.userId, ogiId)
       if (up?.metadata?.refunded === true) {
+        beforeLocalMutation(phaseHooks)
         await RenewalAcChange.updateOne(
           { _id: change._id },
           { $set: { status: 'BLOCKED', blockedReason: 'Reembolsado entre o plano e a execução (guard F3)' } }
@@ -150,6 +255,7 @@ async function executeSingleChange(
     const fieldId = change.payload.fieldId || expiryFieldId()
     const current = await activeCampaignService.getContactFieldValue(change.email, fieldId)
     if (!current) {
+      beforeLocalMutation(phaseHooks)
       await RenewalAcChange.updateOne(
         { _id: change._id },
         { $set: { status: 'BLOCKED', blockedReason: 'Contacto não existe na AC — nunca criamos contactos (guard F7)' } }
@@ -162,8 +268,10 @@ async function executeSingleChange(
       return 'already'
     }
 
+    beforeProviderWrite(phaseHooks)
     const ok = await activeCampaignService.updateContactField(change.email, fieldId, change.payload.after || '')
     if (!ok) throw new Error('updateContactField devolveu false')
+    afterProviderWrite(phaseHooks)
     await markApplied(current.value)
     return 'applied'
   }
@@ -172,6 +280,7 @@ async function executeSingleChange(
 
   const tagName = change.payload.tagName || ''
   if (!TURMA_TAG_REGEX.test(tagName)) {
+    beforeLocalMutation(phaseHooks)
     await RenewalAcChange.updateOne(
       { _id: change._id },
       { $set: { status: 'BLOCKED', blockedReason: `Tag "${tagName}" fora da allowlist de turmas OGI (11.4)` } }
@@ -181,6 +290,7 @@ async function executeSingleChange(
 
   const contact = await activeCampaignService.getContactByEmail(change.email)
   if (!contact) {
+    beforeLocalMutation(phaseHooks)
     await RenewalAcChange.updateOne(
       { _id: change._id },
       { $set: { status: 'BLOCKED', blockedReason: 'Contacto não existe na AC — nunca criamos contactos (guard F7)' } }
@@ -197,34 +307,50 @@ async function executeSingleChange(
       await recordAppliedTurmaTag(change, ogiId, tagName)
       return 'already'
     }
+    beforeProviderWrite(phaseHooks)
     await activeCampaignService.addTag(change.email, tagName)
+    afterProviderWrite(phaseHooks)
     await markApplied('não tinha a tag')
-    await recordAppliedTurmaTag(change, ogiId, tagName)
+    await recordAppliedTurmaTag(change, ogiId, tagName, phaseHooks)
     return 'applied'
   }
 
   if (!hasTag) {
     await markApplied('já não tinha a tag', 'Tag já não estava no contacto — nada escrito')
-    await clearAppliedTurmaTagIfMatches(change, ogiId, tagName)
+    await clearAppliedTurmaTagIfMatches(change, ogiId, tagName, phaseHooks)
     return 'already'
   }
+  beforeProviderWrite(phaseHooks)
   const removed = await activeCampaignService.removeTag(change.email, tagName)
   if (!removed) throw new Error('removeTag devolveu false')
+  afterProviderWrite(phaseHooks)
   await markApplied('tinha a tag')
-  await clearAppliedTurmaTagIfMatches(change, ogiId, tagName)
+  await clearAppliedTurmaTagIfMatches(change, ogiId, tagName, phaseHooks)
   return 'applied'
 }
 
-async function recordAppliedTurmaTag(change: IRenewalAcChange, ogiId: mongoose.Types.ObjectId | null, tagName: string) {
+async function recordAppliedTurmaTag(
+  change: IRenewalAcChange,
+  ogiId: mongoose.Types.ObjectId | null,
+  tagName: string,
+  phaseHooks?: CronExecutionPhaseHooks,
+) {
   if (!change.userId || !ogiId) return
+  beforeLocalMutation(phaseHooks)
   await UserProduct.updateOne(
     { userId: change.userId, productId: ogiId, platform: 'hotmart' },
     { $set: { 'platformData.renewalAc': { appliedTurmaTag: tagName, appliedAt: new Date(), changeId: String(change._id) } } }
   )
 }
 
-async function clearAppliedTurmaTagIfMatches(change: IRenewalAcChange, ogiId: mongoose.Types.ObjectId | null, tagName: string) {
+async function clearAppliedTurmaTagIfMatches(
+  change: IRenewalAcChange,
+  ogiId: mongoose.Types.ObjectId | null,
+  tagName: string,
+  phaseHooks?: CronExecutionPhaseHooks,
+) {
   if (!change.userId || !ogiId) return
+  beforeLocalMutation(phaseHooks)
   await UserProduct.updateOne(
     { userId: change.userId, productId: ogiId, platform: 'hotmart', 'platformData.renewalAc.appliedTurmaTag': tagName },
     { $unset: { 'platformData.renewalAc': '' } }
@@ -310,25 +436,62 @@ export interface RenewalAcCronReport {
   execution: ExecuteReport | null
 }
 
-export async function runRenewalAcSyncJob(): Promise<RenewalAcCronReport> {
-  const expired = await expireStaleChanges()
+export interface RenewalAcJobOptions {
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
+  strictCap?: boolean
+}
+
+export async function runRenewalAcSyncJob(options: RenewalAcJobOptions = {}): Promise<RenewalAcCronReport> {
+  const dryRun = options.dryRun === true
+  if (dryRun) {
+    return {
+      expired: 0,
+      refundDetection: null,
+      plan: await generatePlan(26, { dryRun: true }),
+      execution: null,
+    }
+  }
+
+  const preparedInputs = await preparePlanInputs(26)
+  if (preparedInputs.truncated) {
+    throw new HttpError({
+      status: 413,
+      code: 'RENEWAL_AC_PLAN_CAP_EXCEEDED',
+      publicMessage: 'Plano Renewal AC excede o limite de leitura permitido',
+    })
+  }
 
   let refundDetection: RefundDetectionReport | null = null
   if (isProcessRefundsEnabled()) {
     try {
-      refundDetection = await detectHotmartRefunds(30)
+      refundDetection = await detectHotmartRefunds(30, { phaseHooks: options.phaseHooks })
     } catch (error: unknown) {
+      if (options.phaseHooks
+        || (error instanceof HttpError && error.status === 413)
+        || (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError')) {
+        throw error
+      }
       logger.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', errorText(error))
     }
   }
 
-  const plan = await generatePlan(26)
+  const expired = await expireStaleChanges(options.phaseHooks)
+  const plan = await generatePlan(26, {
+    phaseHooks: options.phaseHooks,
+    preparedInputs,
+  })
 
   let execution: ExecuteReport | null = null
   if (plan.anomalyAborted) {
     logger.error('🚨 [RenewalAcSync] Plano abortado por anomalia — nada executado')
   } else if (isMasterEnabled() && isAutoExecuteEnabled()) {
-    execution = await executePlan({ includePlanned: true, executedBy: 'cron:RenewalAcSync' })
+    execution = await executePlan({
+      includePlanned: true,
+      executedBy: 'cron:RenewalAcSync',
+      strictCap: options.strictCap,
+      phaseHooks: options.phaseHooks,
+    })
   } else {
     logger.info('📋 [RenewalAcSync] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
   }

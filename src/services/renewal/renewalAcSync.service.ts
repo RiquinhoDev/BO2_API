@@ -5,6 +5,7 @@ import { buildTurmaTagName, expireStaleChanges, generatePlan } from './activeCam
 import {
   approveChanges,
   executePlan,
+  executeManualPlan,
   getRenewalAcStatus,
   revertChange,
   runRenewalAcSyncJob
@@ -15,6 +16,7 @@ export default {
   generatePlan,
   approveChanges,
   executePlan,
+  executeManualPlan,
   revertChange,
   expireStaleChanges,
   getRenewalAcStatus,

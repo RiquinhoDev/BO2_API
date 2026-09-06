@@ -19,10 +19,11 @@ import {
 } from '../security/renewalAcDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 import { boundedQueryLimit } from '../utils/queryBounds'
+import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
 import {
   approveChanges,
-  executePlan,
+  executeManualPlan,
   generatePlan,
   getRenewalAcStatus,
   revertChange
@@ -112,10 +113,12 @@ router.post('/approve', asyncRoute(async (req: Request, res: Response) => {
  * Por defeito executa APENAS changes APPROVED (revistas por humano).
  */
 router.post('/execute', withValidatedInput(renewalAcExecuteInput, async (input, req, res) => {
-  const report = await executePlan({
+  const report = await executeManualPlan({
     includePlanned: input.body.includePlanned === true,
     batchId: input.body.batchId,
-    executedBy: actor(req, input.body.actor)
+    executedBy: actor(req, input.body.actor),
+    actorId: actor(req, input.body.actor),
+    requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
   })
   res.json(successResponse({ report }))
 }))

@@ -72,6 +72,7 @@ export class CronJobExecutor {
       const result = await this.dependencies.dispatch(job, {
         dryRun: context.dryRun,
         phaseHooks: context.phaseHooks,
+        triggeredBy: context.triggeredBy,
       })
       const duration = this.durationSince(startedAt)
 

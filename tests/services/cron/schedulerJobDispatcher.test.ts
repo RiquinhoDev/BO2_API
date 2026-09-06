@@ -72,6 +72,16 @@ describe('CronJobDispatcher', () => {
     expect(dependencies.fetchHotmart).toHaveBeenCalledTimes(1)
   })
 
+  it('does not dispatch a job whose name only contains RenewalAcSync', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await dispatcher.execute(job('BackupRenewalAcSync'))
+
+    expect(dependencies.runRenewalAcSync).not.toHaveBeenCalled()
+    expect(dependencies.fetchHotmart).toHaveBeenCalledTimes(1)
+  })
+
   it('passes weekly dry-run phases and preserves the exact service data and stats', async () => {
     const dependencies = createDependencies()
     const serviceData = {
@@ -175,6 +185,60 @@ describe('CronJobDispatcher', () => {
       success: false,
       stats: { total: 5, inserted: 0, updated: 4, errors: 1, skipped: 1 }
     })
+  })
+
+  it('passes dry-run and phase options to Renewal AC and returns only its bounded plan fields', async () => {
+    const dependencies = createDependencies()
+    dependencies.runRenewalAcSync.mockResolvedValueOnce({
+      expired: 0,
+      refundDetection: null,
+      plan: {
+        operation: 'renewal-ac-sync',
+        dryRun: true,
+        batchId: 'internal-plan-id',
+        windowHours: 26,
+        classChangesSeen: 3,
+        anomalyAborted: false,
+        planned: 2,
+        blocked: 1,
+        skippedDuplicates: 0,
+        refundReverts: 0,
+        overCap: false,
+        limit: 20_000,
+        truncated: true,
+        remaining: 1,
+      },
+      execution: null,
+    })
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      assertOwnership: jest.fn(),
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+
+    await expect(dispatcher.execute(job('RenewalAcSync'), { dryRun: true, phaseHooks })).resolves.toEqual({
+      success: true,
+      stats: { total: 3, inserted: 2, updated: 0, errors: 0, skipped: 1 },
+      dryRun: true,
+      plan: {
+        operation: 'renewal-ac-sync',
+        dryRun: true,
+        windowHours: 26,
+        classChangesSeen: 3,
+        anomalyAborted: false,
+        planned: 2,
+        blocked: 1,
+        skippedDuplicates: 0,
+        refundReverts: 0,
+        overCap: false,
+        limit: 20_000,
+        truncated: true,
+        remaining: 1,
+      },
+    })
+    expect(dependencies.runRenewalAcSync).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
   })
 
   it.each([
