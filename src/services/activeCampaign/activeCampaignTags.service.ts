@@ -141,6 +141,33 @@ export class ActiveCampaignTagsService {
     }
   }
 
+  async removeTagStrict(email: string, tagName: string): Promise<boolean> {
+    const { verifyDeleteEnabled } = this.transport.ensureAvailable()
+    await this.transport.checkRateLimit()
+    const contact = await this.contacts.getContactByEmail(email)
+    if (!contact) return false
+    const tagId = await this.findTagByName(tagName, true)
+    if (!tagId) return true
+    const linkId = await this.findContactTagId(contact.contact.id, tagId)
+    if (!linkId) return true
+    await this.transport.retryRequest(() =>
+      this.transport.client.delete(`/api/3/contactTags/${linkId}`, {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      }),
+    )
+    if (!verifyDeleteEnabled) return true
+    try {
+      await this.transport.client.get(`/api/3/contactTags/${linkId}`, {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      })
+      return false
+    } catch (error) {
+      this.transport.rethrowIntegrationUnavailable(error)
+      if (axios.isAxiosError(error) && error.response?.status === 404) return true
+      throw error
+    }
+  }
+
   async removeTagBatch(email: string, tagNames: string[], batchSize = 3): Promise<TagBatchResult> {
     this.transport.ensureAvailable()
     const result: TagBatchResult = { success: [], failed: [], total: tagNames.length }
@@ -224,7 +251,7 @@ export class ActiveCampaignTagsService {
     }))
   }
 
-  private async findTagByName(tagName: string): Promise<string | null> {
+  private async findTagByName(tagName: string, strict = false): Promise<string | null> {
     await this.transport.checkRateLimit()
     try {
       const response = await this.transport.retryRequest(() =>
@@ -236,6 +263,7 @@ export class ActiveCampaignTagsService {
       return (response.data.tags || []).find((tag) => tag.tag === tagName)?.id ?? null
     } catch (error) {
       this.transport.rethrowIntegrationUnavailable(error)
+      if (strict) throw error
       logger.error(`Erro ao buscar tag "${tagName}": ${this.transport.formatError(error)}`)
       return null
     }

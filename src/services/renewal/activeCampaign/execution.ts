@@ -15,7 +15,12 @@ import {
 import RenewalAcChange, { IRenewalAcChange } from '../../../models/RenewalAcChange'
 import UserProduct from '../../../models/UserProduct'
 import activeCampaignService from '../../activeCampaign/activeCampaignService'
-import { detectHotmartRefunds, RefundDetectionReport } from '../hotmartRefunds.service'
+import {
+  applyHotmartRefunds,
+  prepareHotmartRefunds,
+  PreparedRefundDetection,
+  RefundDetectionReport,
+} from '../hotmartRefunds.service'
 import {
   APPROVED_TTL_HOURS,
   expireStaleChanges,
@@ -29,31 +34,29 @@ import {
   isWriteDatesEnabled,
   isWriteTagsEnabled,
   maxChangesPerRun,
+  mergePreparedRefunds,
   preparePlanInputs,
   PlanReport,
   PLANNED_TTL_HOURS,
   resolveOgiProductObjectId,
   TURMA_TAG_REGEX
 } from './planning'
+import { preflightExecutionCapacity } from './executionPreflight'
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
-
 function beforeLocalMutation(phaseHooks?: CronExecutionPhaseHooks): void {
   phaseHooks?.localMutationStarted()
   phaseHooks?.assertOwnership?.()
 }
-
 function beforeProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
   phaseHooks?.providerStarted()
   phaseHooks?.assertOwnership?.()
 }
-
 function afterProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
   phaseHooks?.providerSucceeded()
   phaseHooks?.assertOwnership?.()
 }
-
 export async function approveChanges(ids: string[], approvedBy: string): Promise<number> {
   const res = await RenewalAcChange.updateMany(
     { _id: { $in: ids }, status: 'PLANNED' },
@@ -61,7 +64,6 @@ export async function approveChanges(ids: string[], approvedBy: string): Promise
   )
   return res.modifiedCount || 0
 }
-
 export interface ExecuteReport {
   attempted: number
   applied: number
@@ -71,7 +73,6 @@ export interface ExecuteReport {
   leftForNextRun: number
   masterEnabled: boolean
 }
-
 interface ExecuteOptions {
   includePlanned?: boolean
   batchId?: string
@@ -79,12 +80,10 @@ interface ExecuteOptions {
   strictCap?: boolean
   phaseHooks?: CronExecutionPhaseHooks
 }
-
 interface RenewalChangeQuery {
   status: { $in: string[] }
   planBatchId?: string
 }
-
 export async function executePlan(options: ExecuteOptions): Promise<ExecuteReport> {
   const report: ExecuteReport = {
     attempted: 0,
@@ -95,12 +94,10 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
     leftForNextRun: 0,
     masterEnabled: isMasterEnabled()
   }
-
   if (!isMasterEnabled()) {
     logger.info('⛔ [RenewalAcSync] RENEWAL_AC_SYNC_ENABLED != true — execução recusada, nada escrito na AC')
     return report
   }
-
   const statuses = options.includePlanned ? ['APPROVED', 'PLANNED'] : ['APPROVED']
   const query: RenewalChangeQuery = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
@@ -110,19 +107,10 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
     .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(cap + 1)
     .exec() as Promise<IRenewalAcChange[]>
-
   if (options.strictCap) {
     options.phaseHooks?.assertOwnership?.()
-    const preflightCandidates = await readCandidates()
-    if (preflightCandidates.length > cap) {
-      throw new HttpError({
-        status: 413,
-        code: 'RENEWAL_AC_EXECUTION_CAP_EXCEEDED',
-        publicMessage: 'Execução Renewal AC excede o limite por operação',
-      })
-    }
+    await preflightExecutionCapacity()
   }
-
   await expireStaleChanges(options.phaseHooks)
 
   const candidates = await readCandidates()
@@ -288,8 +276,8 @@ async function executeSingleChange(
     return 'failed'
   }
 
-  const contact = await activeCampaignService.getContactByEmail(change.email)
-  if (!contact) {
+  const tagRead = await activeCampaignService.getContactTagsByEmailStrict(change.email)
+  if (!tagRead.contactFound) {
     beforeLocalMutation(phaseHooks)
     await RenewalAcChange.updateOne(
       { _id: change._id },
@@ -298,13 +286,12 @@ async function executeSingleChange(
     return 'failed'
   }
 
-  const currentTags = await activeCampaignService.getContactTagsByEmail(change.email)
-  const hasTag = currentTags.includes(tagName)
+  const hasTag = tagRead.tags.includes(tagName)
 
   if (change.action === 'APPLY_TAG') {
     if (hasTag) {
       await markApplied('já tinha a tag', 'Tag já estava aplicada — nada escrito')
-      await recordAppliedTurmaTag(change, ogiId, tagName)
+      await recordAppliedTurmaTag(change, ogiId, tagName, phaseHooks)
       return 'already'
     }
     beforeProviderWrite(phaseHooks)
@@ -321,7 +308,7 @@ async function executeSingleChange(
     return 'already'
   }
   beforeProviderWrite(phaseHooks)
-  const removed = await activeCampaignService.removeTag(change.email, tagName)
+  const removed = await activeCampaignService.removeTagStrict(change.email, tagName)
   if (!removed) throw new Error('removeTag devolveu false')
   afterProviderWrite(phaseHooks)
   await markApplied('tinha a tag')
@@ -463,9 +450,10 @@ export async function runRenewalAcSyncJob(options: RenewalAcJobOptions = {}): Pr
   }
 
   let refundDetection: RefundDetectionReport | null = null
+  let preparedRefundDetection: PreparedRefundDetection | null = null
   if (isProcessRefundsEnabled()) {
     try {
-      refundDetection = await detectHotmartRefunds(30, { phaseHooks: options.phaseHooks })
+      preparedRefundDetection = await prepareHotmartRefunds(30)
     } catch (error: unknown) {
       if (options.phaseHooks
         || (error instanceof HttpError && error.status === 413)
@@ -476,10 +464,21 @@ export async function runRenewalAcSyncJob(options: RenewalAcJobOptions = {}): Pr
     }
   }
 
+  const planInputs = preparedRefundDetection
+    ? mergePreparedRefunds(preparedInputs, preparedRefundDetection.refundedUps)
+    : preparedInputs
+  if (options.strictCap) {
+    const previewPlan = await generatePlan(26, { dryRun: true, preparedInputs: planInputs })
+    if (!previewPlan.anomalyAborted) await preflightExecutionCapacity(previewPlan.planned)
+  }
+
+  if (preparedRefundDetection) {
+    refundDetection = await applyHotmartRefunds(preparedRefundDetection, { phaseHooks: options.phaseHooks })
+  }
   const expired = await expireStaleChanges(options.phaseHooks)
   const plan = await generatePlan(26, {
     phaseHooks: options.phaseHooks,
-    preparedInputs,
+    preparedInputs: planInputs,
   })
 
   let execution: ExecuteReport | null = null

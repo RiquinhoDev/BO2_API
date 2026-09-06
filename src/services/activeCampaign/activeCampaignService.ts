@@ -100,6 +100,10 @@ class ActiveCampaignService {
     return this.tags.removeTag(email, tagName)
   }
 
+  async removeTagStrict(email: string, tagName: string): Promise<boolean> {
+    return this.tags.removeTagStrict(email, tagName)
+  }
+
   async removeTagBatch(email: string, tagNames: string[], batchSize = 3): Promise<TagBatchResult> {
     return this.tags.removeTagBatch(email, tagNames, batchSize)
   }

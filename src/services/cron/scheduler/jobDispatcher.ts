@@ -301,7 +301,11 @@ export class CronJobDispatcher {
         throw error
       }
       logger.error('Erro ao executar job específico', error)
-      return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: errorMessageOf(error) }
+      return {
+        success: false,
+        stats: { ...EMPTY_STATS, errors: 1 },
+        errorMessage: job.name === 'RenewalAcSync' ? 'Execução Renewal AC falhou' : errorMessageOf(error),
+      }
     }
   }
 
@@ -365,6 +369,9 @@ export class CronJobDispatcher {
         remaining: numberOf(plan, 'remaining'),
       } satisfies RenewalAcSyncPlan
       : undefined
+    const errorMessage = totalKey === 'classChangesSeen' && anomalyAborted
+      ? 'Plano Renewal AC abortado por anomalia'
+      : stringOf(plan, 'anomalyDetail')
     return {
       success: !anomalyAborted && failed === 0,
       stats: {
@@ -374,7 +381,7 @@ export class CronJobDispatcher {
         errors: failed + (anomalyAborted ? 1 : 0),
         skipped: blocked + numberOf(plan, 'skippedDuplicates') + notInGuild
       },
-      errorMessage: stringOf(plan, 'anomalyDetail'),
+      errorMessage,
       ...(dryRun ? { dryRun: true } : {}),
       ...(renewalPlan ? { plan: renewalPlan } : {}),
     }

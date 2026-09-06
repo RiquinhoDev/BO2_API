@@ -44,6 +44,20 @@ export interface RefundDetectionReport {
   refunds: DetectedRefund[]
 }
 
+export interface PreparedRefundUserProduct {
+  _id?: mongoose.Types.ObjectId
+  userId: mongoose.Types.ObjectId
+  metadata?: { refunded?: boolean; refundedAt?: Date }
+  platformData?: { renewalAc?: { appliedTurmaTag?: string } }
+}
+
+export interface PreparedRefundDetection {
+  report: RefundDetectionReport
+  ogiObjectId: mongoose.Types.ObjectId
+  refundedUps: PreparedRefundUserProduct[]
+  pendingMarks: Array<{ userId: mongoose.Types.ObjectId; refundDate: Date }>
+}
+
 function getValue(obj: unknown, path: string): unknown {
   let current = obj
   for (const key of path.split('.')) {
@@ -189,14 +203,7 @@ async function fetchRefundedSales(
   return { salesChecked, refunds: [...refundsByTransaction.values()] }
 }
 
-/**
- * Detecta reembolsos Hotmart recentes do OGI e marca os UserProducts.
- * Escreve apenas metadata.refunded/refundedAt na nossa BD.
- */
-export async function detectHotmartRefunds(
-  windowDays: number = 30,
-  options: { phaseHooks?: CronExecutionPhaseHooks } = {},
-): Promise<RefundDetectionReport> {
+export async function prepareHotmartRefunds(windowDays: number = 30): Promise<PreparedRefundDetection> {
   const accessToken = await getHotmartAccessToken()
   const { hotmartProductId, objectId: ogiObjectId } = await resolveOgiProduct()
 
@@ -217,45 +224,114 @@ export async function detectHotmartRefunds(
     refunds
   }
 
-  for (const refund of refunds) {
-    const user = await User.findOne({ email: refund.email })
+  const emails = [...new Set(refunds.map((refund) => refund.email))]
+  const users = emails.length
+    ? await User.find({ email: { $in: emails } })
+      .sort({ email: 1, _id: 1 })
+      .limit(MAX_RENEWAL_REFUND_SALES + 1)
       .select('_id email')
       .lean()
-      .exec() as { _id: mongoose.Types.ObjectId } | null
+      .exec() as Array<{ _id: mongoose.Types.ObjectId; email: string }>
+    : []
+  if (users.length > MAX_RENEWAL_REFUND_SALES) {
+    throw new HttpError({
+      status: 413,
+      code: 'RENEWAL_AC_REFUND_SCAN_CAP_EXCEEDED',
+      publicMessage: 'Leitura de reembolsos Renewal AC excede o limite permitido',
+    })
+  }
 
+  const userIds = users.map((user) => user._id)
+  const userProducts = userIds.length
+    ? await UserProduct.find({
+      userId: { $in: userIds },
+      productId: ogiObjectId,
+      platform: 'hotmart',
+      'platformData.renewalAc.appliedTurmaTag': { $exists: true, $ne: null },
+    })
+      .sort({ 'metadata.refundedAt': 1, _id: 1 })
+      .limit(MAX_RENEWAL_REFUND_SALES + 1)
+      .select('_id userId metadata platformData')
+      .lean()
+      .exec() as PreparedRefundUserProduct[]
+    : []
+  if (userProducts.length > MAX_RENEWAL_REFUND_SALES) {
+    throw new HttpError({
+      status: 413,
+      code: 'RENEWAL_AC_REFUND_SCAN_CAP_EXCEEDED',
+      publicMessage: 'Leitura de reembolsos Renewal AC excede o limite permitido',
+    })
+  }
+
+  const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]))
+  const productsByUser = new Map<string, PreparedRefundUserProduct>()
+  for (const userProduct of userProducts) {
+    const key = String(userProduct.userId)
+    if (!productsByUser.has(key)) productsByUser.set(key, userProduct)
+  }
+
+  const pendingMarks: PreparedRefundDetection['pendingMarks'] = []
+  const refundedUps: PreparedRefundUserProduct[] = []
+  const pendingByUser = new Set<string>()
+  for (const refund of refunds) {
+    const user = usersByEmail.get(refund.email)
     if (!user) {
       report.usersNotFound += 1
       continue
     }
+    const userProduct = productsByUser.get(String(user._id))
+    if (!userProduct || userProduct.metadata?.refunded === true) {
+      report.alreadyMarked += 1
+      continue
+    }
+    if (pendingByUser.has(String(user._id))) continue
+    pendingByUser.add(String(user._id))
+    pendingMarks.push({ userId: user._id, refundDate: refund.refundDate })
+    refundedUps.push({
+      ...userProduct,
+      metadata: { ...userProduct.metadata, refunded: true, refundedAt: refund.refundDate },
+    })
+  }
 
+  report.newlyMarked = pendingMarks.length
+  return { report, ogiObjectId, refundedUps, pendingMarks }
+}
+
+export async function applyHotmartRefunds(
+  prepared: PreparedRefundDetection,
+  options: { phaseHooks?: CronExecutionPhaseHooks } = {},
+): Promise<RefundDetectionReport> {
+  for (const mark of prepared.pendingMarks) {
     options.phaseHooks?.localMutationStarted()
     options.phaseHooks?.assertOwnership?.()
     const result = await UserProduct.updateOne(
       {
-        userId: user._id,
-        productId: ogiObjectId,
+        userId: mark.userId,
+        productId: prepared.ogiObjectId,
         platform: 'hotmart',
         'metadata.refunded': { $ne: true }
       },
-      {
-        $set: {
-          'metadata.refunded': true,
-          'metadata.refundedAt': refund.refundDate
-        }
-      }
+      { $set: { 'metadata.refunded': true, 'metadata.refundedAt': mark.refundDate } }
     )
-
     if (result.modifiedCount && result.modifiedCount > 0) {
-      report.newlyMarked += 1
-      logger.info(`💸 [HotmartRefunds] Reembolso marcado: ${refund.email} (${refund.transactionStatus}, ${refund.refundDate.toISOString().slice(0, 10)})`)
+      logger.info(`💸 [HotmartRefunds] Reembolso marcado: ${String(mark.userId)} (${mark.refundDate.toISOString().slice(0, 10)})`)
     } else {
-      report.alreadyMarked += 1
+      prepared.report.newlyMarked = Math.max(0, prepared.report.newlyMarked - 1)
+      prepared.report.alreadyMarked += 1
     }
   }
+  logger.info(`💸 [HotmartRefunds] Janela ${prepared.report.windowDays}d: ${prepared.report.refundsFound} reembolsos OGI, ${prepared.report.newlyMarked} novos, ${prepared.report.alreadyMarked} já marcados, ${prepared.report.usersNotFound} sem user`)
 
-  logger.info(`💸 [HotmartRefunds] Janela ${windowDays}d: ${report.refundsFound} reembolsos OGI, ${report.newlyMarked} novos, ${report.alreadyMarked} já marcados, ${report.usersNotFound} sem user`)
+  return prepared.report
+}
 
-  return report
+/** Detecta reembolsos Hotmart recentes do OGI e marca os UserProducts. */
+export async function detectHotmartRefunds(
+  windowDays: number = 30,
+  options: { phaseHooks?: CronExecutionPhaseHooks } = {},
+): Promise<RefundDetectionReport> {
+  const prepared = await prepareHotmartRefunds(windowDays)
+  return applyHotmartRefunds(prepared, options)
 }
 
 export default detectHotmartRefunds

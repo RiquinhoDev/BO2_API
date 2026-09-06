@@ -241,6 +241,41 @@ describe('CronJobDispatcher', () => {
     expect(dependencies.runRenewalAcSync).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
   })
 
+  it('sanitizes Renewal AC anomaly details in the public dispatch contract', async () => {
+    const dependencies = createDependencies()
+    dependencies.runRenewalAcSync.mockResolvedValueOnce({
+      plan: {
+        operation: 'renewal-ac-sync',
+        anomalyAborted: true,
+        anomalyDetail: 'internal count=999 threshold=20',
+        classChangesSeen: 999,
+        planned: 0,
+        blocked: 0,
+        skippedDuplicates: 0,
+        refundReverts: 0,
+        limit: 20_000,
+        truncated: false,
+        remaining: 0,
+      },
+      execution: null,
+    })
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('RenewalAcSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Plano Renewal AC abortado por anomalia',
+    })
+  })
+
+  it('sanitizes Renewal AC runner failures while retaining internal logging only', async () => {
+    const dependencies = createDependencies()
+    dependencies.runRenewalAcSync.mockRejectedValueOnce(new Error('internal provider token and database details'))
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('RenewalAcSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução Renewal AC falhou',
+    })
+  })
+
   it.each([
     ['hotmart', 'fetchHotmart'],
     ['curseduca', 'fetchCurseduca']

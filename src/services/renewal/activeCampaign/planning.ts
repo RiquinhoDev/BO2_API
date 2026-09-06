@@ -194,11 +194,28 @@ export interface PlanInput {
   }>
   refundedUps: Array<{
     userId: mongoose.Types.ObjectId
-    metadata?: { refundedAt?: Date }
+    metadata?: { refunded?: boolean; refundedAt?: Date }
     platformData?: { renewalAc?: { appliedTurmaTag?: string } }
   }>
+  refundedUserIds: string[]
   truncated: boolean
   remaining: number
+}
+
+export function mergePreparedRefunds(
+  inputs: PlanInput,
+  additionalRefundedUps: PlanInput['refundedUps'],
+): PlanInput {
+  const seen = new Set(inputs.refundedUps.map((up) => String(up.userId)))
+  const merged = [...inputs.refundedUps]
+  const refundedUserIds = new Set(inputs.refundedUserIds)
+  for (const refundedUp of additionalRefundedUps) {
+    if (seen.has(String(refundedUp.userId))) continue
+    seen.add(String(refundedUp.userId))
+    refundedUserIds.add(String(refundedUp.userId))
+    merged.push(refundedUp)
+  }
+  return { ...inputs, refundedUps: merged, refundedUserIds: [...refundedUserIds] }
 }
 
 export interface GeneratePlanOptions {
@@ -248,6 +265,7 @@ export async function preparePlanInputs(windowHours: number): Promise<PlanInput>
     ogiId,
     changes: changes.slice(0, MAX_RENEWAL_PLAN_INPUTS),
     refundedUps: refundedUps.slice(0, MAX_RENEWAL_PLAN_INPUTS),
+    refundedUserIds: refundedUps.filter((up) => up.metadata?.refunded === true).map((up) => String(up.userId)),
     truncated: changesTruncated || refundsTruncated,
     remaining: (changesTruncated ? 1 : 0) + (refundsTruncated ? 1 : 0),
   }
@@ -312,7 +330,7 @@ export async function generatePlan(
     const email = user.email.toLowerCase()
     const sourceRef = String(ch._id)
     const up = await getOgiUserProduct(ch.studentId, ogiId)
-    const refunded = up?.metadata?.refunded === true
+    const refunded = up?.metadata?.refunded === true || inputs.refundedUserIds.includes(String(ch.studentId))
 
     const newParsed = parseTurmaName(ch.className || '')
     const newTag = buildTurmaTagName(ch.className)
