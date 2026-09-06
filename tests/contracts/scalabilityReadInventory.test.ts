@@ -172,9 +172,13 @@ test('SCALE-03 records Guru cross-reference budget, failure accounting and stale
     expect.stringContaining('stale reconciliation'),
   ]))
   expect(crossReference.require).toEqual(expect.arrayContaining([
+    'const canonicalSyncedEmails = syncedEmails === undefined',
     'apiCallsUsed++',
     'result.errors++',
-    'new Set(syncedEmails.map(email => email.toLowerCase().trim()))',
+    'query.email = { $in: canonicalSyncedEmails }',
+    'email: { $nin: canonicalSyncedEmails }',
+    'canonicalSyncedEmails.length >= minSize',
+    'const syncedSet = new Set(canonicalSyncedEmails)',
   ]))
 })
 

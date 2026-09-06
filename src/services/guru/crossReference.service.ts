@@ -135,13 +135,21 @@ export async function runCrossReferenceAfterCurseducaSync(
     duration: 0
   }
 
+  const canonicalSyncedEmails = syncedEmails === undefined
+    ? undefined
+    : [...new Set(
+        syncedEmails
+          .map(email => email.toLowerCase().trim())
+          .filter(email => email.length > 0)
+      )]
+
   // 1. Buscar users com dados Guru + CursEduca
   const query: FilterQuery<IUser> = {
     'guru.status': { $exists: true },
     'curseduca.curseducaUserId': { $exists: true }
   }
-  if (syncedEmails && syncedEmails.length > 0) {
-    query.email = { $in: syncedEmails }
+  if (canonicalSyncedEmails && canonicalSyncedEmails.length > 0) {
+    query.email = { $in: canonicalSyncedEmails }
   }
 
   const users = await User.find(query)
@@ -212,12 +220,12 @@ export async function runCrossReferenceAfterCurseducaSync(
   // PASSAGEM EXTRA: users com Guru cancelado + UserProduct ACTIVE
   // que NÃO estavam no sync (removidos do grupo CursEduca)
   // ─────────────────────────────────────────────────────────
-  if (syncedEmails && syncedEmails.length > 0) {
+  if (canonicalSyncedEmails && canonicalSyncedEmails.length > 0) {
     const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
     const missedUsers = await User.find({
       'guru.status': { $in: STRICT_CANCELED },
       'curseduca.curseducaUserId': { $exists: true },
-      email: { $nin: syncedEmails }
+      email: { $nin: canonicalSyncedEmails }
     })
       .select('_id email guru.status guru.updatedAt guru.nextCycleAt curseduca.memberStatus curseduca.situation')
       .lean()
@@ -280,10 +288,10 @@ export async function runCrossReferenceAfterCurseducaSync(
   // normal de inativação com chamada API ao CursEduca
   // ─────────────────────────────────────────────────────────
   const minSize = options?.minSyncSize ?? 400
-  if (options?.reconcileStale === true && syncedEmails && syncedEmails.length >= minSize) {
-    logger.info(`\n🧹 [CROSS-REF] Reconciliação de stale records (${syncedEmails.length} emails no sync)...`)
+  if (options?.reconcileStale === true && canonicalSyncedEmails && canonicalSyncedEmails.length >= minSize) {
+    logger.info(`\n🧹 [CROSS-REF] Reconciliação de stale records (${canonicalSyncedEmails.length} emails no sync)...`)
 
-    const syncedSet = new Set(syncedEmails.map(email => email.toLowerCase().trim()))
+    const syncedSet = new Set(canonicalSyncedEmails)
 
     const activeUPs = await UserProduct.find({
       platform: 'curseduca',

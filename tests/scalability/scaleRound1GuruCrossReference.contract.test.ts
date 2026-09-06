@@ -204,3 +204,42 @@ test('normalizes synced emails before stale reconciliation', async () => {
   expect((mockUserFindByIdAndUpdate as jest.Mock)).not.toHaveBeenCalled()
   expect(mockUserProductUpdateMany).not.toHaveBeenCalled()
 })
+
+test('deduplicates the canonical email list before queries and stale threshold', async () => {
+  jest.clearAllMocks()
+  const syncedEmails = Array.from({ length: 400 }, (_, index) => (
+    index % 2 === 0 ? ' active@example.test ' : 'ACTIVE@EXAMPLE.TEST'
+  ))
+  mockUserFind
+    .mockReturnValueOnce(usersQuery([{
+      _id: 'synced-user',
+      email: 'active@example.test',
+      guru: { status: 'active' },
+      curseduca: { curseducaUserId: 'member-active', memberStatus: 'ACTIVE', situation: 'ACTIVE' },
+    }]))
+    .mockReturnValueOnce(usersQuery([]))
+  mockUserProductFind
+    .mockReturnValueOnce(productsQuery([{
+      _id: 'synced-product',
+      userId: 'synced-user',
+      platform: 'curseduca',
+      status: 'ACTIVE',
+    }]))
+    .mockReturnValueOnce(productsQuery([{
+      _id: 'stale-product',
+      userId: { email: 'stale@example.test' },
+      platform: 'curseduca',
+      status: 'ACTIVE',
+    }]))
+  mockUserProductUpdateMany.mockResolvedValue(undefined)
+
+  const result = await runCrossReferenceAfterCurseducaSync(syncedEmails, {
+    reconcileStale: true,
+    minSyncSize: 400,
+  })
+
+  expect(mockUserFind.mock.calls[0][0].email.$in).toEqual(['active@example.test'])
+  expect(mockUserFind.mock.calls[1][0].email.$nin).toEqual(['active@example.test'])
+  expect(result.reconciledStale).toBe(0)
+  expect(mockUserProductUpdateMany).not.toHaveBeenCalled()
+})
