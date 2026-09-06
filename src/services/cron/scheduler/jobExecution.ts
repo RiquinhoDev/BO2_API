@@ -4,6 +4,7 @@ import { CronDispatchJob, CronDispatchResult } from './jobDispatcher'
 import type { CronDispatchOptions } from './jobDispatcher'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { CronNotificationJob } from './notificationPort'
+import { HttpError } from '../../../security/errorHandling'
 
 export type CronTrigger = 'CRON' | 'MANUAL'
 
@@ -81,6 +82,7 @@ export class CronJobExecutor {
           stats: result.stats,
           errorMessage: result.errorMessage,
           dryRun: true,
+          data: result.data,
           ...(result.plan ? { plan: result.plan } : {}),
         }
       }
@@ -106,9 +108,14 @@ export class CronJobExecutor {
         success: result.success,
         duration,
         stats: result.stats,
-        errorMessage: result.errorMessage
+        errorMessage: result.errorMessage,
+        data: result.data,
       }
     } catch (error) {
+      if (error instanceof HttpError && error.status === 413
+        || error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError') {
+        throw error
+      }
       const duration = this.durationSince(startedAt)
       const errorMessage = messageOf(error)
 

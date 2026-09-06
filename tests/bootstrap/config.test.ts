@@ -197,6 +197,12 @@ test('avaliação mutável de conquistas fica desligada por omissão e exige fla
     .toBe(true)
 })
 
+test('snapshot semanal mutável fica desligado por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).core.weeklyTagSnapshotMutableExecutionEnabled).toBe(false)
+  expect(loadConfig({ ...VALID_ENV, WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED: 'true' }).core.weeklyTagSnapshotMutableExecutionEnabled)
+    .toBe(true)
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -233,6 +239,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     syncMutableExecutionEnabled: false,
     cronExecutionCleanupMutableExecutionEnabled: false,
     achievementEvaluationMutableExecutionEnabled: false,
+    weeklyTagSnapshotMutableExecutionEnabled: false,
     allowedOrigins: config.allowedOrigins,
     port: 3001,
   })

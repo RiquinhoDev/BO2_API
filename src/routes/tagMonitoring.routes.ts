@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { authenticate } from '../middleware/auth.middleware'
+import { withValidatedInput } from '../security/validatedInput'
+import { tagMonitoringSnapshotManualInput } from '../security/tagMonitoringDestructiveInput'
 import {
   criticalTagController,
   tagNotificationController,
   tagMonitoringController,
 } from '../controllers/tagMonitoring'
 import { tagMonitoringDeleteInput } from '../security/tagMonitoringDestructiveInput'
-import { withValidatedInput } from '../security/validatedInput'
 import { asyncRoute } from '../security/asyncRoute'
 
 const router = Router()
@@ -116,7 +117,12 @@ router.get('/snapshots/user/:email', authenticate, asyncRoute(tagMonitoringContr
 router.get('/snapshots/compare', authenticate, asyncRoute(tagMonitoringController.compareSnapshots))
 
 // Executa snapshot manual
-router.post('/snapshots/manual', authenticate, asyncRoute(tagMonitoringController.executeManualSnapshot))
+router.post(
+  '/snapshots/manual',
+  authenticate,
+  withValidatedInput(tagMonitoringSnapshotManualInput, (input, req, res, next) =>
+    tagMonitoringController.executeManualSnapshot(input, req, res, next)),
+)
 
 // ═══════════════════════════════════════════════════════════
 // 📊 STATS ROUTES

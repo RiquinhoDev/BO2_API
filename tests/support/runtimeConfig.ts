@@ -13,6 +13,7 @@ export function createTestRuntimeConfig(options: {
   syncMutableExecutionEnabled?: boolean
   cronExecutionCleanupMutableExecutionEnabled?: boolean
   achievementEvaluationMutableExecutionEnabled?: boolean
+  weeklyTagSnapshotMutableExecutionEnabled?: boolean
 } = {}): AppConfig {
   const nodeEnv = options.nodeEnv ?? 'test'
   const core = {
@@ -28,6 +29,7 @@ export function createTestRuntimeConfig(options: {
     syncMutableExecutionEnabled: options.syncMutableExecutionEnabled ?? false,
     cronExecutionCleanupMutableExecutionEnabled: options.cronExecutionCleanupMutableExecutionEnabled ?? false,
     achievementEvaluationMutableExecutionEnabled: options.achievementEvaluationMutableExecutionEnabled ?? false,
+    weeklyTagSnapshotMutableExecutionEnabled: options.weeklyTagSnapshotMutableExecutionEnabled ?? false,
     allowedOrigins: ['http://localhost:3000'],
     port: 3001,
   }

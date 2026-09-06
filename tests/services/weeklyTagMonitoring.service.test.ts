@@ -3,10 +3,14 @@ const mockFindActiveTags = jest.fn()
 const mockSnapshotCreate = jest.fn()
 const mockSnapshotFindOneAndUpdate = jest.fn()
 const mockSnapshotFindPreviousSnapshot = jest.fn()
+const mockSnapshotFind = jest.fn()
 const mockSnapshotDeleteMany = jest.fn()
 const mockGetAllContacts = jest.fn()
+const mockGetAllContactsBounded = jest.fn()
 const mockGetContactTagsByEmail = jest.fn()
 const mockUserFindOne = jest.fn()
+const mockUserFind = jest.fn()
+const mockUserProductAggregate = jest.fn()
 const mockUserProductFindOne = jest.fn()
 const mockCreateGroupedNotification = jest.fn()
 const mockCreateGroupedNotificationWithStatus = jest.fn()
@@ -17,6 +21,7 @@ jest.mock('../../src/models/tagMonitoring', () => ({
     create: mockSnapshotCreate,
     findOneAndUpdate: mockSnapshotFindOneAndUpdate,
     findPreviousSnapshot: mockSnapshotFindPreviousSnapshot,
+    find: mockSnapshotFind,
     deleteMany: mockSnapshotDeleteMany,
   },
   CriticalTag: {
@@ -31,6 +36,7 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   __esModule: true,
   default: {
     getAllContacts: mockGetAllContacts,
+    getAllContactsBounded: mockGetAllContactsBounded,
     getContactTagsByEmailStrict: mockGetContactTagsByEmail,
   },
 }))
@@ -42,6 +48,7 @@ jest.mock('../../src/services/activeCampaign/nativeTagProtection.service', () =>
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
   default: {
+    find: mockUserFind,
     findOne: mockUserFindOne,
   },
 }))
@@ -49,6 +56,7 @@ jest.mock('../../src/models/user', () => ({
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {
+    aggregate: mockUserProductAggregate,
     findOne: mockUserProductFindOne,
   },
 }))
@@ -140,6 +148,20 @@ function makeHarness(size: number, failurePlan: FailurePlan = {}) {
   mockGetAllContacts.mockImplementation(async () => {
     await record('provider:list')
     return emails.map(email => ({ email }))
+  })
+  mockGetAllContactsBounded.mockImplementation(async () => {
+    await record('provider:list')
+    return { contacts: emails.map(email => ({ email })), truncated: false, remaining: 0 }
+  })
+  mockUserProductAggregate.mockReturnValue({
+    exec: jest.fn().mockResolvedValue(emails.map((_email, index) => ({ _id: `user-${index}` }))),
+  })
+  mockUserFind.mockReturnValue({
+    select: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
+    exec: jest.fn(async () => emails.map((email, index) => ({ email, _id: `user-${index}` }))),
   })
   mockGetContactTagsByEmail.mockImplementation(async (email: string) => {
     const index = indexFromEmail(email)
@@ -257,6 +279,13 @@ function makeHarness(size: number, failurePlan: FailurePlan = {}) {
   mockSnapshotDeleteMany.mockImplementation(async () => {
     await record('cleanup')
     return { deletedCount: 0 }
+  })
+  mockSnapshotFind.mockReturnValue({
+    sort: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([{ _id: 'cleanup-1' }]),
   })
 
   return {

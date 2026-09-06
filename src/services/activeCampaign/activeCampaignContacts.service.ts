@@ -17,6 +17,13 @@ interface ACFieldValuesResponse {
   fieldValues?: ACFieldValueResponse[]
 }
 
+export interface BoundedContactsResult {
+  contacts: ACContactApi[]
+  truncated: boolean
+  /** Lower bound only; the exact remainder is intentionally not fetched. */
+  remaining: number
+}
+
 const mongooseContactIdCache: ContactIdCache = {
   async find(userId) {
     const user = await User.findById(userId).select('metadata.activeCampaignId')
@@ -70,6 +77,54 @@ export class ActiveCampaignContactsService {
       contacts.push(...page)
       if (page.length < limit) return contacts
       offset += limit
+    }
+  }
+
+  /**
+   * Bounded read for callers that must decide capacity before mutating local state.
+   * The legacy unbounded method above remains unchanged for existing consumers.
+   */
+  async getAllContactsBounded(maxContacts: number): Promise<BoundedContactsResult> {
+    if (!Number.isInteger(maxContacts) || maxContacts < 1) {
+      throw new Error('ACTIVE_CAMPAIGN_CONTACTS_INVALID_LIMIT')
+    }
+
+    this.transport.ensureAvailable()
+    const contacts: ACContactApi[] = []
+    const pageSize = 100
+    let offset = 0
+
+    while (contacts.length <= maxContacts) {
+      const requestLimit = Math.min(pageSize, maxContacts + 1 - contacts.length)
+      if (requestLimit < 1) break
+
+      await this.transport.checkRateLimit()
+      const response = await this.transport.retryRequest(() =>
+        this.transport.client.get<ACContactsResponse>('/api/3/contacts', {
+          params: { limit: requestLimit, offset },
+        }),
+      )
+      const page = response.data.contacts || []
+      const remainingCapacity = maxContacts + 1 - contacts.length
+      contacts.push(...page.slice(0, remainingCapacity))
+
+      if (page.length > remainingCapacity || contacts.length > maxContacts) {
+        return {
+          contacts: contacts.slice(0, maxContacts),
+          truncated: true,
+          remaining: 1,
+        }
+      }
+      if (page.length < requestLimit) {
+        return { contacts, truncated: false, remaining: 0 }
+      }
+      offset += page.length
+    }
+
+    return {
+      contacts: contacts.slice(0, maxContacts),
+      truncated: true,
+      remaining: 1,
     }
   }
 

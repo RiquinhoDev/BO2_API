@@ -125,9 +125,10 @@ test('SCALE-03 records weekly tag snapshot convergence and ordered repair', () =
     expect.stringContaining('partial detail'),
   ]))
   expect(weekly.require).toEqual(expect.arrayContaining([
-    'includeResultMetadata: true',
-    'if (result.created) snapshotsCreated++',
-    'if (result.created) notificationsCreated++',
+    'persistSnapshot(data, options)',
+    'if (result.created) snapshotsInserted++',
+    'await createNotifications(processed.changes, options)',
+    'await cleanupOldSnapshotsBounded(options)',
   ]))
 })
 

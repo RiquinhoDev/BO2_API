@@ -423,7 +423,6 @@ function parseRedisConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnvironment): Red
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const mongoUri = env.MONGO_URI?.trim()
   if (!mongoUri) throw new Error('CONFIG_INVÁLIDA: MONGO_URI é obrigatória')
-
   const jwtSecret = parseStrongSecret(env.JWT_SECRET, 'JWT_SECRET', true)
   const oldApiJwtSecret = parseStrongSecret(env.OLD_API_JWT_SECRET, 'OLD_API_JWT_SECRET', true)
   const studentAccessJwtSecret = parseStrongSecret(
@@ -437,7 +436,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       'CONFIG_INVALIDA: JWT_SECRET, OLD_API_JWT_SECRET e STUDENT_ACCESS_JWT_SECRET devem ser distintos',
     )
   }
-
   const acWebhookSecret = parseStrongSecret(env.AC_WEBHOOK_SECRET, 'AC_WEBHOOK_SECRET', true)
   const rawNodeEnv = env.NODE_ENV === undefined ? 'development' : env.NODE_ENV.trim()
   if (!['development', 'test', 'production'].includes(rawNodeEnv)) {
@@ -481,6 +479,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     syncMutableExecutionEnabled,
     cronExecutionCleanupMutableExecutionEnabled,
     achievementEvaluationMutableExecutionEnabled,
+    weeklyTagSnapshotMutableExecutionEnabled: parseBooleanFlag(
+      env.WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED,
+      'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED',
+    ),
     allowedOrigins,
     port,
   }

@@ -2,12 +2,17 @@ import mongoose from 'mongoose'
 
 jest.mock('../../../src/models/SyncModels/CronJobConfig', () => ({
   __esModule: true,
-  default: { findById: jest.fn() },
+  default: { findById: jest.fn(), findOne: jest.fn() },
 }))
 jest.mock('../../../src/services/requestDrivenRuntimeConfig', () => ({
   isSyncMutableExecutionEnabled: jest.fn(),
   isCronExecutionCleanupMutableExecutionEnabled: jest.fn(),
   isAchievementEvaluationMutableExecutionEnabled: jest.fn(),
+  isWeeklyTagSnapshotMutableExecutionEnabled: jest.fn(),
+}))
+jest.mock('../../../src/models/tagMonitoring/WeeklyTagMonitoringConfig', () => ({
+  __esModule: true,
+  default: { getConfig: jest.fn() },
 }))
 jest.mock('../../../src/services/cron/compositeExecution.service', () => ({
   compositeExecutionFingerprint: jest.fn(() => 'derived-fingerprint'),
@@ -25,20 +30,25 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isSyncMutableExecutionEnabled,
+  isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../../src/services/requestDrivenRuntimeConfig'
 import { runCompositeExecutionWithReceipt } from '../../../src/services/cron/compositeExecution.service'
 import { CronManagementService } from '../../../src/services/cron/scheduler/service'
 import { isMessagesEnabled } from '../../../src/services/renewal/discord/planning'
 import { isScheduledMessagesEnabled } from '../../../src/services/renewal/discordScheduledMessages.service'
 import { HttpError } from '../../../src/security/errorHandling'
+import WeeklyTagMonitoringConfig from '../../../src/models/tagMonitoring/WeeklyTagMonitoringConfig'
 
 const findById = jest.mocked(CronJobConfig.findById)
+const findOne = jest.mocked(CronJobConfig.findOne)
 const mutableEnabled = jest.mocked(isSyncMutableExecutionEnabled)
 const cleanupEnabled = jest.mocked(isCronExecutionCleanupMutableExecutionEnabled)
 const achievementEnabled = jest.mocked(isAchievementEvaluationMutableExecutionEnabled)
+const weeklyEnabled = jest.mocked(isWeeklyTagSnapshotMutableExecutionEnabled)
 const runWithReceipt = jest.mocked(runCompositeExecutionWithReceipt)
 const messagesEnabled = jest.mocked(isMessagesEnabled)
 const scheduledMessagesEnabled = jest.mocked(isScheduledMessagesEnabled)
+const weeklyConfig = jest.mocked(WeeklyTagMonitoringConfig.getConfig)
 
 function job(syncType: 'pipeline' | 'hotmart' | 'discord' = 'pipeline', name = 'Daily Pipeline') {
   return {
@@ -55,9 +65,12 @@ beforeEach(() => {
   mutableEnabled.mockReturnValue(true)
   cleanupEnabled.mockReturnValue(true)
   achievementEnabled.mockReturnValue(true)
+  weeklyEnabled.mockReturnValue(true)
+  weeklyConfig.mockResolvedValue({ enabled: true, scope: 'ALL_CONTACTS' } as never)
   messagesEnabled.mockReturnValue(true)
   scheduledMessagesEnabled.mockReturnValue(true)
   findById.mockResolvedValue(job() as never)
+  findOne.mockResolvedValue(job() as never)
   runWithReceipt.mockImplementation(async (options) => options.run({
     providerStarted: jest.fn(),
     providerSucceeded: jest.fn(),
@@ -110,6 +123,63 @@ test('manual cleanup fails closed before receipt claim when its kill switch is o
   })
   expect(runWithReceipt).not.toHaveBeenCalled()
   expect(executor.execute).not.toHaveBeenCalled()
+})
+
+test('manual weekly snapshot fails closed before receipt when its kill switch is off', async () => {
+  weeklyEnabled.mockReturnValue(false)
+  const executor = { execute: jest.fn() }
+  const service = new CronManagementService(executor as never)
+  const weeklyJob = job('hotmart', 'WeeklyTagSnapshot')
+  findOne.mockResolvedValue(weeklyJob as never)
+  findById.mockResolvedValue(weeklyJob as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+
+  await expect(service.executeNamedJobManually('WeeklyTagSnapshot', id, {
+    actorId: 'actor-a',
+    requestId: 'weekly-disabled',
+  })).rejects.toMatchObject({
+    code: 'WEEKLY_TAG_SNAPSHOT_DISABLED',
+    status: 503,
+  })
+  expect(weeklyConfig).not.toHaveBeenCalled()
+  expect(runWithReceipt).not.toHaveBeenCalled()
+  expect(executor.execute).not.toHaveBeenCalled()
+})
+
+test('automatic weekly snapshot ignores the manual kill switch and config guard', async () => {
+  weeklyEnabled.mockReturnValue(false)
+  weeklyConfig.mockRejectedValue(new Error('config must not be read'))
+  const executor = {
+    execute: jest.fn(async (_job: unknown, context: { triggeredBy: string; phaseHooks?: unknown }) => {
+      expect(context.triggeredBy).toBe('CRON')
+      expect(context.phaseHooks).toEqual(expect.any(Object))
+      return { success: true, duration: 1, stats: { total: 1, inserted: 1, updated: 0, errors: 0, skipped: 0 } }
+    }),
+  }
+  const service = new CronManagementService(executor as never)
+  const scheduledJob = job('hotmart', 'WeeklyTagSnapshot')
+
+  await expect(
+    (service as unknown as { executeScheduledJob(job: unknown): Promise<void> })
+      .executeScheduledJob(scheduledJob),
+  ).resolves.toBeUndefined()
+
+  expect(weeklyEnabled).not.toHaveBeenCalled()
+  expect(weeklyConfig).not.toHaveBeenCalled()
+  expect(runWithReceipt).toHaveBeenCalledWith(expect.objectContaining({
+    operation: 'cron-job',
+    identity: 'weekly-tag-snapshot',
+    actorId: 'system:cron',
+  }))
+})
+
+test('named weekly manual execution fails closed when the canonical job is absent', async () => {
+  findOne.mockResolvedValue(null)
+  const service = new CronManagementService({ execute: jest.fn() } as never)
+  const id = new mongoose.Types.ObjectId('507f1f77bcf86cd799439011')
+
+  await expect(service.executeNamedJobManually('WeeklyTagSnapshot', id))
+    .rejects.toMatchObject({ code: 'CRON_JOB_NOT_FOUND', status: 404 })
 })
 
 test('automatic cleanup ignores the manual kill switch and uses the shared receipt', async () => {

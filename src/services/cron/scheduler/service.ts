@@ -15,13 +15,6 @@ import type { CronExecutionPhaseHooks } from './executionPhases'
 import { createLoggingCronNotification } from './notificationPort'
 import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
-import {
-  isAchievementEvaluationMutableExecutionEnabled,
-  isCronExecutionCleanupMutableExecutionEnabled,
-  isSyncMutableExecutionEnabled,
-} from '../../requestDrivenRuntimeConfig'
-import { isScheduledMessagesEnabled } from '../../renewal/discordScheduledMessages.service'
-import { isMessagesEnabled } from '../../renewal/discord/planning'
 import { HttpError } from '../../../security/errorHandling'
 import {
   compositeExecutionFingerprint,
@@ -31,6 +24,7 @@ import {
   cronManualFingerprintPayload,
   getCronManualCapability,
 } from './manualCapabilities'
+import { assertManualExecutionEnabled } from './manualExecutionGuards'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 
@@ -302,35 +296,7 @@ const job = await CronJobConfig.create({
       })
     }
 
-    if (capability.id === 'cron-execution-cleanup' && !isCronExecutionCleanupMutableExecutionEnabled()) {
-      throw new HttpError({
-        status: 503,
-        code: 'CRON_EXECUTION_CLEANUP_DISABLED',
-        publicMessage: 'Limpeza do histórico CRON desativada',
-      })
-    }
-    if (capability.id === 'achievement-evaluation' && !isAchievementEvaluationMutableExecutionEnabled()) {
-      throw new HttpError({
-        status: 503,
-        code: 'ACHIEVEMENT_EVALUATION_DISABLED',
-        publicMessage: 'Avaliação mutável de conquistas desativada',
-      })
-    }
-    if (capability.id === 'daily-pipeline' && !isSyncMutableExecutionEnabled()) {
-      throw new HttpError({
-        status: 503,
-        code: 'SYNC_PIPELINE_EXECUTION_DISABLED',
-        publicMessage: 'Execução mutável do pipeline desativada',
-      })
-    }
-    if (capability.id === 'discord-scheduled-messages'
-      && (!isScheduledMessagesEnabled() || !isMessagesEnabled())) {
-      throw new HttpError({
-        status: 503,
-        code: 'CRON_DISCORD_SCHEDULED_MESSAGES_DISABLED',
-        publicMessage: 'Mensagens Discord agendadas desativadas',
-      })
-    }
+    await assertManualExecutionEnabled(capability)
 
     const actorId = options.actorId ?? triggeredBy.toString()
     const requestId = options.requestId ?? randomUUID()
@@ -347,6 +313,27 @@ const job = await CronJobConfig.create({
       }),
     })
   }
+
+  async executeNamedJobManually(
+    name: string,
+    triggeredBy: mongoose.Types.ObjectId,
+    options: {
+      actorId?: string
+      requestId?: string
+      dryRun?: boolean
+    } = {},
+  ): Promise<CronExecutionResult> {
+    const job = await CronJobConfig.findOne({ name })
+    if (!job) {
+      throw new HttpError({
+        status: 404,
+        code: 'CRON_JOB_NOT_FOUND',
+        publicMessage: 'Job semanal não encontrado',
+      })
+    }
+    return this.executeJobManually(job._id, triggeredBy, options)
+  }
+
   async getAllJobs(): Promise<ICronJobConfig[]> {
     return CronJobConfig.find()
       .sort({ createdAt: -1 })

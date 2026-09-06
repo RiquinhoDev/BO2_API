@@ -916,14 +916,13 @@
         ],
         "require": [
           "for (const email of batch)",
-          "await this.captureStudentSnapshot(email, weekNumber, year)",
-          "getContactTagsByEmailStrict(",
-          "includeResultMetadata: true",
-          "if (result.created) snapshotsCreated++",
+          "await this.captureStudentSnapshot(email, weekNumber, year, options)",
+          "return getEmailsToProcess(mode, options)",
+          "persistSnapshot(data, options)",
+          "if (result.created) snapshotsInserted++",
           "errors++",
-          "await tagNotificationService.createGroupedNotificationWithStatus(",
-          "if (result.created) notificationsCreated++",
-          "await this.cleanupOldSnapshots()"
+          "await createNotifications(processed.changes, options)",
+          "await cleanupOldSnapshotsBounded(options)"
         ]
       },
       {

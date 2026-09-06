@@ -99,6 +99,16 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'WeeklyTagSnapshot',
+    capability: implemented(
+      'weekly-tag-snapshot',
+      'cron-job',
+      { status: 'verified', reason: 'weekly-tag-snapshot-max-contacts', limit: 20_000 },
+      { status: 'verified', reason: 'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED' },
+      () => 'weekly-tag-snapshot',
+    ),
+  },
+  {
     matches: job => job.name.includes('DiscordScheduledMessages'),
     capability: implemented(
       'discord-scheduled-messages',
@@ -145,6 +155,7 @@ export function cronManualFingerprintPayload(job: CronManualCapabilityJob): Reco
 export function cronManualExecutionView(
   job: CronManualCapabilityJob,
   mutableEnabled: boolean,
+  options: { blockedReason?: string } = {},
 ): CronManualExecutionView {
   const capability = getCronManualCapability(job)
   const isMutableEnabled = capability.status === 'implemented' && mutableEnabled
@@ -157,7 +168,7 @@ export function cronManualExecutionView(
     ...(capability.status === 'blocked' && capability.blockedReason
       ? { blockedReason: capability.blockedReason }
       : capability.status === 'implemented' && !isMutableEnabled
-        ? { blockedReason: 'Execução mutável desativada pelo backend' }
+        ? { blockedReason: options.blockedReason ?? 'Execução mutável desativada pelo backend' }
       : {}),
   }
 }

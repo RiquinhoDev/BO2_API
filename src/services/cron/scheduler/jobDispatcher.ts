@@ -3,6 +3,7 @@ import type {
   AchievementEvaluationPlan,
   CronExecutionCleanupPlan,
   DailyPipelinePlan,
+  WeeklyTagSnapshotPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
@@ -27,7 +28,8 @@ export interface CronDispatchResult {
   stats: ILastRunStats
   errorMessage?: string
   dryRun?: boolean
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan
+  data?: unknown
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan
 }
 
 export interface CronDispatchOptions {
@@ -71,6 +73,12 @@ const SPECIFIC_JOB_NAMES = [
   'DiscordRolesSync',
   'DiscordScheduledMessages'
 ] as const
+
+function matchesSpecificJob(jobName: string, specificName: string): boolean {
+  return specificName === 'WeeklyTagSnapshot'
+    ? jobName === specificName
+    : jobName.includes(specificName)
+}
 
 const recordOf = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value)) : {}
@@ -124,7 +132,9 @@ const normalizeGenericResult = (value: unknown): CronDispatchResult => {
     stats,
     errorMessage: stringOf(result, 'error') ?? stringOf(result, 'errorMessage'),
     ...(booleanOf(result, 'dryRun') === true ? { dryRun: true } : {}),
-    ...(plan && typeof plan === 'object' ? { plan: plan as DailyPipelinePlan | CronExecutionCleanupPlan } : {}),
+    ...(plan && typeof plan === 'object'
+      ? { plan: plan as DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan }
+      : {}),
   }
 }
 
@@ -141,7 +151,7 @@ const defaultDependencies: CronDispatchDependencies = {
     throw new Error('Método não encontrado')
   },
   cleanupExecutions: async (options) => (await import('../../../jobs/cronExecutionCleanup.job')).default.run(options),
-  weeklyTagSnapshot: async () => (await import('../../../jobs/weeklyTagSnapshot.job')).default.run(),
+  weeklyTagSnapshot: async (options) => (await import('../../../jobs/weeklyTagSnapshot.job')).default.run(options),
   clarezaRefresh: async () => (await import('../../../jobs/clareza.job')).default.run(),
   guruTrialCheck: async () => (await import('../../../jobs/guruTrialCheck.job')).default.run(),
   syncRenewalOffers,
@@ -180,7 +190,7 @@ export class CronJobDispatcher {
   constructor(private readonly dependencies: CronDispatchDependencies = defaultDependencies) {}
 
   async execute(job: CronDispatchJob, options: CronDispatchOptions = {}): Promise<CronDispatchResult> {
-    if (SPECIFIC_JOB_NAMES.some(name => job.name.includes(name))) {
+    if (SPECIFIC_JOB_NAMES.some(name => matchesSpecificJob(job.name, name))) {
       return this.executeSpecific(job, options)
     }
 
@@ -263,6 +273,15 @@ export class CronJobDispatcher {
         }
       }
 
+      if (job.name === 'WeeklyTagSnapshot') {
+        const raw = await this.dependencies.weeklyTagSnapshot(options)
+        const rawRecord = recordOf(raw)
+        return {
+          ...normalizeGenericResult(raw),
+          data: rawRecord.data ?? raw,
+        }
+      }
+
       if (job.name.includes('CronExecutionCleanup')) {
         return this.normalizeCleanupExecution(await this.dependencies.cleanupExecutions(options))
       }
@@ -270,6 +289,12 @@ export class CronJobDispatcher {
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)
       return normalizeGenericResult(await runner(options))
     } catch (error) {
+      if (job.name === 'WeeklyTagSnapshot'
+        && (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError'
+          || typeof error === 'object' && error !== null && 'status' in error
+          && (error as { status?: unknown }).status === 413)) {
+        throw error
+      }
       logger.error('Erro ao executar job específico', error)
       return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: errorMessageOf(error) }
     }
@@ -280,7 +305,7 @@ export class CronJobDispatcher {
     if (name.includes('ResetCounters')) return this.dependencies.resetCounters
     if (name.includes('RebuildDashboardStats')) return this.dependencies.rebuildDashboardStats
     if (name.includes('CronExecutionCleanup')) return this.dependencies.cleanupExecutions
-    if (name.includes('WeeklyTagSnapshot')) return this.dependencies.weeklyTagSnapshot
+    if (name === 'WeeklyTagSnapshot') return this.dependencies.weeklyTagSnapshot
     if (name.includes('ClarezaRefresh')) return this.dependencies.clarezaRefresh
     if (name.includes('GuruTrialCheck')) return this.dependencies.guruTrialCheck
     return undefined

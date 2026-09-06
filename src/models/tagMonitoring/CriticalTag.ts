@@ -20,7 +20,7 @@ export interface ICriticalTag extends Document {
 }
 
 export interface ICriticalTagModel extends mongoose.Model<ICriticalTag> {
-  findActiveTags(): Promise<ICriticalTag[]>
+  findActiveTags(maxItems?: number): Promise<ICriticalTag[]>
   isCritical(tagName: string): Promise<boolean>
   getPriorityLevel(tagName: string): Promise<TagPriority | null>
 }
@@ -72,10 +72,14 @@ CriticalTagSchema.methods.toggle = async function () {
 }
 
 // Métodos estáticos
-CriticalTagSchema.statics.findActiveTags = function () {
+CriticalTagSchema.statics.findActiveTags = function (maxItems = 20_000) {
   // Ordena por prioridade (CRITICAL > MEDIUM > LOW) e depois por nome
   const priorityOrder: Record<TagPriority, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
-  return this.find({ isActive: true }).then((tags) =>
+  return this.find({ isActive: true })
+    .sort({ _id: 1 })
+    .limit(maxItems + 1)
+    .exec()
+    .then((tags) =>
     tags.sort((a, b) => {
       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
       if (priorityDiff !== 0) return priorityDiff

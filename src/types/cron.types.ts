@@ -68,7 +68,8 @@ export interface CronExecutionResult {
   stats: ILastRunStats
   errorMessage?: string
   dryRun?: boolean
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan
+  data?: unknown
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan
 }
 
 export interface DailyPipelinePlan {
@@ -108,6 +109,26 @@ export interface AchievementEvaluationPlan {
   limit: number
   truncated: boolean
   /** Lower bound of users beyond the bounded sample; never an exact count. */
+  remaining: number
+}
+
+export interface WeeklyTagSnapshotPlan {
+  operation: 'weekly-tag-snapshot'
+  dryRun: true
+  monitoringEnabled?: boolean
+  scope: 'STUDENTS_ONLY' | 'ALL_CONTACTS'
+  matching: number
+  wouldSnapshot: number
+  wouldNotify: number
+  notificationDetails: number
+  notificationsTruncated: boolean
+  cleanupCandidates: number
+  cleanupSkipped: number
+  cleanupTruncated: boolean
+  cleanupRemaining: number
+  limit: number
+  truncated: boolean
+  /** Lower bound of contacts beyond the bounded sample; never an exact count. */
   remaining: number
 }
 

@@ -20,11 +20,18 @@ describe('manual cron capabilities', () => {
     ['DiscordScheduledMessages', 'discord', 'discord-scheduled-messages', 'implemented'],
     ['CronExecutionCleanup', 'hotmart', 'cron-execution-cleanup', 'implemented'],
     ['AchievementEvaluation', 'hotmart', 'achievement-evaluation', 'implemented'],
+    ['WeeklyTagSnapshot', 'hotmart', 'weekly-tag-snapshot', 'implemented'],
     ['StandardSync', 'hotmart', 'unsupported', 'blocked'],
   ] as const)('%s/%s resolves to %s', (name, syncType, capability, status) => {
     const result = getCronManualCapability(job(name, syncType))
     expect(result.id).toBe(capability)
     expect(result.status).toBe(status)
+  })
+
+  test('does not grant weekly capability to a name containing the canonical name', () => {
+    const result = getCronManualCapability(job('FooWeeklyTagSnapshot'))
+    expect(result.id).toBe('unsupported')
+    expect(result.status).toBe('blocked')
   })
 
   test('exposes the exact bounded cleanup capability metadata', () => {
@@ -80,6 +87,34 @@ describe('manual cron capabilities', () => {
         reason: 'dry-run-no-provider-or-local-mutation',
       },
     }))
+  })
+
+  test('exposes the exact bounded weekly snapshot capability metadata', () => {
+    const result = getCronManualCapability(job('WeeklyTagSnapshot'))
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'weekly-tag-snapshot',
+      status: 'implemented',
+      operation: 'cron-job',
+      cap: {
+        status: 'verified',
+        reason: 'weekly-tag-snapshot-max-contacts',
+        limit: 20_000,
+      },
+      idempotency: {
+        status: 'verified',
+        reason: 'composite-execution-durable-receipt-and-owner-fence',
+      },
+      killSwitch: {
+        status: 'verified',
+        reason: 'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED',
+      },
+      dryRun: {
+        status: 'verified',
+        reason: 'dry-run-no-provider-or-local-mutation',
+      },
+    }))
+    expect(result.identity(job('WeeklyTagSnapshot'))).toBe('weekly-tag-snapshot')
   })
 
   test('view exposes mutable state and backend blocked reason for disabled implemented jobs', () => {

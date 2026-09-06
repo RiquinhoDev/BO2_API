@@ -15,6 +15,11 @@
 // ════════════════════════════════════════════════════════════
 
 import { weeklyTagMonitoringService } from '../services/tagMonitoring'
+import {
+  type WeeklyTagSnapshotOptions,
+  type SnapshotResult,
+} from '../services/tagMonitoring/weeklyTagMonitoring.service'
+import { HttpError } from '../security/errorHandling'
 import logger from '../utils/logger'
 
 const CRON_SCHEDULE = '0 2 * * 0'
@@ -32,7 +37,7 @@ logger.info(`📋 ${JOB_NAME}: Configurado`)
 logger.info(`   Schedule: ${CRON_SCHEDULE} (Domingos às 02:00)`)
 logger.info(`   Timezone: Europe/Lisbon`)
 
-async function executeWeeklySnapshot(): Promise<{
+async function executeWeeklySnapshot(options: WeeklyTagSnapshotOptions = {}): Promise<{
   success: boolean
   total: number
   inserted: number
@@ -41,6 +46,9 @@ async function executeWeeklySnapshot(): Promise<{
   skipped: number
   duration?: string
   errorMessage?: string
+  dryRun?: true
+  plan?: unknown
+  data?: SnapshotResult
 }> {
   const executionId = `WEEKLY-SNAPSHOT-${Date.now()}`
 
@@ -51,7 +59,7 @@ async function executeWeeklySnapshot(): Promise<{
   const startTime = Date.now()
 
   try {
-    const result = await weeklyTagMonitoringService.performWeeklySnapshot()
+    const result = await weeklyTagMonitoringService.performWeeklySnapshot(options)
     const duration = Date.now() - startTime
 
     logger.info('═══════════════════════════════════════════════════════════')
@@ -59,7 +67,11 @@ async function executeWeeklySnapshot(): Promise<{
     logger.info('═══════════════════════════════════════════════════════════')
     logger.info(`📊 Modo: ${result.mode}`)
     logger.info(`👥 Total processado: ${result.totalStudents}`)
-    logger.info(`📸 Snapshots criados: ${result.snapshotsCreated}`)
+    const inserted = result.inserted ?? result.snapshotsCreated
+    const updated = result.updated ?? 0
+    const skipped = result.skipped ?? Math.max(0, result.totalStudents - inserted - updated)
+    logger.info(`📸 Snapshots inseridos: ${inserted}`)
+    logger.info(`📸 Snapshots atualizados: ${updated}`)
     logger.info(`📈 Mudanças detectadas: ${result.changesDetected}`)
     logger.info(`🔔 Notificações criadas: ${result.notificationsCreated}`)
     logger.info(`❌ Erros: ${result.errors}`)
@@ -69,13 +81,19 @@ async function executeWeeklySnapshot(): Promise<{
     return {
       success: result.success,
       total: result.totalStudents,
-      inserted: result.snapshotsCreated,
-      updated: result.notificationsCreated,
+      inserted,
+      updated,
       errors: result.errors,
-      skipped: result.totalStudents - result.snapshotsCreated,
+      skipped,
       duration: result.duration,
+      data: result,
+      ...(result.dryRun === true ? { dryRun: true, plan: result.plan } : {}),
     }
   } catch (error: unknown) {
+    if (error instanceof HttpError && error.status === 413
+      || (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError')) {
+      throw error
+    }
     const duration = Date.now() - startTime
     const message = errorMessage(error)
 
@@ -100,11 +118,11 @@ async function executeWeeklySnapshot(): Promise<{
   }
 }
 
-export async function runWeeklySnapshotManually(): Promise<Awaited<ReturnType<typeof executeWeeklySnapshot>>> {
+export async function runWeeklySnapshotManually(options: WeeklyTagSnapshotOptions = {}): Promise<Awaited<ReturnType<typeof executeWeeklySnapshot>>> {
   logger.info('🚀 Executando snapshot semanal manual...')
-  return await executeWeeklySnapshot()
+  return await executeWeeklySnapshot(options)
 }
 
 export default {
-  run: runWeeklySnapshotManually,
+  run: (options?: WeeklyTagSnapshotOptions) => executeWeeklySnapshot(options),
 }

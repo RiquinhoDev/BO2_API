@@ -9,4 +9,11 @@ export const tagMonitoringDeleteInput = validatedSchema({
   body: {},
 })
 
+export const tagMonitoringSnapshotManualInput = validatedSchema({
+  params: {},
+  query: {},
+  body: { dryRun: z.boolean().optional() },
+})
+
 export type TagMonitoringDeleteInput = z.infer<typeof tagMonitoringDeleteInput>
+export type TagMonitoringSnapshotManualInput = z.infer<typeof tagMonitoringSnapshotManualInput>

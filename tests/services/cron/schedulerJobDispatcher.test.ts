@@ -51,7 +51,6 @@ describe('CronJobDispatcher', () => {
     ['ResetCounters', 'resetCounters'],
     ['RebuildDashboardStats', 'rebuildDashboardStats'],
     ['CronExecutionCleanup', 'cleanupExecutions'],
-    ['WeeklyTagSnapshot', 'weeklyTagSnapshot'],
     ['ClarezaRefresh', 'clarezaRefresh'],
     ['GuruTrialCheck', 'guruTrialCheck']
   ] as const)('dispatches %s to its dedicated runner', async (name, dependency) => {
@@ -61,6 +60,79 @@ describe('CronJobDispatcher', () => {
     await dispatcher.execute(job(`Nightly${name}`))
 
     expect(dependencies[dependency]).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dispatch a job whose name only contains WeeklyTagSnapshot', async () => {
+    const dependencies = createDependencies()
+    const dispatcher = new CronJobDispatcher(dependencies)
+
+    await dispatcher.execute(job('FooWeeklyTagSnapshot'))
+
+    expect(dependencies.weeklyTagSnapshot).not.toHaveBeenCalled()
+    expect(dependencies.fetchHotmart).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes weekly dry-run phases and preserves the exact service data and stats', async () => {
+    const dependencies = createDependencies()
+    const serviceData = {
+      success: true,
+      totalStudents: 2,
+      snapshotsCreated: 1,
+      snapshotsUpdated: 1,
+      changesDetected: 1,
+      notificationsCreated: 1,
+      duration: '1s',
+      errors: 0,
+      mode: 'ALL_CONTACTS' as const,
+      dryRun: true as const,
+      plan: {
+        operation: 'weekly-tag-snapshot' as const,
+        dryRun: true as const,
+        scope: 'ALL_CONTACTS' as const,
+        matching: 2,
+        wouldSnapshot: 2,
+        wouldNotify: 1,
+        notificationDetails: 1,
+        notificationsTruncated: false,
+        cleanupCandidates: 0,
+        cleanupSkipped: 0,
+        cleanupTruncated: false,
+        cleanupRemaining: 0,
+        limit: 20_000,
+        truncated: false,
+        remaining: 0,
+      },
+    }
+    dependencies.weeklyTagSnapshot.mockResolvedValueOnce({
+      success: true,
+      total: 2,
+      inserted: 1,
+      updated: 1,
+      errors: 0,
+      skipped: 0,
+      dryRun: true,
+      plan: serviceData.plan,
+      data: serviceData,
+    })
+    const dispatcher = new CronJobDispatcher(dependencies)
+    const phaseHooks = {
+      assertOwnership: jest.fn(),
+      providerStarted: jest.fn(),
+      providerSucceeded: jest.fn(),
+      localMutationStarted: jest.fn(),
+    }
+
+    await expect(dispatcher.execute(job('WeeklyTagSnapshot'), {
+      dryRun: true,
+      phaseHooks,
+    })).resolves.toEqual({
+      success: true,
+      stats: { total: 2, inserted: 1, updated: 1, errors: 0, skipped: 0 },
+      dryRun: true,
+      data: serviceData,
+      plan: serviceData.plan,
+    })
+    expect(dependencies.weeklyTagSnapshot).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
   })
 
   it('normalizes renewal offers', async () => {

@@ -168,7 +168,7 @@ describe('response contract catalog', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('213 Front calls; 188 consumers')
+    expect(result.stdout).toContain('212 Front calls; 187 consumers')
     expect(after).toBe(before)
   })
 
@@ -310,7 +310,7 @@ describe('response contract catalog', () => {
     const consumer = (identity: string): string | null | undefined =>
       responseCatalog.find((entry) => routeId(entry) === identity)?.frontConsumer
 
-    expect(consumers).toHaveLength(188)
+    expect(consumers).toHaveLength(187)
     expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('GET /api/users/enrollments')).toBe('src/features/users-v2/usersV2.api.ts')

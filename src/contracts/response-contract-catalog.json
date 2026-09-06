@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:87",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:128",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:137",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:178",
     "frontConsumer": null
   },
   {
@@ -2515,7 +2515,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:250",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:290",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2620,7 +2620,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:34",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:53",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2631,7 +2631,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:116",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:135",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2643,7 +2643,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:65",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:84",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2654,7 +2654,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:179",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:219",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2665,7 +2665,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:219",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:259",
     "frontConsumer": null
   },
   {
@@ -2676,7 +2676,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:354",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:394",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useStudentsByPriority.ts"
   },
   {
@@ -3175,7 +3175,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:289",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:329",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3187,7 +3187,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:313",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:353",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -4481,8 +4481,8 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:157",
-    "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:191",
+    "frontConsumer": null
   },
   {
     "method": "POST",

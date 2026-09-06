@@ -5,7 +5,10 @@
 
 import type { AxiosInstance } from 'axios'
 import { ActiveCampaignTransport } from './activeCampaignTransport'
-import { ActiveCampaignContactsService } from './activeCampaignContacts.service'
+import {
+  ActiveCampaignContactsService,
+  type BoundedContactsResult,
+} from './activeCampaignContacts.service'
 import {
   ActiveCampaignTagsService,
   type ActiveCampaignContactTag,
@@ -52,6 +55,10 @@ class ActiveCampaignService {
 
   async getAllContacts(): Promise<ACContactApi[]> {
     return this.contacts.getAllContacts()
+  }
+
+  async getAllContactsBounded(maxContacts: number): Promise<BoundedContactsResult> {
+    return this.contacts.getAllContactsBounded(maxContacts)
   }
 
   async createOrUpdateContact(contact: ACContact): Promise<ACContactResponse> {

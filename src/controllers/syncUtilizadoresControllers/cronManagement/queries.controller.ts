@@ -15,22 +15,41 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isSyncMutableExecutionEnabled,
+  isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../../services/requestDrivenRuntimeConfig'
 import { isScheduledMessagesEnabled } from '../../../services/renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../../services/renewal/discord/planning'
+import WeeklyTagMonitoringConfig from '../../../models/tagMonitoring/WeeklyTagMonitoringConfig'
 
-function manualMutableEnabled(job: CronManualCapabilityJob): boolean {
-  const capability = getCronManualCapability(job)
-  if (capability.id === 'daily-pipeline') return isSyncMutableExecutionEnabled()
-  if (capability.id === 'cron-execution-cleanup') return isCronExecutionCleanupMutableExecutionEnabled()
-  if (capability.id === 'achievement-evaluation') return isAchievementEvaluationMutableExecutionEnabled()
-  if (capability.id === 'discord-scheduled-messages') {
-    return isScheduledMessagesEnabled() && isMessagesEnabled()
-  }
-  return false
+interface WeeklyManualState {
+  enabled: boolean
+  blockedReason?: string
 }
 
-function withManualExecutionView(job: CronManualCapabilityJob): Record<string, unknown> {
+function manualMutableEnabled(
+  job: CronManualCapabilityJob,
+  weeklyState?: WeeklyManualState,
+): WeeklyManualState {
+  const capability = getCronManualCapability(job)
+  if (capability.id === 'daily-pipeline') return { enabled: isSyncMutableExecutionEnabled() }
+  if (capability.id === 'cron-execution-cleanup') return { enabled: isCronExecutionCleanupMutableExecutionEnabled() }
+  if (capability.id === 'achievement-evaluation') return { enabled: isAchievementEvaluationMutableExecutionEnabled() }
+  if (capability.id === 'weekly-tag-snapshot') {
+    return weeklyState ?? {
+      enabled: false,
+      blockedReason: 'Configuração de monitorização semanal indisponível',
+    }
+  }
+  if (capability.id === 'discord-scheduled-messages') {
+    return { enabled: isScheduledMessagesEnabled() && isMessagesEnabled() }
+  }
+  return { enabled: false }
+}
+
+async function withManualExecutionView(
+  job: CronManualCapabilityJob,
+  weeklyState?: WeeklyManualState,
+): Promise<Record<string, unknown>> {
   if (typeof job.name !== 'string' || typeof job.syncType !== 'string' || !job._id
     || typeof job._id.toString !== 'function') {
     return job as unknown as Record<string, unknown>
@@ -39,9 +58,30 @@ function withManualExecutionView(job: CronManualCapabilityJob): Record<string, u
   const plain = typeof jobWithToObject.toObject === 'function'
     ? jobWithToObject.toObject()
     : job
+  const state = manualMutableEnabled(job, weeklyState)
   return {
     ...(plain as Record<string, unknown>),
-    manualExecution: cronManualExecutionView(job, manualMutableEnabled(job)),
+    manualExecution: cronManualExecutionView(job, state.enabled, {
+      blockedReason: state.blockedReason,
+    }),
+  }
+}
+
+async function weeklyManualStateForJobs(
+  jobs: readonly CronManualCapabilityJob[],
+): Promise<WeeklyManualState | undefined> {
+  if (!jobs.some(job => job.name === 'WeeklyTagSnapshot')) return undefined
+  try {
+    const config = await WeeklyTagMonitoringConfig.getConfig()
+    return {
+      enabled: isWeeklyTagSnapshotMutableExecutionEnabled() && config.enabled,
+      ...(config.enabled ? {} : { blockedReason: 'Monitorização semanal desativada' }),
+    }
+  } catch {
+    return {
+      enabled: false,
+      blockedReason: 'Configuração de monitorização semanal indisponível',
+    }
   }
 }
 
@@ -84,9 +124,10 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
       }
     }
 
+    const weeklyState = await weeklyManualStateForJobs(jobs)
     res.status(200).json(successResponse({
         total: jobs.length,
-        jobs: jobs.map(job => withManualExecutionView(job)),
+        jobs: await Promise.all(jobs.map(job => withManualExecutionView(job, weeklyState))),
         systemJobs
       }, { message: 'Jobs recuperados com sucesso' }))
 
@@ -135,7 +176,7 @@ export const getJobById = async (
     )
 
     res.status(200).json(successResponse({
-      job: withManualExecutionView(job),
+      job: await withManualExecutionView(job, await weeklyManualStateForJobs([job])),
       nextExecutions,
       successRate: job.getSuccessRate(),
     }, { message: 'Job recuperado com sucesso' }))

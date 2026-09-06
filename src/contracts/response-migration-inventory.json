@@ -2948,7 +2948,7 @@
     "owner": "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts",
+    "frontConsumer": null,
     "status": "complete"
   },
   {

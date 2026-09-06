@@ -1,13 +1,32 @@
 import { NextFunction, Request, Response } from 'express'
+import mongoose from 'mongoose'
 import { weeklyTagMonitoringService } from '../../services/tagMonitoring'
 import { WeeklyNativeTagSnapshot, WeeklyTagMonitoringConfig } from '../../models/tagMonitoring'
 import logger from '../../utils/logger'
-import { internalError } from '../../security/errorHandling'
+import { HttpError, internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
 import { boundedQueryLimit } from '../../utils/queryBounds'
+import syncSchedulerService from '../../services/cron/scheduler'
+import { requestIdFrom } from '../../services/activeCampaign/activeCampaignExecution.service'
+import type { TagMonitoringSnapshotManualInput } from '../../security/tagMonitoringDestructiveInput'
+import type { ValidatedRequest } from '../../security/validatedInput'
+import type { SnapshotResult } from '../../services/tagMonitoring/weeklyTagMonitoring.service'
 
 type SnapshotEmailParams = {
   email: string
+}
+
+function isSnapshotResultData(value: unknown): value is SnapshotResult {
+  if (typeof value !== 'object' || value === null) return false
+  const data = value as Record<string, unknown>
+  return typeof data.success === 'boolean'
+    && typeof data.totalStudents === 'number'
+    && typeof data.snapshotsCreated === 'number'
+    && typeof data.changesDetected === 'number'
+    && typeof data.notificationsCreated === 'number'
+    && typeof data.duration === 'string'
+    && typeof data.errors === 'number'
+    && (data.mode === 'STUDENTS_ONLY' || data.mode === 'ALL_CONTACTS')
 }
 
 /**
@@ -145,17 +164,38 @@ export const compareSnapshots = async (
  * Executa um snapshot manual (fora do CRON)
  */
 export const executeManualSnapshot = async (
-  req: Request,
+  input: TagMonitoringSnapshotManualInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     logger.info('🚀 Snapshot manual solicitado pelo admin')
+    const actorId = req.user?.id ?? 'system'
+    const triggeredBy = /^[0-9a-fA-F]{24}$/.test(actorId)
+      ? new mongoose.Types.ObjectId(actorId)
+      : new mongoose.Types.ObjectId('000000000000000000000001')
+    const result = await syncSchedulerService.executeNamedJobManually(
+      'WeeklyTagSnapshot',
+      triggeredBy,
+      {
+        actorId,
+        dryRun: input.body.dryRun === true,
+        requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+      },
+    )
+    if (!isSnapshotResultData(result.data)) {
+      throw new Error('Contrato de resultado do snapshot manual inválido')
+    }
 
-    const result = await weeklyTagMonitoringService.performWeeklySnapshot()
-
-    res.json(successResponse(result, { message: 'Snapshot manual executado com sucesso' }))
+    res.json(successResponse(result.data, { message: input.body.dryRun === true
+      ? 'Plano do snapshot calculado sem efeitos'
+      : 'Snapshot manual executado com sucesso' }))
   } catch (error: unknown) {
+    if (error instanceof HttpError) {
+      next(error)
+      return
+    }
     next(internalError(
       'Erro ao executar snapshot manual',
       'TAG_MONITORING_SNAPSHOT_MANUAL_FAILED',

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import {
   WeeklyNativeTagSnapshot,
   CriticalTag,
@@ -6,22 +7,79 @@ import {
 import { IWeeklyNativeTagSnapshot, TagChanges } from '../../models/tagMonitoring/WeeklyNativeTagSnapshot'
 import activeCampaignService from '../activeCampaign/activeCampaignService'
 import { classifyTags } from '../activeCampaign/nativeTagProtection.service'
-import tagNotificationService, { StudentChange } from './tagNotification.service'
+import type { StudentChange } from './tagNotification.service'
 import User from '../../models/user'
-import UserProduct from '../../models/UserProduct'
 import logger from '../../utils/logger'
 import { getStudentsByPriority } from './weekly/studentsByPriority'
 import { errorMessage } from '../syncUtilizadoresServices/universalSync/fieldUtils'
+import { HttpError } from '../../security/errorHandling'
+import type { WeeklyTagSnapshotPlan } from '../../types/cron.types'
+import {
+  assertOwnership,
+  isOwnershipFailure,
+  type EmailSelection,
+  type SnapshotData,
+  type WeeklyTagSnapshotOptions,
+} from './weekly/contracts'
+import {
+  getEmailsToProcess,
+} from './weekly/source'
+import {
+  cleanupOldSnapshots as cleanupOldSnapshotsBounded,
+  persistSnapshot,
+} from './weekly/snapshotPersistence'
+import {
+  WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS,
+  WeeklyTagCriticalTagLimitError,
+  WeeklyTagSnapshotLimitError,
+} from './weekly/limits'
+import {
+  appendCriticalChanges,
+  createNotifications,
+  criticalChangesFromMap,
+  type CriticalChange,
+} from './weekly/notifications'
 
-interface SnapshotResult {
+export {
+  WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS,
+  WEEKLY_TAG_SNAPSHOT_CLEANUP_MAX_CANDIDATES,
+  WEEKLY_TAG_SNAPSHOT_MAX_NOTIFICATION_DETAILS,
+  WeeklyTagSnapshotLimitError,
+} from './weekly/limits'
+
+export type { WeeklyTagSnapshotOptions } from './weekly/contracts'
+
+export interface SnapshotResult {
   success: boolean
   totalStudents: number
   snapshotsCreated: number
+  snapshotsInserted?: number
+  snapshotsUpdated?: number
+  snapshotsSkipped?: number
+  inserted?: number
+  updated?: number
+  skipped?: number
   changesDetected: number
   notificationsCreated: number
+  notificationsTruncated?: boolean
+  notificationDetails?: number
   duration: string
   errors: number
   mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'
+  dryRun?: true
+  truncated?: boolean
+  remaining?: number
+  plan?: WeeklyTagSnapshotPlan
+}
+
+interface SnapshotProcessResult {
+  snapshotsInserted: number
+  snapshotsUpdated: number
+  successful: number
+  changes: CriticalChange[]
+  errors: number
+  notificationsTruncated: boolean
+  notificationDetails: number
 }
 
 interface LastWeekStats {
@@ -36,127 +94,139 @@ interface SnapshotStats {
   lastWeek: LastWeekStats
 }
 
-interface CriticalChange {
-  tagName: string
-  changeType: 'ADDED' | 'REMOVED'
-  students: StudentChange[]
+function isCapacityFailure(error: unknown): boolean {
+  return error instanceof WeeklyTagSnapshotLimitError
+    || (error instanceof HttpError && error.status === 413)
 }
 
 class WeeklyTagMonitoringService {
   private readonly BATCH_SIZE = 50
   private readonly BATCH_DELAY_MS = 1000
 
-  async performWeeklySnapshot(): Promise<SnapshotResult> {
+  async performWeeklySnapshot(options: WeeklyTagSnapshotOptions = {}): Promise<SnapshotResult> {
     const startTime = Date.now()
     logger.info('═══════════════════════════════════════════════════════════')
     logger.info('🚀 Iniciando Snapshot Semanal de Tags Nativas')
     logger.info('═══════════════════════════════════════════════════════════')
 
     try {
-      // 1. Buscar configuração
       const config = await WeeklyTagMonitoringConfig.getConfig()
       if (!config.enabled) {
         logger.warn('⚠️  Sistema de monitorização desativado')
-        return this.createEmptyResult('STUDENTS_ONLY')
+        return this.createEmptyResult(config.scope, options.dryRun === true)
       }
 
       const mode = config.scope
       logger.info(`📋 Modo: ${mode}`)
+      const selection = await this.getEmailsToProcess(mode, options)
+      logger.info(`👥 Total de contactos para processar: ${selection.emails.length}`)
 
-      // 2. Buscar emails para processar
-      const emailsToProcess = await this.getEmailsToProcess(mode)
-      logger.info(`👥 Total de contactos para processar: ${emailsToProcess.length}`)
-
-      if (emailsToProcess.length === 0) {
-        logger.warn('⚠️  Nenhum contacto para processar')
-        return this.createEmptyResult(mode)
+      assertOwnership(options)
+      const criticalTags = await CriticalTag.findActiveTags(WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS)
+      assertOwnership(options)
+      if (criticalTags.length > WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS) {
+        throw new WeeklyTagCriticalTagLimitError()
       }
-
-      // 3. Buscar tags críticas ativas
-      const criticalTags = await CriticalTag.findActiveTags()
       logger.info(`🏷️  Tags críticas ativas: ${criticalTags.length}`)
 
-      // 4. Processar snapshots em batches
-      const {
-        snapshotsCreated,
-        changes,
-        errors,
-      } = await this.processSnapshotsBatch(emailsToProcess, criticalTags.map((t) => t.tagName))
-
-      // 5. Criar notificações agrupadas
-      const notificationsCreated = await this.createNotifications(changes)
-
-      // 6. Cleanup de snapshots antigos
-      await this.cleanupOldSnapshots()
-
+      const processed = selection.emails.length === 0
+        ? {
+          snapshotsInserted: 0,
+          snapshotsUpdated: 0,
+          successful: 0,
+          changes: [],
+          errors: 0,
+          notificationsTruncated: false,
+          notificationDetails: 0,
+        }
+        : await this.processSnapshotsBatch(
+          selection.emails,
+          criticalTags.map(tag => tag.tagName),
+          options,
+        )
+      const notificationsCreated = await createNotifications(processed.changes, options)
+      const cleanup = await cleanupOldSnapshotsBounded(options)
       const duration = this.formatDuration(Date.now() - startTime)
+      const snapshotsSkipped = Math.max(0, selection.emails.length - processed.successful)
+
+      const result: SnapshotResult = {
+        success: true,
+        totalStudents: selection.emails.length,
+        snapshotsCreated: processed.snapshotsInserted,
+        snapshotsInserted: processed.snapshotsInserted,
+        snapshotsUpdated: processed.snapshotsUpdated,
+        snapshotsSkipped,
+        inserted: options.dryRun === true ? 0 : processed.snapshotsInserted,
+        updated: options.dryRun === true ? 0 : processed.snapshotsUpdated,
+        skipped: snapshotsSkipped,
+        changesDetected: processed.changes.length,
+        notificationsCreated,
+        notificationsTruncated: processed.notificationsTruncated,
+        notificationDetails: processed.notificationDetails,
+        duration,
+        errors: processed.errors,
+        mode,
+        truncated: selection.truncated,
+        remaining: selection.remaining,
+        ...(options.dryRun === true ? { dryRun: true as const } : {}),
+      }
+
+      if (options.dryRun === true) {
+        result.plan = {
+          operation: 'weekly-tag-snapshot',
+          dryRun: true,
+          scope: mode,
+          matching: selection.emails.length,
+          wouldSnapshot: processed.successful,
+          wouldNotify: processed.changes.length,
+          notificationDetails: processed.notificationDetails,
+          notificationsTruncated: processed.notificationsTruncated,
+          cleanupCandidates: cleanup.candidates,
+          cleanupSkipped: cleanup.skipped,
+          cleanupTruncated: cleanup.truncated,
+          cleanupRemaining: cleanup.remaining,
+          limit: WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS,
+          truncated: selection.truncated,
+          remaining: selection.remaining,
+        }
+      }
+
       logger.info('═══════════════════════════════════════════════════════════')
       logger.info('✅ Snapshot Semanal Concluído!')
       logger.info(`⏱️  Duração: ${duration}`)
-      logger.info(`📊 Snapshots criados: ${snapshotsCreated}`)
-      logger.info(`📈 Mudanças detectadas: ${changes.length}`)
+      logger.info(`📊 Snapshots inseridos: ${processed.snapshotsInserted}`)
+      logger.info(`📊 Snapshots atualizados: ${processed.snapshotsUpdated}`)
+      logger.info(`📈 Mudanças detectadas: ${processed.changes.length}`)
       logger.info(`🔔 Notificações criadas: ${notificationsCreated}`)
-      logger.info(`❌ Erros: ${errors}`)
+      logger.info(`❌ Erros: ${processed.errors}`)
       logger.info('═══════════════════════════════════════════════════════════')
 
-      return {
-        success: true,
-        totalStudents: emailsToProcess.length,
-        snapshotsCreated,
-        changesDetected: changes.length,
-        notificationsCreated,
-        duration,
-        errors,
-        mode,
-      }
+      return result
     } catch (error: unknown) {
       logger.error('❌ Erro fatal no snapshot semanal:', error)
       throw error
     }
   }
 
-  private async getEmailsToProcess(mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'): Promise<string[]> {
-    if (mode === 'STUDENTS_ONLY') {
-      // Buscar TODOS os utilizadores com produtos (ACTIVE ou INACTIVE)
-      // Alteração: removido filtro { status: 'ACTIVE' }
-      const userProducts = await UserProduct.find()
-        .select('userId')
-        .lean()
-
-      const userIds = [...new Set(userProducts.map((up) => up.userId.toString()))]
-
-      const users = await User.find({ _id: { $in: userIds } })
-        .select('email')
-        .lean()
-
-      logger.info(`📊 STUDENTS_ONLY: ${users.length} alunos encontrados (ACTIVE + INACTIVE)`)
-      return users.map((u) => u.email).filter(Boolean)
-    } else {
-      // ALL_CONTACTS: Buscar todos os contactos da ActiveCampaign
-      try {
-        const allContacts = await activeCampaignService.getAllContacts()
-        logger.info(`📊 ALL_CONTACTS: ${allContacts.length} contactos da AC`)
-        return allContacts.map((contact) => contact.email).filter(Boolean)
-      } catch (error) {
-        logger.error('Erro ao buscar contactos da AC, fallback para STUDENTS_ONLY', error)
-        // Fallback para STUDENTS_ONLY em caso de erro
-        return this.getEmailsToProcess('STUDENTS_ONLY')
-      }
-    }
+  private getEmailsToProcess(
+    mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS',
+    options: WeeklyTagSnapshotOptions,
+  ): Promise<EmailSelection> {
+    return getEmailsToProcess(mode, options)
   }
 
   private async processSnapshotsBatch(
     emails: string[],
-    criticalTagNames: string[]
-  ): Promise<{
-    snapshotsCreated: number
-    changes: CriticalChange[]
-    errors: number
-  }> {
-    let snapshotsCreated = 0
+    criticalTagNames: string[],
+    options: WeeklyTagSnapshotOptions,
+  ): Promise<SnapshotProcessResult> {
+    let snapshotsInserted = 0
+    let snapshotsUpdated = 0
+    let successful = 0
     let errors = 0
-    const changesMap = new Map<string, StudentChange[]>() // Formato: "tagName|ADDED" => students[]
-
+    let notificationsTruncated = false
+    let notificationDetails = 0
+    const changesMap = new Map<string, StudentChange[]>()
     const currentDate = new Date()
     const weekNumber = this.getWeekNumber(currentDate)
     const year = currentDate.getFullYear()
@@ -168,256 +238,110 @@ class WeeklyTagMonitoringService {
 
       for (const email of batch) {
         try {
-          // Capturar snapshot individual
-          const result = await this.captureStudentSnapshot(email, weekNumber, year)
-
-          if (!result.success) {
+          const result = await this.captureStudentSnapshot(email, weekNumber, year, options)
+          if (!result.success || !result.snapshot) {
             errors++
             continue
           }
-          if (!result.snapshot) continue
+          successful++
+          if (result.created) snapshotsInserted++
+          if (result.updated) snapshotsUpdated++
 
-          if (result.created) snapshotsCreated++
-
-          // Detectar mudanças críticas
           if (result.changes) {
-            await this.detectCriticalChanges(
+            const notificationPlan = await appendCriticalChanges({
               email,
-              result.changes,
-              result.snapshot,
+              changes: result.changes,
+              snapshot: result.snapshot,
               criticalTagNames,
-              changesMap
-            )
+              changesMap,
+              notificationDetails,
+              options,
+            })
+            notificationDetails = notificationPlan.notificationDetails
+            notificationsTruncated ||= notificationPlan.truncated
           }
         } catch (error: unknown) {
+          if (isOwnershipFailure(error) || isCapacityFailure(error)) throw error
           errors++
           logger.error(`Erro ao processar ${email}:`, errorMessage(error))
         }
       }
 
-      // Progresso
       if ((i + this.BATCH_SIZE) % 500 === 0 || i + this.BATCH_SIZE >= emails.length) {
         const processed = Math.min(i + this.BATCH_SIZE, emails.length)
         logger.info(`📊 Progresso: ${processed}/${emails.length} (${((processed / emails.length) * 100).toFixed(1)}%)`)
       }
 
-      // Rate limiting: pause entre batches
       if (i + this.BATCH_SIZE < emails.length) {
-        await new Promise((resolve) => setTimeout(resolve, this.BATCH_DELAY_MS))
+        await new Promise(resolve => setTimeout(resolve, this.BATCH_DELAY_MS))
       }
     }
 
-    // Converter mapa em array de mudanças
-    const changes: CriticalChange[] = []
-    changesMap.forEach((students, key) => {
-      const [tagName, changeType] = key.split('|')
-      changes.push({
-        tagName,
-        changeType: changeType as 'ADDED' | 'REMOVED',
-        students,
-      })
-    })
-
-    return { snapshotsCreated, changes, errors }
+    const changes = criticalChangesFromMap(changesMap)
+    return {
+      snapshotsInserted,
+      snapshotsUpdated,
+      successful,
+      changes,
+      errors,
+      notificationsTruncated,
+      notificationDetails,
+    }
   }
 
   async captureStudentSnapshot(
     email: string,
     weekNumber?: number,
-    year?: number
+    year?: number,
+    options: WeeklyTagSnapshotOptions = {},
   ): Promise<{
     success: boolean
     snapshot?: IWeeklyNativeTagSnapshot
     created?: boolean
+    updated?: boolean
     changes?: TagChanges
   }> {
     try {
       const normalizedEmail = email.trim().toLowerCase()
 
-      // Buscar tags da ActiveCampaign
+      assertOwnership(options)
+      options.phaseHooks?.providerStarted()
       const { tags: allTags } = await activeCampaignService.getContactTagsByEmailStrict(normalizedEmail)
-
-      if (!allTags || allTags.length === 0) {
-        logger.debug(`${email} não tem tags na AC`)
-      }
-
-      // Classificar tags (BO vs Nativas)
+      assertOwnership(options)
+      options.phaseHooks?.providerSucceeded()
       const { nativeTags } = classifyTags(allTags || [])
 
-      if (nativeTags.length === 0) {
-        logger.debug(`${email} não tem tags nativas`)
-      }
-
-      // Buscar userId
+      assertOwnership(options)
       const user = await User.findOne({ email: normalizedEmail }).select('_id')
+      assertOwnership(options)
       if (!user) {
         logger.warn(`Utilizador não encontrado na BD: ${normalizedEmail}`)
         return { success: false }
       }
 
-      // Calcular semana e ano
       const currentDate = new Date()
       const currentWeekNumber = weekNumber || this.getWeekNumber(currentDate)
       const currentYear = year || currentDate.getFullYear()
-
-      // Criar ou actualizar o snapshot da identidade semanal de forma convergente.
-      const snapshotResult = await WeeklyNativeTagSnapshot.findOneAndUpdate(
-        {
-          email: normalizedEmail,
-          weekNumber: currentWeekNumber,
-          year: currentYear,
-        },
-        {
-          $set: {
-            email: normalizedEmail,
-            userId: user._id,
-            nativeTags,
-            capturedAt: currentDate,
-          },
-        },
-        {
-          new: true,
-          upsert: true,
-          setDefaultsOnInsert: true,
-          includeResultMetadata: true,
-        },
-      )
-      const snapshot = snapshotResult?.value
-
-      if (!snapshot) {
-        logger.error(`Snapshot semanal não devolvido para ${normalizedEmail}`)
-        return { success: false }
+      const data: SnapshotData = {
+        email: normalizedEmail,
+        userId: user._id as mongoose.Types.ObjectId,
+        nativeTags,
+        capturedAt: currentDate,
+        weekNumber: currentWeekNumber,
+        year: currentYear,
       }
 
-      // Buscar snapshot anterior
-      const previousSnapshot = await WeeklyNativeTagSnapshot.findPreviousSnapshot(
-        normalizedEmail,
-        currentWeekNumber,
-        currentYear
-      )
-
-      // Comparar com anterior
-      let changes: TagChanges | undefined
-      if (previousSnapshot) {
-        changes = snapshot.compareWith(previousSnapshot)
-      }
-
-      return {
-        success: true,
-        snapshot,
-        created: Boolean(snapshotResult.lastErrorObject?.upserted),
-        changes,
-      }
+      return persistSnapshot(data, options)
     } catch (error: unknown) {
+      if (isOwnershipFailure(error) || isCapacityFailure(error)) throw error
       logger.error(`Erro ao capturar snapshot de ${email}:`, errorMessage(error))
       return { success: false }
     }
   }
 
-  private async detectCriticalChanges(
-    email: string,
-    changes: TagChanges,
-    snapshot: IWeeklyNativeTagSnapshot,
-    criticalTagNames: string[],
-    changesMap: Map<string, StudentChange[]>
-  ): Promise<void> {
-    const criticalSet = new Set(criticalTagNames)
-
-    // Verificar tags adicionadas
-    for (const tag of changes.added) {
-      if (criticalSet.has(tag)) {
-        const key = `${tag}|ADDED`
-        const studentChange = await this.buildStudentChange(email, snapshot)
-        if (studentChange) {
-          if (!changesMap.has(key)) changesMap.set(key, [])
-          changesMap.get(key)!.push(studentChange)
-        }
-      }
-    }
-
-    // Verificar tags removidas
-    for (const tag of changes.removed) {
-      if (criticalSet.has(tag)) {
-        const key = `${tag}|REMOVED`
-        const studentChange = await this.buildStudentChange(email, snapshot)
-        if (studentChange) {
-          if (!changesMap.has(key)) changesMap.set(key, [])
-          changesMap.get(key)!.push(studentChange)
-        }
-      }
-    }
-  }
-
-  private async buildStudentChange(
-    email: string,
-    snapshot: IWeeklyNativeTagSnapshot
-  ): Promise<StudentChange | null> {
-    try {
-      const user = await User.findOne({ email }).select('name').lean()
-      if (!user) return null
-
-      // Buscar produto principal do aluno
-      const userProduct = await UserProduct.findOne({ userId: user._id, status: 'ACTIVE' })
-        .populate<{ productId: { name?: string } }>('productId')
-        .lean()
-
-      const productName = userProduct?.productId?.name || 'N/A'
-      const className = userProduct?.classes?.[0]?.className || undefined
-
-      return {
-        email,
-        userName: user.name || email,
-        product: productName,
-        class: className,
-        currentTags: snapshot.nativeTags,
-      }
-    } catch (error) {
-      logger.error(`Erro ao construir StudentChange para ${email}:`, error)
-      return null
-    }
-  }
-
-  private async createNotifications(changes: CriticalChange[]): Promise<number> {
-    if (changes.length === 0) return 0
-
-    let notificationsCreated = 0
-    const currentDate = new Date()
-    const weekNumber = this.getWeekNumber(currentDate)
-    const year = currentDate.getFullYear()
-
-    for (const change of changes) {
-      try {
-        const result = await tagNotificationService.createGroupedNotificationWithStatus(
-          change.tagName,
-          change.changeType,
-          weekNumber,
-          year,
-          change.students
-        )
-        if (result.created) notificationsCreated++
-      } catch (error) {
-        logger.error(`Erro ao criar notificação para ${change.tagName} ${change.changeType}:`, error)
-      }
-    }
-
-    return notificationsCreated
-  }
-
-  async cleanupOldSnapshots(): Promise<number> {
-    try {
-      const sixMonthsAgo = new Date()
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-      const result = await WeeklyNativeTagSnapshot.deleteMany({
-        capturedAt: { $lt: sixMonthsAgo },
-      })
-
-      logger.info(`🗑️  Snapshots antigos removidos: ${result.deletedCount}`)
-      return result.deletedCount || 0
-    } catch (error) {
-      logger.error('Erro ao limpar snapshots antigos:', error)
-      return 0
-    }
+  async cleanupOldSnapshots(options: WeeklyTagSnapshotOptions = {}): Promise<number> {
+    const result = await cleanupOldSnapshotsBounded(options)
+    return result.deleted
   }
 
   async getSnapshotStats(): Promise<SnapshotStats> {
@@ -427,12 +351,7 @@ class WeeklyTagMonitoringService {
         WeeklyNativeTagSnapshot.distinct('email'),
         this.getLastWeekStats(),
       ])
-
-      return {
-        totalSnapshots,
-        uniqueStudents: uniqueStudents.length,
-        lastWeek,
-      }
+      return { totalSnapshots, uniqueStudents: uniqueStudents.length, lastWeek }
     } catch (error) {
       logger.error('Erro ao obter estatísticas:', error)
       throw error
@@ -444,15 +363,9 @@ class WeeklyTagMonitoringService {
     const weekNumber = this.getWeekNumber(currentDate)
     const year = currentDate.getFullYear()
     const snapshots = await WeeklyNativeTagSnapshot.countDocuments({ weekNumber, year })
-    return {
-      weekNumber,
-      year,
-      snapshots,
-    }
+    return { weekNumber, year, snapshots }
   }
-  /**
-   * Calcula número da semana do ano (ISO 8601)
-   */
+
   private getWeekNumber(date: Date): number {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
     const dayNum = d.getUTCDay() || 7
@@ -460,39 +373,66 @@ class WeeklyTagMonitoringService {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
     return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
   }
-  /**
-   * Formata duração em formato legível
-   */
+
   private formatDuration(ms: number): string {
     const seconds = Math.floor(ms / 1000)
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
-    if (minutes === 0) {
-      return `${seconds}s`
-    }
+    if (minutes === 0) return `${seconds}s`
     return `${minutes}m ${remainingSeconds}s`
   }
-  /**
-   * Cria resultado vazio para casos de erro/desativado
-   */
-  private createEmptyResult(mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'): SnapshotResult {
-    return {
+
+  private createEmptyResult(
+    mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS',
+    dryRun: boolean,
+  ): SnapshotResult {
+    const result: SnapshotResult = {
       success: false,
       totalStudents: 0,
       snapshotsCreated: 0,
+      snapshotsInserted: 0,
+      snapshotsUpdated: 0,
+      snapshotsSkipped: 0,
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
       changesDetected: 0,
       notificationsCreated: 0,
+      notificationsTruncated: false,
+      notificationDetails: 0,
       duration: '0s',
       errors: 0,
       mode,
+      truncated: false,
+      remaining: 0,
+      ...(dryRun ? { dryRun: true as const } : {}),
     }
+    if (dryRun) {
+      result.plan = {
+        operation: 'weekly-tag-snapshot',
+        dryRun: true,
+        monitoringEnabled: false,
+        scope: mode,
+        matching: 0,
+        wouldSnapshot: 0,
+        wouldNotify: 0,
+        notificationDetails: 0,
+        notificationsTruncated: false,
+        cleanupCandidates: 0,
+        cleanupSkipped: 0,
+        cleanupTruncated: false,
+        cleanupRemaining: 0,
+        limit: WEEKLY_TAG_SNAPSHOT_MAX_CONTACTS,
+        truncated: false,
+        remaining: 0,
+      }
+    }
+    return result
   }
-  /**
-   * Busca alunos que possuem tags de determinadas prioridades
-   * GET /api/tag-monitoring/students-by-priority
-   */
+
   async getStudentsByPriority(params: Parameters<typeof getStudentsByPriority>[0]) {
     return getStudentsByPriority(params)
   }
 }
+
 export default new WeeklyTagMonitoringService()

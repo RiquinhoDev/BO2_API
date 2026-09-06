@@ -46,6 +46,27 @@ describe('ActiveCampaignContactsService', () => {
     })
   })
 
+  it('bounds the weekly read during pagination and reports a lower-bound remainder', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => contact(`contact-${index}`))
+    const secondPage = [contact('contact-100')]
+    const get = jest.spyOn(transport.client, 'get')
+      .mockResolvedValueOnce({ data: { contacts: firstPage } })
+      .mockResolvedValueOnce({ data: { contacts: secondPage } })
+    const service = new ActiveCampaignContactsService(transport)
+
+    await expect(service.getAllContactsBounded(100)).resolves.toEqual({
+      contacts: firstPage,
+      truncated: true,
+      remaining: 1,
+    })
+    expect(get).toHaveBeenNthCalledWith(1, '/api/3/contacts', {
+      params: { limit: 100, offset: 0 },
+    })
+    expect(get).toHaveBeenNthCalledWith(2, '/api/3/contacts', {
+      params: { limit: 1, offset: 100 },
+    })
+  })
+
   it('updates an existing contact instead of creating another', async () => {
     const existing = contact('contact-1')
     jest.spyOn(transport.client, 'get').mockResolvedValue({ data: { contacts: [existing] } })

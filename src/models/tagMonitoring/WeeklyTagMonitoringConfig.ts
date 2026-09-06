@@ -57,16 +57,13 @@ WeeklyTagMonitoringConfigSchema.pre('save', async function (next) {
 
 // Métodos estáticos
 WeeklyTagMonitoringConfigSchema.statics.getConfig = async function (): Promise<IWeeklyTagMonitoringConfig> {
-  let config = await this.findOne()
-
-  // Criar configuração default se não existir
+  const config = await this.findOne()
   if (!config) {
-    config = await this.create({
+    return this.hydrate({
       scope: 'STUDENTS_ONLY',
       enabled: true,
     })
   }
-
   return config
 }
 

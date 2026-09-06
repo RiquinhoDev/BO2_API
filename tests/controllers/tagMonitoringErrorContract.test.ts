@@ -49,6 +49,11 @@ jest.mock('../../src/services/tagMonitoring', () => ({
   },
 }))
 
+jest.mock('../../src/services/cron/scheduler', () => ({
+  __esModule: true,
+  default: { executeNamedJobManually: jest.fn() },
+}))
+
 jest.mock('../../src/models/tagMonitoring', () => ({
   WeeklyNativeTagSnapshot: {
     find: jest.fn(),
@@ -64,6 +69,11 @@ jest.mock('../../src/models/tagMonitoring', () => ({
 }))
 
 import tagMonitoringRouter from '../../src/routes/tagMonitoring.routes'
+
+const { default: schedulerMock } = jest.requireMock<{
+  default: { executeNamedJobManually: jest.Mock }
+}>('../../src/services/cron/scheduler')
+const mockExecuteNamedJobManually = schedulerMock.executeNamedJobManually
 
 const correlationId = 'tag-monitoring-request'
 const offlineMarker = { __bo2_offline_loopback: '1' }
@@ -716,7 +726,12 @@ test('manual snapshot preserves the service result envelope', async () => {
     errors: 0,
     mode: 'STUDENTS_ONLY',
   }
-  jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockResolvedValueOnce(result)
+  mockExecuteNamedJobManually.mockResolvedValueOnce({
+    success: true,
+    duration: 1,
+    stats: { total: 12, inserted: 12, updated: 0, errors: 0, skipped: 0 },
+    data: result,
+  })
 
   const response = await request(buildApp())
     .post('/api/tag-monitoring/snapshots/manual')
@@ -728,8 +743,28 @@ test('manual snapshot preserves the service result envelope', async () => {
     data: result,
     meta: { message: 'Snapshot manual executado com sucesso' },
   })
-  expect(weeklyTagMonitoringService.performWeeklySnapshot).toHaveBeenCalledTimes(1)
+  expect(mockExecuteNamedJobManually).toHaveBeenCalledTimes(1)
 })
+
+test('manual snapshot fails closed when the canonical result data is missing', async () => {
+  mockExecuteNamedJobManually.mockResolvedValueOnce({
+    success: true,
+    duration: 1,
+    stats: { total: 12, inserted: 12, updated: 0, errors: 0, skipped: 0 },
+  })
+
+  const response = await request(buildApp())
+    .post('/api/tag-monitoring/snapshots/manual')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(500)
+  expect(response.body).toEqual(expectedError(
+    'TAG_MONITORING_SNAPSHOT_MANUAL_FAILED',
+    'Erro ao executar snapshot manual',
+  ))
+  expectRedacted(response)
+})
+
 test('global stats preserve the service result envelope', async () => {
   const stats = {
     totalSnapshots: 42,
@@ -924,7 +959,7 @@ test.each([
   },
   {
     name: 'manual snapshot',
-    reject: () => jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockRejectedValueOnce(
+    reject: () => mockExecuteNamedJobManually.mockRejectedValueOnce(
       new Error('secret alice@example.test token=hidden'),
     ),
     call: () => request(buildApp())

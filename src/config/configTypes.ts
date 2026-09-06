@@ -20,6 +20,7 @@ export interface CoreConfig {
   readonly syncMutableExecutionEnabled?: boolean
   readonly cronExecutionCleanupMutableExecutionEnabled?: boolean
   readonly achievementEvaluationMutableExecutionEnabled?: boolean
+  readonly weeklyTagSnapshotMutableExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }

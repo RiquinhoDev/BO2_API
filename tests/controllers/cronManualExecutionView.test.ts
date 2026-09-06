@@ -3,6 +3,8 @@ import type { NextFunction, Request, Response } from 'express'
 const mockGetJobsByType = jest.fn()
 const mockIsScheduledMessagesEnabled = jest.fn()
 const mockIsMessagesEnabled = jest.fn()
+const mockIsWeeklyTagSnapshotMutableExecutionEnabled = jest.fn()
+const mockWeeklyConfig = jest.fn()
 
 jest.mock('../../src/services/cron/scheduler', () => ({
   __esModule: true,
@@ -14,6 +16,13 @@ jest.mock('../../src/services/renewal/discordScheduledMessages.service', () => (
 jest.mock('../../src/services/renewal/discord/planning', () => ({
   isMessagesEnabled: mockIsMessagesEnabled,
 }))
+jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
+  isWeeklyTagSnapshotMutableExecutionEnabled: mockIsWeeklyTagSnapshotMutableExecutionEnabled,
+}))
+jest.mock('../../src/models/tagMonitoring/WeeklyTagMonitoringConfig', () => ({
+  __esModule: true,
+  default: { getConfig: mockWeeklyConfig },
+}))
 
 import { getAllJobs } from '../../src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller'
 
@@ -21,6 +30,11 @@ const job = {
   _id: { toString: () => '507f1f77bcf86cd799439011' },
   name: 'DiscordScheduledMessages',
   syncType: 'discord',
+}
+
+const weeklyJob = {
+  ...job,
+  name: 'WeeklyTagSnapshot',
 }
 
 function response() {
@@ -35,6 +49,73 @@ beforeEach(() => {
   mockGetJobsByType.mockResolvedValue([job])
   mockIsScheduledMessagesEnabled.mockReturnValue(true)
   mockIsMessagesEnabled.mockReturnValue(true)
+  mockIsWeeklyTagSnapshotMutableExecutionEnabled.mockReturnValue(false)
+  mockWeeklyConfig.mockResolvedValue({ enabled: true, scope: 'ALL_CONTACTS' })
+})
+
+test('combines the weekly env guard and monitoring kill switch in list view with one config read', async () => {
+  mockGetJobsByType.mockResolvedValue([weeklyJob])
+  const res = response()
+
+  await getAllJobs(
+    { query: { syncType: 'hotmart' } } as unknown as Request,
+    res as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+
+  expect(mockWeeklyConfig).toHaveBeenCalledTimes(1)
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      jobs: [expect.objectContaining({
+        manualExecution: expect.objectContaining({
+          capability: 'weekly-tag-snapshot',
+          mutableEnabled: false,
+          blockedReason: 'Execução mutável desativada pelo backend',
+        }),
+      })],
+    }),
+  }))
+})
+
+test('list view fails closed on disabled or unreadable weekly monitoring config', async () => {
+  mockGetJobsByType.mockResolvedValue([weeklyJob])
+  mockIsWeeklyTagSnapshotMutableExecutionEnabled.mockReturnValue(true)
+  mockWeeklyConfig.mockResolvedValueOnce({ enabled: false, scope: 'ALL_CONTACTS' })
+  const disabledRes = response()
+
+  await getAllJobs(
+    { query: { syncType: 'hotmart' } } as unknown as Request,
+    disabledRes as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+  expect(disabledRes.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      jobs: [expect.objectContaining({
+        manualExecution: expect.objectContaining({
+          mutableEnabled: false,
+          blockedReason: 'Monitorização semanal desativada',
+        }),
+      })],
+    }),
+  }))
+
+  mockWeeklyConfig.mockRejectedValueOnce(new Error('config unavailable'))
+  const failedRes = response()
+  await getAllJobs(
+    { query: { syncType: 'hotmart' } } as unknown as Request,
+    failedRes as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+  expect(failedRes.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      jobs: [expect.objectContaining({
+        manualExecution: expect.objectContaining({
+          mutableEnabled: false,
+          blockedReason: 'Configuração de monitorização semanal indisponível',
+        }),
+      })],
+    }),
+  }))
 })
 
 test.each([
