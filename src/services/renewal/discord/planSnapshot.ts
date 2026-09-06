@@ -99,6 +99,8 @@ export interface DiscordRolePlanSnapshot {
   existingGroups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   existingOverflow: boolean
   existingRemaining: number
+  existingRemainingAccountIds: string[]
+  existingReadOverflow: boolean
 }
 
 function planCapExceeded(): HttpError {
@@ -162,10 +164,11 @@ async function loadExistingForPending(
 ): Promise<{
   changes: PreparedDiscordRoleChange[]
   groups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
+  suppressions: PreparedDiscordRoleChange[]
   overflow: boolean
 }> {
   const sourceRefs = [...new Set(pending.map((change) => change.discordUserId))]
-  if (sourceRefs.length === 0) return { changes: [], groups: [], overflow: false }
+  if (sourceRefs.length === 0) return { changes: [], groups: [], suppressions: [], overflow: false }
   const now = Date.now()
   const raw = await DiscordRoleChange.find({
     sourceRef: { $in: sourceRefs },
@@ -184,10 +187,13 @@ async function loadExistingForPending(
     .lean()
     .exec() as unknown as PreparedDiscordRoleChange[]
   const relevant = raw.filter((change) => liveRoleChange(change, now))
-  const groups = canonicalizePreparedRoleChanges(relevant)
+  const executable = relevant.filter((change) => change.status === 'APPROVED' || change.status === 'PLANNED')
+  const suppressions = relevant.filter((change) => change.status === 'BLOCKED' && change.notInGuild === true)
+  const groups = canonicalizePreparedRoleChanges(executable)
   return {
-    changes: relevant.slice(0, MAX_PROVIDER_READ_ITEMS),
+    changes: executable.slice(0, MAX_PROVIDER_READ_ITEMS),
     groups,
+    suppressions,
     overflow: relevant.length > MAX_PROVIDER_READ_ITEMS,
   }
 }
@@ -197,6 +203,8 @@ async function loadExecutionCandidates(): Promise<{
   groups: PreparedRoleExecutionGroup<PreparedDiscordRoleChange>[]
   overflow: boolean
   remaining: number
+  remainingAccountIds: string[]
+  readOverflow: boolean
 }> {
   const now = Date.now()
   const raw = await DiscordRoleChange.find({
@@ -207,10 +215,13 @@ async function loadExecutionCandidates(): Promise<{
     ],
   })
     .sort({ status: 1, plannedAt: 1, _id: 1 })
-    .limit(maxOpsPerRun() + 1)
+    .limit(MAX_PROVIDER_READ_ITEMS + 1)
     .lean()
     .exec() as unknown as PreparedDiscordRoleChange[]
-  const relevant = raw.filter((change) => liveRoleChange(change, now))
+  const readOverflow = raw.length > MAX_PROVIDER_READ_ITEMS
+  const boundedRaw = raw.slice(0, MAX_PROVIDER_READ_ITEMS)
+  const relevant = boundedRaw.filter((change) =>
+    (change.status === 'APPROVED' || change.status === 'PLANNED') && liveRoleChange(change, now))
   const groups = canonicalizePreparedRoleChanges(relevant)
   const executableGroups = groups.slice(0, maxOpsPerRun())
   return {
@@ -218,6 +229,8 @@ async function loadExecutionCandidates(): Promise<{
     groups: executableGroups,
     overflow: groups.length > maxOpsPerRun(),
     remaining: Math.max(0, groups.length - executableGroups.length),
+    remainingAccountIds: groups.slice(maxOpsPerRun()).map((group) => group.discordUserId),
+    readOverflow,
   }
 }
 
@@ -301,18 +314,37 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
   const batchId = `discord-${new Date().toISOString().replace(/[:.]/g, '-')}`
   const prepared = buildDesiredPlan(inputs, batchId, false)
   if (prepared.report.anomalyAborted) {
-    return { ...prepared, existing: [], existingGroups: [], existingOverflow: false, existingRemaining: 0 }
+    return {
+      ...prepared,
+      existing: [],
+      existingGroups: [],
+      existingOverflow: false,
+      existingRemaining: 0,
+      existingRemainingAccountIds: [],
+      existingReadOverflow: false,
+    }
   }
   const existingForPendingResult = await loadExistingForPending(prepared.pending)
   if (existingForPendingResult.overflow) {
     prepared.report.truncated = true
     prepared.report.remaining = Math.max(1, prepared.report.remaining)
-    return { ...prepared, pending: [], existing: [], existingGroups: [], existingOverflow: false, existingRemaining: 0 }
+    return {
+      ...prepared,
+      pending: [],
+      existing: [],
+      existingGroups: [],
+      existingOverflow: false,
+      existingRemaining: 0,
+      existingRemainingAccountIds: [],
+      existingReadOverflow: false,
+    }
   }
   const existingForPendingGroups = existingForPendingResult.groups
+  const existingSuppressions = existingForPendingResult.suppressions
   const at = Date.now()
   const deduplicated = prepared.pending.filter((pending) => {
     const duplicate = existingForPendingGroups.some((group) => matchesExisting(group.representative, pending, at))
+      || existingSuppressions.some((change) => matchesExisting(change, pending, at))
     if (duplicate) prepared.report.skippedDuplicates += 1
     return !duplicate
   })
@@ -320,6 +352,20 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
   prepared.report.removals = deduplicated.filter((change) => !change.desired).length
   prepared.report.overCap = prepared.report.planned > maxOpsPerRun()
   const execution = await loadExecutionCandidates()
+  if (execution.readOverflow) {
+    prepared.report.truncated = true
+    prepared.report.remaining = Math.max(1, prepared.report.remaining)
+    return {
+      ...prepared,
+      pending: [],
+      existing: [],
+      existingGroups: [],
+      existingOverflow: false,
+      existingRemaining: 0,
+      existingRemainingAccountIds: [],
+      existingReadOverflow: true,
+    }
+  }
   return {
     report: prepared.report,
     pending: deduplicated,
@@ -327,6 +373,8 @@ export async function prepareDiscordRolesPlanSnapshot(): Promise<DiscordRolePlan
     existingGroups: execution.groups,
     existingOverflow: execution.overflow,
     existingRemaining: execution.remaining,
+    existingRemainingAccountIds: execution.remainingAccountIds,
+    existingReadOverflow: execution.readOverflow,
   }
 }
 

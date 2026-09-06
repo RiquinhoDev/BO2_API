@@ -35,6 +35,7 @@ import {
 } from './planning'
 import {
   assertRoleExecutionSnapshotWithinCap,
+  assertRoleExecutionSnapshotSourceComplete,
   assertPreparedRoleExecutionWithinCap,
   canonicalizePreparedRoleChanges,
   prepareDiscordRoleExecutionSnapshot,
@@ -242,6 +243,7 @@ async function executeDiscordRolesPlanInternal(options: {
     if (!options.skipExpiry) await expireStaleRoleChanges(options.phaseHooks)
   } else {
     const preparedSnapshot = await prepareDiscordRoleExecutionSnapshot(options)
+    assertRoleExecutionSnapshotSourceComplete(preparedSnapshot)
     if (options.strictCap) assertRoleExecutionSnapshotWithinCap(preparedSnapshot)
     await expireStaleRoleChanges(options.phaseHooks)
     toRun = preparedSnapshot.groups

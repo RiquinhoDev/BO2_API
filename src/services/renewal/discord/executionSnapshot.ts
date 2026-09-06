@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { HttpError } from '../../../security/errorHandling'
 import { DiscordRoleChange, type IDiscordRoleChange } from '../../../models/discordRenewal'
+import { MAX_PROVIDER_READ_ITEMS } from '../../../security/providerReadBatchPolicy'
 import { maxOpsPerRun, APPROVED_TTL_HOURS, PLANNED_TTL_HOURS } from './planning'
 
 export interface PreparedRoleExecutionSnapshot {
@@ -103,21 +104,26 @@ export async function prepareDiscordRoleExecutionSnapshot(
   const limit = effectiveLimit(options.limit)
   const raw = await DiscordRoleChange.find(query)
     .sort({ status: 1, plannedAt: 1, _id: 1 })
-    .limit(limit + 1)
+    .limit(MAX_PROVIDER_READ_ITEMS + 1)
     .exec() as unknown as IDiscordRoleChange[]
-  const groups = canonicalizePreparedRoleChanges(raw)
+  const readOverflow = raw.length > MAX_PROVIDER_READ_ITEMS
+  const groups = canonicalizePreparedRoleChanges(raw.slice(0, MAX_PROVIDER_READ_ITEMS))
   const executableGroups = groups.slice(0, limit)
   return {
     changes: executableGroups.map((group) => group.representative),
     groups: executableGroups,
     overflow: groups.length > limit,
-    readOverflow: raw.length > limit,
+    readOverflow,
     remaining: Math.max(0, groups.length - executableGroups.length),
   }
 }
 
 export function assertRoleExecutionSnapshotWithinCap(snapshot: PreparedRoleExecutionSnapshot): void {
   if (snapshot.overflow) throw executionCapExceeded()
+}
+
+export function assertRoleExecutionSnapshotSourceComplete(snapshot: PreparedRoleExecutionSnapshot): void {
+  if (snapshot.readOverflow) throw executionCapExceeded()
 }
 
 export function assertEffectiveRoleExecutionCapacity(
@@ -137,6 +143,7 @@ export async function preflightRoleExecutionCapacity(
   options: RoleExecutionSnapshotOptions = {},
 ): Promise<PreparedRoleExecutionSnapshot> {
   const snapshot = await prepareDiscordRoleExecutionSnapshot(options)
+  assertRoleExecutionSnapshotSourceComplete(snapshot)
   assertRoleExecutionSnapshotWithinCap(snapshot)
   assertEffectiveRoleExecutionCapacity(snapshot.changes, projected)
   return snapshot

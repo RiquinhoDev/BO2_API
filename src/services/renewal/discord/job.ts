@@ -6,6 +6,7 @@ import {
   generateDiscordRolesPlan,
   isRolesAutoExecuteEnabled,
   isRolesSyncEnabled,
+  maxOpsPerRun,
   ROLE_NAME_BY_ID,
   type DiscordPlanReport,
 } from './planning'
@@ -82,6 +83,10 @@ export async function runDiscordRolesSyncJob(options: DiscordJobOptions = {}): P
 
   const expired = await expireStaleRoleChanges(options.phaseHooks)
   const created = await persistDiscordPlanSnapshot(snapshot, options.phaseHooks)
+  const preparedExecutionGroups = canonicalizePreparedRoleChanges([
+    ...snapshot.existingGroups.flatMap((group) => group.members),
+    ...created,
+  ])
   const plan = snapshot.report
 
   let execution: DiscordExecuteReport | null = null
@@ -91,11 +96,15 @@ export async function runDiscordRolesSyncJob(options: DiscordJobOptions = {}): P
       executedBy: options.triggeredBy === 'MANUAL' ? 'manual:DiscordRolesSync' : 'cron:DiscordRolesSync',
       strictCap: options.triggeredBy === 'MANUAL',
       preparedGroups: snapshot.existingGroups,
-      preparedChanges: [...snapshot.existing, ...created],
+      preparedChanges: created,
       skipExpiry: true,
       phaseHooks: options.phaseHooks,
     })
-    execution.leftForNextRun = Math.max(execution.leftForNextRun, snapshot.existingRemaining)
+    const remainingAccountIds = new Set([
+      ...snapshot.existingRemainingAccountIds,
+      ...preparedExecutionGroups.slice(maxOpsPerRun()).map((group) => group.discordUserId),
+    ])
+    execution.leftForNextRun = remainingAccountIds.size
   } else {
     logger.info('📋 [DiscordRoles] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
   }
