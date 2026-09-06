@@ -147,6 +147,27 @@ describe('CronJobDispatcher', () => {
     })
   })
 
+  it.each([
+    [{ success: true, total: 1, errors: 0, error: 'provider-secret', errorMessage: 'private-email' }, true],
+    [{ success: false, total: 1, errors: 1, error: 'provider-secret', errorMessage: 'private-email' }, false],
+    [{ success: true, total: 1, errors: 1, errorMessage: 'private-email' }, false],
+    [{ success: 'true', total: 1, errors: 'unknown', errorMessage: 'private-email' }, false],
+  ])('never exposes Guru runner error fields (%s)', async (report, succeeds) => {
+    const dependencies = createDependencies()
+    dependencies.guruTrialCheck.mockResolvedValueOnce(report)
+
+    const result = await new CronJobDispatcher(dependencies).execute(job('GuruTrialCheck', 'guru'))
+
+    expect(result).not.toHaveProperty('error', 'provider-secret')
+    expect(result).not.toHaveProperty('errorMessage', 'private-email')
+    if (succeeds) {
+      expect(result).not.toHaveProperty('errorMessage')
+      expect(result.success).toBe(true)
+    } else {
+      expect(result).toMatchObject({ success: false, errorMessage: 'Execução Guru TrialCheck falhou' })
+    }
+  })
+
   it('redacts thrown Guru runner details to a fixed public error', async () => {
     const dependencies = createDependencies()
     dependencies.guruTrialCheck.mockRejectedValueOnce(new Error('provider-token-and-email'))

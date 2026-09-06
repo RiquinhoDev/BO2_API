@@ -19,14 +19,18 @@ type UserSnapshot = {
   _id: string | Types.ObjectId
   email: string
   guru?: {
+    isTrial?: boolean
+    status?: string
     subscriptionCode?: string
     trialStartedAt?: Date | string
     trialFinishedAt?: Date | string
+    trialConvertedAt?: Date | string
   }
 }
 
 type ProductSnapshot = {
   _id: string | Types.ObjectId
+  userId?: string | Types.ObjectId
   status: string
   metadata?: { guruTrialExpired?: boolean; guruTrialPreviousStatus?: string }
 }
@@ -40,13 +44,15 @@ type Candidate = {
   products: ProductSnapshot[]
 }
 
-type Mutation = { kind: 'user' | 'product'; id: string | Types.ObjectId; update: Record<string, unknown> }
+type SyncRow = { original: UserSnapshot; projected: UserSnapshot; subscription: GuruSubscription; start: Date; finish: Date }
+type Mutation = { kind: 'user' | 'product'; id: string | Types.ObjectId; filter: Record<string, unknown>; update: Record<string, unknown>; countedMark?: boolean }
 
 type Work = {
   candidates: Candidate[]
   mutations: Mutation[]
   plan: GuruTrialPlan
 }
+type ProviderBudget = { attempts: number }
 
 function incomplete(cause?: unknown): HttpError {
   return new HttpError({
@@ -65,11 +71,13 @@ function capExceeded(): HttpError {
   })
 }
 
-function providerLimits(options: GuruTrialRunOptions): GuruPaginationLimits {
+function providerLimits(options: GuruTrialRunOptions, budget: ProviderBudget): GuruPaginationLimits {
   return {
     maxPages: MAX_PAGES,
     maxItems: MAX_PROVIDER_READ_ITEMS,
     beforeRequest: () => {
+      if (budget.attempts >= MAX_PROVIDER_READ_ITEMS) throw capExceeded()
+      budget.attempts += 1
       options.phaseHooks?.providerStarted()
       options.phaseHooks?.assertOwnership?.()
     },
@@ -77,20 +85,22 @@ function providerLimits(options: GuruTrialRunOptions): GuruPaginationLimits {
   }
 }
 
-async function readAll(options: GuruTrialRunOptions): Promise<GuruSubscription[]> {
+async function readAll(options: GuruTrialRunOptions, budget: ProviderBudget): Promise<GuruSubscription[]> {
   try {
-    return await fetchAllSubscriptionsComplete(undefined, providerLimits(options))
+    return await fetchAllSubscriptionsComplete(undefined, providerLimits(options, budget))
   } catch (error: unknown) {
+    if (error instanceof HttpError) throw error
     throw incomplete(error)
   }
 }
 
-async function readOne(options: GuruTrialRunOptions, code: string): Promise<GuruSubscription> {
+async function readOne(options: GuruTrialRunOptions, code: string, budget: ProviderBudget): Promise<GuruSubscription> {
   try {
-    const result = await fetchSubscriptionById(code, providerLimits(options))
+    const result = await fetchSubscriptionById(code, providerLimits(options, budget))
     if (!result) throw new Error('GURU_TRIAL_PROVIDER_NOT_FOUND')
     return result
   } catch (error: unknown) {
+    if (error instanceof HttpError) throw error
     throw incomplete(error)
   }
 }
@@ -128,12 +138,15 @@ function signature(subscription: GuruSubscription): string {
 function effectiveTrials(subscriptions: GuruSubscription[]): GuruSubscription[] {
   const byEmail = new Map<string, GuruSubscription>()
   for (const subscription of subscriptions) {
-    const rawStatus = typeof subscription.last_status === 'string' ? subscription.last_status.trim().toLowerCase() : ''
-    if (!['trial', 'trialing'].includes(rawStatus)) continue
-    statusOf(subscription)
+    const status = statusOf(subscription)
     const email = subscriptionEmail(subscription)
     const code = normalizedCode(subscription)
     if (!email || !code) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
+    const dates = effectiveDates(subscription)
+    if (['trial', 'trialing'].includes(status) && dates.start && dates.finish && dates.start > dates.finish) {
+      throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
+    }
+    if (!['trial', 'trialing'].includes(status)) continue
     const previous = byEmail.get(email)
     if (!previous) {
       byEmail.set(email, subscription)
@@ -150,7 +163,7 @@ function effectiveTrials(subscriptions: GuruSubscription[]): GuruSubscription[] 
 async function readUsersByEmail(emails: string[]): Promise<UserSnapshot[]> {
   if (!emails.length) return []
   try {
-    const query = User.find({ email: { $in: emails } }).select('_id email guru').limit(MAX_PROVIDER_READ_ITEMS + 1)
+    const query = User.find({ email: { $in: emails } }).sort({ _id: 1 }).select('_id email guru').limit(MAX_PROVIDER_READ_ITEMS + 1)
     const users = await query.lean().exec() as UserSnapshot[]
     if (users.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
     const ordered = users.sort((left, right) => String(left._id).localeCompare(String(right._id)))
@@ -176,7 +189,7 @@ async function readExpiredUsers(): Promise<UserSnapshot[]> {
       'guru.isTrial': true,
       'guru.trialFinishedAt': { $lte: new Date() },
       'guru.trialConvertedAt': { $exists: false },
-    }).select('_id email guru').limit(MAX_PROVIDER_READ_ITEMS + 1).exec() as UserSnapshot[]
+    }).sort({ _id: 1 }).select('_id email guru').limit(MAX_PROVIDER_READ_ITEMS + 1).exec() as UserSnapshot[]
     if (users.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
     const ordered = users.sort((left, right) => String(left._id).localeCompare(String(right._id)))
     for (const user of ordered) {
@@ -191,14 +204,18 @@ async function readExpiredUsers(): Promise<UserSnapshot[]> {
   }
 }
 
-async function readProducts(userId: string | Types.ObjectId): Promise<ProductSnapshot[]> {
+const MAX_LOCAL_PRODUCT_READ_ITEMS = MAX_PROVIDER_READ_ITEMS
+
+async function readProducts(userIds: Array<string | Types.ObjectId>): Promise<Map<string, ProductSnapshot[]>> {
+  const grouped = new Map<string, ProductSnapshot[]>()
+  if (!userIds.length) return grouped
   try {
     const products = await UserProduct.find({
-      userId,
+      userId: { $in: userIds },
       platform: 'curseduca',
       status: { $in: ['ACTIVE', 'QUARENTENA', 'PARA_INATIVAR'] },
-    }).select('_id status metadata').limit(MAX_PROVIDER_READ_ITEMS + 1).exec() as ProductSnapshot[]
-    if (products.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
+    }).select('_id userId status metadata').limit(MAX_LOCAL_PRODUCT_READ_ITEMS + 1).sort({ _id: 1 }).exec() as ProductSnapshot[]
+    if (products.length > MAX_LOCAL_PRODUCT_READ_ITEMS) throw capExceeded()
     const ordered = products.sort((left, right) => String(left._id).localeCompare(String(right._id)))
     const seen = new Set<string>()
     for (const product of ordered) {
@@ -207,16 +224,19 @@ async function readProducts(userId: string | Types.ObjectId): Promise<ProductSna
         throw incomplete(new Error('GURU_TRIAL_LOCAL_PRODUCT_CONFLICT'))
       }
       seen.add(String(product._id))
+      const userId = product.userId === undefined || product.userId === null
+        ? userIds.length === 1 ? String(userIds[0]) : undefined
+        : String(product.userId)
+      if (!userId || !userIds.some(id => String(id) === userId)) throw incomplete(new Error('GURU_TRIAL_LOCAL_PRODUCT_IDENTITY_INVALID'))
+      const list = grouped.get(userId) || []
+      list.push(product)
+      grouped.set(userId, list)
     }
-    return ordered
+    return grouped
   } catch (error: unknown) {
     if (error instanceof HttpError) throw error
     throw incomplete(error)
   }
-}
-
-function localDates(user: UserSnapshot): { start?: Date; finish?: Date } {
-  return { start: validDate(user.guru?.trialStartedAt), finish: validDate(user.guru?.trialFinishedAt) }
 }
 
 function syncUpdate(subscription: GuruSubscription, start: Date, finish: Date): Record<string, unknown> {
@@ -227,6 +247,35 @@ function syncUpdate(subscription: GuruSubscription, start: Date, finish: Date): 
     'guru.trialStartedAt': start,
     'guru.trialFinishedAt': finish,
     'guru.lastSyncAt': new Date(),
+  }
+}
+
+function expected(value: unknown): unknown {
+  return value === undefined ? { $exists: false } : value
+}
+
+function userPredicate(user: UserSnapshot): Record<string, unknown> {
+  const guru = user.guru || {}
+  return {
+    _id: user._id,
+    email: user.email,
+    'guru.isTrial': expected(guru.isTrial),
+    'guru.status': expected(guru.status),
+    'guru.subscriptionCode': expected(guru.subscriptionCode),
+    'guru.trialStartedAt': expected(guru.trialStartedAt),
+    'guru.trialFinishedAt': expected(guru.trialFinishedAt),
+    'guru.trialConvertedAt': expected(guru.trialConvertedAt),
+  }
+}
+
+function productPredicate(product: ProductSnapshot, userId: string | Types.ObjectId): Record<string, unknown> {
+  return {
+    _id: product._id,
+    userId,
+    platform: 'curseduca',
+    status: product.status,
+    'metadata.guruTrialExpired': expected(product.metadata?.guruTrialExpired),
+    'metadata.guruTrialPreviousStatus': expected(product.metadata?.guruTrialPreviousStatus),
   }
 }
 
@@ -265,7 +314,7 @@ function productUpdate(product: ProductSnapshot, status: string, email: string):
 function buildPublicPlan(syncCount: number, candidates: Candidate[], mutations: Mutation[], dryRun: boolean): GuruTrialPlan {
   const converted = candidates.filter(candidate => ['active', 'paid'].includes(candidate.status)).length
   const stillInTrial = candidates.filter(candidate => ['trial', 'trialing'].includes(candidate.status)).length
-  const markedForInactivation = candidates.length - converted - stillInTrial
+  const markedForInactivation = mutations.filter(mutation => mutation.countedMark).length
   if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
   return {
     operation: 'guru-trial-check', dryRun, candidates: candidates.length, synced: syncCount,
@@ -274,100 +323,161 @@ function buildPublicPlan(syncCount: number, candidates: Candidate[], mutations: 
   }
 }
 
+function projectedUser(user: UserSnapshot, row: { subscription: GuruSubscription; start: Date; finish: Date }): UserSnapshot {
+  return {
+    ...user,
+    guru: {
+      ...(user.guru || {}),
+      isTrial: true,
+      status: 'trial',
+      subscriptionCode: normalizedCode(row.subscription),
+      trialStartedAt: row.start,
+      trialFinishedAt: row.finish,
+      trialConvertedAt: undefined,
+    },
+  }
+}
+
+function validateResolved(subscription: GuruSubscription, expectedCode?: string, expectedEmail?: string): { status: string; start: Date; finish: Date } {
+  const status = statusOf(subscription)
+  const code = normalizedCode(subscription)
+  const email = subscriptionEmail(subscription)
+  if (!code || !email || (expectedCode && code !== expectedCode) || (expectedEmail && email !== expectedEmail)) {
+    throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
+  }
+  const dates = effectiveDates(subscription)
+  if (!dates.start || !dates.finish || dates.start > dates.finish) throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
+  return { status, start: dates.start, finish: dates.finish }
+}
+
+function assertProviderCodeIdentity(owners: Map<string, string>, subscription: GuruSubscription): void {
+  const code = normalizedCode(subscription)
+  const email = subscriptionEmail(subscription)
+  if (!code || !email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
+  const owner = owners.get(code)
+  if (owner && owner !== email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_CONFLICT'))
+  owners.set(code, email)
+}
+
 async function prepare(options: GuruTrialRunOptions): Promise<Work> {
-  const subscriptions = effectiveTrials(await readAll(options))
+  const providerBudget: ProviderBudget = { attempts: 0 }
+  const subscriptions = effectiveTrials(await readAll(options, providerBudget))
+  const codeOwners = new Map<string, string>()
   const resolvedSubscriptions: GuruSubscription[] = []
   for (const subscription of subscriptions) {
     let resolved = subscription
-    const dates = effectiveDates(resolved)
+    const dates = effectiveDates(subscription)
     if (!dates.start || !dates.finish) {
       const code = normalizedCode(subscription)
       const email = subscriptionEmail(subscription)
       if (!code || !email) throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
-      const detail = await readOne(options, code)
-      const detailEmail = subscriptionEmail(detail)
-      if (!detailEmail || detailEmail !== email || normalizedCode(detail) !== code
-        || !['trial', 'trialing'].includes(statusOf(detail))) {
-        throw incomplete(new Error('GURU_TRIAL_PROVIDER_IDENTITY_INVALID'))
-      }
+      const detail = await readOne(options, code, providerBudget)
+      const detailInfo = validateResolved(detail, code, email)
+      if (!['trial', 'trialing'].includes(detailInfo.status)) throw incomplete(new Error('GURU_TRIAL_PROVIDER_STATUS_INVALID'))
       resolved = { ...subscription, ...detail }
     }
-    const resolvedDates = effectiveDates(resolved)
-    if (!resolvedDates.start || !resolvedDates.finish) throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
+    validateResolved(resolved)
+    assertProviderCodeIdentity(codeOwners, resolved)
     resolvedSubscriptions.push(resolved)
   }
+
   const emails = resolvedSubscriptions.map(subscriptionEmail).filter((email): email is string => Boolean(email))
   const syncUsers = await readUsersByEmail(emails)
   const byEmail = new Map(syncUsers.map(user => [user.email.toLowerCase().trim(), user]))
-  const syncRows: Array<{ user: UserSnapshot; subscription: GuruSubscription; start: Date; finish: Date }> = []
+  const syncRows: SyncRow[] = []
   for (const subscription of resolvedSubscriptions) {
     const email = subscriptionEmail(subscription)
     const user = byEmail.get(email || '')
     if (!user) continue
-    const resolved = subscription
-    const dates = effectiveDates(resolved)
-    if (!dates.start || !dates.finish) throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
-    syncRows.push({ user, subscription: resolved, start: dates.start, finish: dates.finish })
+    const { start, finish } = validateResolved(subscription)
+    const row = { original: user, projected: user, subscription, start, finish }
+    row.projected = projectedUser(user, row)
+    syncRows.push(row)
   }
 
   const existingUsers = await readExpiredUsers()
-  const syncById = new Map(syncRows.map(row => [String(row.user._id), row]))
+  const syncById = new Map(syncRows.map(row => [String(row.original._id), row]))
   const candidateUsers = new Map<string, UserSnapshot>()
-  for (const user of existingUsers) candidateUsers.set(String(user._id), user)
+  for (const user of existingUsers) {
+    if (user.guru?.isTrial !== false && !user.guru?.trialConvertedAt) candidateUsers.set(String(user._id), user)
+  }
   for (const row of syncRows) {
-    if (row.finish.getTime() <= Date.now()) candidateUsers.set(String(row.user._id), row.user)
+    if (row.finish.getTime() <= Date.now() && !row.projected.guru?.trialConvertedAt) candidateUsers.set(String(row.original._id), row.projected)
+    else candidateUsers.delete(String(row.original._id))
   }
 
   const candidates: Candidate[] = []
   for (const user of [...candidateUsers.values()].sort((left, right) => String(left._id).localeCompare(String(right._id)))) {
     const synced = syncById.get(String(user._id))
-    const subscription = synced?.subscription || await readOne(options, user.guru?.subscriptionCode || '')
-    const status = statusOf(subscription)
-    const dates = effectiveDates(subscription)
-    const fallbackDates = localDates(user)
-    const start = dates.start || fallbackDates.start
-    const finish = dates.finish || fallbackDates.finish
-    if (!start || !finish) throw incomplete(new Error('GURU_TRIAL_PROVIDER_DATES_INVALID'))
-    const products = await readProducts(user._id)
-    candidates.push({ user, subscription, status, start, finish, products })
+    let subscription = synced?.subscription
+    if (!subscription) {
+      const code = user.guru?.subscriptionCode || ''
+      const detail = await readOne(options, code, providerBudget)
+      const info = validateResolved(detail, code, user.email.toLowerCase().trim())
+      subscription = detail
+      if (info.status === 'trial' || info.status === 'trialing') {
+        if (info.finish.getTime() > Date.now()) continue
+      }
+    }
+    if (!subscription) throw incomplete(new Error('GURU_TRIAL_PROVIDER_NOT_FOUND'))
+    const info = validateResolved(subscription, normalizedCode(subscription), user.email.toLowerCase().trim())
+    assertProviderCodeIdentity(codeOwners, subscription)
+    candidates.push({ user, subscription, status: info.status, start: info.start, finish: info.finish, products: [] })
   }
+
+  const products = await readProducts(candidates.map(candidate => candidate.user._id))
+  for (const candidate of candidates) candidate.products = products.get(String(candidate.user._id)) || []
 
   const mutations: Mutation[] = []
   for (const row of syncRows) {
-    mutations.push({ kind: 'user', id: row.user._id, update: { $set: syncUpdate(row.subscription, row.start, row.finish) } })
+    mutations.push({
+      kind: 'user', id: row.original._id, filter: userPredicate(row.original),
+      update: { $set: syncUpdate(row.subscription, row.start, row.finish), $unset: { 'guru.trialConvertedAt': 1 } },
+    })
   }
   for (const candidate of candidates) {
     for (const product of candidate.products) {
       const update = productUpdate(product, candidate.status, candidate.user.email)
-      if (update) mutations.push({ kind: 'product', id: product._id, update })
+      if (update) mutations.push({ kind: 'product', id: product._id, filter: productPredicate(product, candidate.user._id), update, countedMark: MARK_STATUSES.has(candidate.status) })
     }
     if (MARK_STATUSES.has(candidate.status) || ['active', 'paid'].includes(candidate.status)) {
-      mutations.push({ kind: 'user', id: candidate.user._id, update: { $set: expiryUpdate(candidate.status) } })
+      mutations.push({ kind: 'user', id: candidate.user._id, filter: userPredicate(candidate.user), update: { $set: expiryUpdate(candidate.status) } })
     }
   }
   if (mutations.length > MAX_PROVIDER_READ_ITEMS) throw capExceeded()
   return { candidates, mutations, plan: buildPublicPlan(syncRows.length, candidates, mutations, options.dryRun === true) }
 }
 
-async function apply(options: GuruTrialRunOptions, work: Work): Promise<void> {
+function matched(result: unknown): number {
+  const record = result && typeof result === 'object' ? result as Record<string, unknown> : {}
+  if (record.acknowledged !== true || record.matchedCount !== 1) throw new Error('GURU_TRIAL_LOCAL_WRITE_CONFLICT')
+  return record.matchedCount
+}
+
+async function apply(options: GuruTrialRunOptions, work: Work): Promise<number> {
+  let marked = 0
   for (const mutation of work.mutations) {
     try {
       options.phaseHooks?.localMutationStarted()
       options.phaseHooks?.assertOwnership?.()
-      if (mutation.kind === 'user') await User.updateOne({ _id: mutation.id }, mutation.update)
-      else await UserProduct.updateOne({ _id: mutation.id }, mutation.update)
+      const result = mutation.kind === 'user'
+        ? await User.updateOne(mutation.filter, mutation.update)
+        : await UserProduct.updateOne(mutation.filter, mutation.update)
+      const count = matched(result)
+      if (mutation.countedMark) marked += count
     } catch (error: unknown) {
       throw incomplete(error)
     }
   }
+  return marked
 }
 
 export async function runGuruTrialCheck(options: GuruTrialRunOptions = {}): Promise<GuruTrialCheckResult & { synced: number; dryRun?: true }> {
   const work = await prepare(options)
-  if (options.dryRun !== true) await apply(options, work)
+  const marked = options.dryRun === true ? work.plan.markedForInactivation : await apply(options, work)
   return {
     checked: work.candidates.length,
-    markedForInactivation: work.plan.markedForInactivation,
+    markedForInactivation: marked,
     converted: work.plan.converted,
     stillInTrial: work.plan.stillInTrial,
     errors: 0,

@@ -9,6 +9,7 @@ import type {
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { normalizePlannedExecution } from './plannedExecutionNormalizer'
+import { normalizeGuruTrialDispatch } from './guruTrialDispatchNormalizer'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
 import { executeDailyPipeline } from '../dailyPipeline.service'
@@ -109,34 +110,6 @@ const arrayOf = (record: Record<string, unknown>, key: string): unknown[] => {
 
 const nestedRecordOf = (record: Record<string, unknown>, key: string): Record<string, unknown> =>
   recordOf(record[key])
-
-function sanitizeGuruTrialPlan(value: unknown): Record<string, unknown> | undefined {
-  const plan = recordOf(value)
-  if (plan.operation !== 'guru-trial-check') return undefined
-  const numericKeys = [
-    'candidates',
-    'synced',
-    'markedForInactivation',
-    'converted',
-    'stillInTrial',
-    'plannedMutations',
-    'errors',
-    'limit',
-    'remaining',
-  ]
-  const safe: Record<string, unknown> = {
-    operation: 'guru-trial-check',
-    dryRun: plan.dryRun === true,
-    truncated: plan.truncated === true,
-    anomaly: plan.anomaly === true,
-  }
-  for (const key of numericKeys) {
-    if (plan[key] === undefined) continue
-    if (typeof plan[key] !== 'number' || !Number.isSafeInteger(plan[key]) || plan[key] < 0) return undefined
-    safe[key] = plan[key]
-  }
-  return safe
-}
 
 const errorMessageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -321,24 +294,7 @@ export class CronJobDispatcher {
         return this.normalizeCleanupExecution(await this.dependencies.cleanupExecutions(options))
       }
       if (job.name === 'GuruTrialCheck') {
-        const report = recordOf(await this.dependencies.guruTrialCheck(options))
-        const plan = sanitizeGuruTrialPlan(report.plan)
-        const normalized = normalizeGenericResult({
-          ...report,
-          plan: undefined,
-          ...(plan ? { updated: numberOf(report, 'updated') || numberOf(report, 'synced') } : {}),
-          error: booleanOf(report, 'success') === false ? 'Execução Guru TrialCheck falhou' : undefined,
-        })
-        const withoutRawPlan = { ...normalized }
-        const errorMessage = withoutRawPlan.errorMessage
-        delete withoutRawPlan.plan
-        delete withoutRawPlan.errorMessage
-        return {
-          ...withoutRawPlan,
-          ...(plan ? { plan: plan as never } : {}),
-          ...(errorMessage ? { errorMessage } : {}),
-          ...(booleanOf(report, 'dryRun') === true ? { dryRun: true } : {}),
-        }
+        return normalizeGuruTrialDispatch(await this.dependencies.guruTrialCheck(options)) as CronDispatchResult
       }
       const runner = this.specificRunner(job.name)
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)

@@ -62,6 +62,21 @@ describe('Guru pagination safety', () => {
     expect(mockGuruGet).toHaveBeenCalledTimes(2)
   })
 
+  test('does not report a provider page succeeded before cursor validation', async () => {
+    mockGuruGet
+      .mockResolvedValueOnce({
+        data: { data: [{ id: 'one' }], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: 'cursor-a' },
+      })
+      .mockResolvedValueOnce({
+        data: { data: [], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: 'cursor-b' },
+      })
+    const requestSucceeded = jest.fn()
+
+    await expect(fetchAllSubscriptionsPaginated(undefined, undefined, { requestSucceeded }))
+      .rejects.toThrow('GURU_PAGINATION_NON_PROGRESS')
+    expect(requestSucceeded).toHaveBeenCalledTimes(1)
+  })
+
   test('asserts ownership immediately before every page request', async () => {
     mockGuruGet
       .mockResolvedValueOnce({

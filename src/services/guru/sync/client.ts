@@ -355,8 +355,6 @@ export async function fetchAllSubscriptionsPaginated(
       if (!hasMorePages && allSubscriptions.length !== totalExpected) {
         throw new Error('GURU_PAGINATION_FINAL_COUNT_MISMATCH')
       }
-      limits.requestSucceeded?.()
-      onProgress?.(allSubscriptions.length, totalExpected)
 
       // Verificar se há mais páginas usando os flags da API
       if (onLastPage || !hasMorePages) {
@@ -371,6 +369,10 @@ export async function fetchAllSubscriptionsPaginated(
         hasMore = true
         logger.info(`➡️ [GURU SYNC] Próximo cursor: ${nextCursor.substring(0, 50)}...`)
       }
+
+      // A page is successful only after envelope, count, cursor and progress checks.
+      limits.requestSucceeded?.()
+      onProgress?.(allSubscriptions.length, totalExpected)
 
       // Rate limiting - esperar 300ms entre requests
       await new Promise(resolve => setTimeout(resolve, 300))
