@@ -303,7 +303,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:218",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:307",
     "frontConsumer": null
   },
   {
@@ -350,7 +350,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:247",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:336",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1253,7 +1253,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:70",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:72",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1265,7 +1265,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:157",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:159",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -3364,7 +3364,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:180",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:270",
     "frontConsumer": null
   },
   {
@@ -3744,7 +3744,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:229",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:236",
     "frontConsumer": null
   },
   {
@@ -3756,7 +3756,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:112",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:114",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {

@@ -25,7 +25,9 @@ jest.mock('../../src/controllers/syncUtilizadoresControllers/cronManagement.cont
     __esModule: true,
     ...Object.fromEntries(names.map((name) => [
       name,
-      jest.fn((_input, res) => res.status(204).end()),
+      name === 'triggerTagRulesOnly'
+        ? jest.fn((_input, _req, res) => res.status(204).end())
+        : jest.fn((_input, res) => res.status(204).end()),
     ])),
   }
 })
@@ -84,6 +86,13 @@ function callRoute(route: DestructiveRoute, body: Record<string, unknown>) {
 
 test.each(routes)('$name accepts its explicit DTO and real path params', async (route) => {
   await callRoute(route, route.body).expect(204)
+})
+
+test('tag rules only accepts the optional dryRun control', async () => {
+  await callRoute(
+    { name: 'run only tag rules', method: 'post', path: '/api/cron/tag-rules-only', body: {} },
+    { dryRun: true },
+  ).expect(204)
 })
 
 test.each(routes)('$name rejects an extra role field', async (route) => {

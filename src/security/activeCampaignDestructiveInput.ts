@@ -6,7 +6,7 @@ const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/)
 export const activeCampaignEmptyInput = validatedSchema({
   params: {},
   query: {},
-  body: {},
+  body: { dryRun: z.boolean().optional() },
 })
 
 export const activeCampaignTagRuleDeleteInput = validatedSchema({

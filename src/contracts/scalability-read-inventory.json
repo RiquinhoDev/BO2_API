@@ -840,7 +840,7 @@
         "end": "export const getCronLogs",
         "require": [
           "loadActiveUserProductsBounded(",
-          "await productReads[productIndex]"
+          "resolvedProductReads[productIndex]"
         ]
       },
       {

@@ -1434,6 +1434,14 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Save failures remain retryable without claiming the failed item captured; unchanged replays do not duplicate history. Invalid `batchSize` values fail before provider I/O; no arbitrary upper cap was added because existing operational guidance permits larger finite batches.
 - Fresh offline proof: **2 suites / 21 tests passed**; TypeScript, lint, SCALE ratchet and diff-check passed. Existing duplicate rows still require isolated migration/cleanup before operational promotion.
 
+### [x] OPS-02 — ActiveCampaign execution endpoints (2026-09-06)
+
+- `POST /api/activecampaign/test-cron` and `POST /api/cron/tag-rules-only` now default to `dryRun`, accept the optional validated body control, and perform no provider or local mutation on that path. Explicit live execution remains behind the existing `AC_TAG_APPLY_ENABLED=true` kill switch; no second flag was introduced.
+- Both live endpoints cap the active `UserProduct` execution universe at `MAX_BULK_OPERATION_ITEMS` (**200**), reject the cap before provider evaluation, and use a durable per-operation Mongo lease. A completed request with the same `X-Request-ID` replays its canonical success response; a concurrent live request receives `409`.
+- `tag-rules-only` passes the same ceiling into engagement recalculation and bounds the final active-user-product query. The tag pre-creation step remains the existing global active-rule preparation boundary; its provider behavior is unchanged for explicitly enabled live runs.
+- Fresh offline proof: the focused OPS-02/SEC-10 run passed **8 suites / 143 tests**, and the full backend suite passed **477 suites / 3,046 tests** with **2 suites / 12 tests skipped** by the existing topology. `npm run build`, `npm run lint`, `npm run types:check`, route catalog, response catalog (with the configured Front source root), SCALE ratchet and `git diff --check` pass. OPS-02 hardening debt moves from **18 to 16** decisions (**6 mixed, 10 provider, 11 bulk**).
+- This closes the two ActiveCampaign execution rows in the policy; isolated Railway/database provisioning, external-provider observation, domain/Front deployment and stable promotion remain unclaimed.
+
 ### [x] SCALE-03 — strict ActiveCampaign read boundary (2026-09-06)
 
 - Legacy ActiveCampaign tag reads preserve their broad compatibility fallback; native protection and weekly monitoring now consume the strict result `{ contactFound, tags }` and fail closed on generic provider/read errors.

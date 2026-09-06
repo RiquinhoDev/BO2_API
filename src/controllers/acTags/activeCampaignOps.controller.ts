@@ -7,7 +7,18 @@ import UserProduct from '../../models/UserProduct'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
 import type { ActiveCampaignEmptyInput } from '../../security/activeCampaignDestructiveInput'
-import { internalError } from '../../security/errorHandling'
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
+import {
+  ActiveCampaignExecutionDisabledError,
+  ActiveCampaignExecutionInProgressError,
+  ActiveCampaignExecutionLimitError,
+  claimActiveCampaignExecution,
+  completeActiveCampaignExecution,
+  failActiveCampaignExecution,
+  requestIdFrom,
+} from '../../services/activeCampaign/activeCampaignExecution.service'
+import { isActiveCampaignTagMutationEnabled } from '../../services/requestDrivenRuntimeConfig'
+import { HttpError, internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
 import type { ValidatedRequest } from '../../security/validatedInput'
 import logger from '../../utils/logger'
@@ -20,6 +31,29 @@ type EvaluationError = {
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
+}
+
+type TestCronResponse = {
+  success: true
+  data: {
+    executionId: string
+    dryRun: boolean
+    results: {
+      totalProducts: number
+      totalUserProducts: number
+      decisionsEvaluated: number
+      actionsExecuted: number
+      errors: number
+    }
+  }
+  meta?: { duration: string }
+}
+
+function sendTestCronReplay(
+  send: (body: unknown) => Response,
+  payload: TestCronResponse,
+): void {
+  send(successResponse(payload.data, payload.meta))
 }
 
 type ProductReadResult<T> =
@@ -59,30 +93,68 @@ export function loadActiveUserProductsBounded<P extends { _id: { toString(): str
 }
 
 export const testCron = async (
-  _input: ActiveCampaignEmptyInput,
-  _req: ValidatedRequest,
+  input: ActiveCampaignEmptyInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  const dryRun = input.body.dryRun !== false
+  if (!dryRun && !isActiveCampaignTagMutationEnabled()) {
+    next(new ActiveCampaignExecutionDisabledError())
+    return
+  }
+
   const startTime = Date.now()
   const executionId = `MANUAL_${Date.now()}`
+  let ownerId: string | undefined
 
   try {
+    if (!dryRun) {
+      const claim = await claimActiveCampaignExecution<TestCronResponse>(
+        'test-cron',
+        requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+      )
+      if (claim.kind === 'replay') {
+        sendTestCronReplay(res.json.bind(res), claim.result)
+        return
+      }
+      if (claim.kind === 'in-progress') {
+        next(new ActiveCampaignExecutionInProgressError())
+        return
+      }
+      ownerId = claim.ownerId
+    }
+
     logger.info('🧪 Iniciando avaliação manual (novo sistema)...')
 
     // ═══════════════════════════════════════════════════════════
     // 1. BUSCAR PRODUTOS ATIVOS
     // ═══════════════════════════════════════════════════════════
-    const products = await Product.find({ isActive: true }).populate('courseId')
+    const products = await Product.find({ isActive: true })
+      .limit(MAX_BULK_OPERATION_ITEMS + 1)
+      .populate('courseId')
+    if (products.length > MAX_BULK_OPERATION_ITEMS) {
+      throw new ActiveCampaignExecutionLimitError()
+    }
     logger.info(`📦 Encontrados ${products.length} produtos ativos`)
 
     let totalUserProducts = 0
     let totalDecisions = 0
     const productReads = loadActiveUserProductsBounded(
       products,
-      productId => UserProduct.find({ productId, status: 'ACTIVE' }),
+      productId => UserProduct.find({ productId, status: 'ACTIVE' })
+        .limit(MAX_BULK_OPERATION_ITEMS + 1),
       10,
     )
+
+    const resolvedProductReads = await Promise.all(productReads)
+    const loadedUserProducts = resolvedProductReads.reduce(
+      (total, read) => total + (read.ok ? read.userProducts.length : 0),
+      0,
+    )
+    if (loadedUserProducts > MAX_BULK_OPERATION_ITEMS) {
+      throw new ActiveCampaignExecutionLimitError()
+    }
 
     let totalExecutions = 0
     const errors: EvaluationError[] = []
@@ -95,7 +167,7 @@ export const testCron = async (
         logger.info(`\n📦 Processando produto: ${product.name} (${product.code})`)
 
         // ✅ BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
-        const productRead = await productReads[productIndex]
+        const productRead = resolvedProductReads[productIndex]
         if (!productRead.ok) throw productRead.error
         const userProducts = productRead.userProducts
 
@@ -114,7 +186,8 @@ export const testCron = async (
           try {
             const result = await decisionEngine.evaluateUserProduct(
               up.userId.toString(),
-              product._id.toString()
+              product._id.toString(),
+              dryRun,
             )
 
             totalDecisions++
@@ -151,21 +224,23 @@ export const testCron = async (
     // ═══════════════════════════════════════════════════════════
     const duration = Date.now() - startTime
 
-    await CronExecutionLog.create({
-      executionId,
-      type: 'manual-trigger',
-      status: 'success',
-      startedAt: new Date(startTime),
-      finishedAt: new Date(),
-      duration,
-      results: {
-        totalProducts: products.length,
-        totalUserProducts,
-        decisionsEvaluated: totalDecisions,
-        actionsExecuted: totalExecutions,
-        errors
-      }
-    })
+    if (!dryRun) {
+      await CronExecutionLog.create({
+        executionId,
+        type: 'manual-trigger',
+        status: 'success',
+        startedAt: new Date(startTime),
+        finishedAt: new Date(),
+        duration,
+        results: {
+          totalProducts: products.length,
+          totalUserProducts,
+          decisionsEvaluated: totalDecisions,
+          actionsExecuted: totalExecutions,
+          errors
+        }
+      })
+    }
 
     logger.info(`\n✅ Avaliação manual concluída (novo sistema)`)
     logger.info(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
@@ -177,33 +252,47 @@ export const testCron = async (
     // ═══════════════════════════════════════════════════════════
     // 5. RESPOSTA
     // ═══════════════════════════════════════════════════════════
-    res.json(successResponse({ executionId, results: {
-        totalProducts: products.length,
-        totalUserProducts,
-        decisionsEvaluated: totalDecisions,
-        actionsExecuted: totalExecutions,
-        errors: errors.length
-      } }, { duration: `${(duration / 1000).toFixed(2)}s` }))
+    const responseMeta = { duration: `${(duration / 1000).toFixed(2)}s` }
+    const responseData = { executionId, dryRun, results: {
+      totalProducts: products.length,
+      totalUserProducts,
+      decisionsEvaluated: totalDecisions,
+      actionsExecuted: totalExecutions,
+      errors: errors.length
+    } }
+    if (!dryRun && ownerId) {
+      await completeActiveCampaignExecution(
+        'test-cron',
+        ownerId,
+        successResponse(responseData, responseMeta),
+      )
+    }
+    res.json(successResponse({ executionId, results: responseData.results, dryRun }, responseMeta))
     return
   } catch (error: unknown) {
 
-    try {
-      await CronExecutionLog.create({
-        executionId,
-        type: 'manual-trigger',
-        status: 'failed',
-        startedAt: new Date(startTime),
-        finishedAt: new Date(),
-        duration: Date.now() - startTime,
-        results: {
-          error: errorMessage(error, 'Erro na avaliação manual')
-        }
-      })
-    } catch {
-      logger.error('Falha ao registar auditoria da avaliação manual', { executionId, status: 'failed' })
+    if (!dryRun && ownerId) {
+      await failActiveCampaignExecution('test-cron', ownerId).catch(() => undefined)
+      try {
+        await CronExecutionLog.create({
+          executionId,
+          type: 'manual-trigger',
+          status: 'failed',
+          startedAt: new Date(startTime),
+          finishedAt: new Date(),
+          duration: Date.now() - startTime,
+          results: {
+            error: errorMessage(error, 'Erro na avaliação manual')
+          }
+        })
+      } catch {
+        logger.error('Falha ao registar auditoria da avaliação manual', { executionId, status: 'failed' })
+      }
     }
 
-    next(internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
+    next(error instanceof HttpError
+      ? error
+      : internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
     return
   }
 }

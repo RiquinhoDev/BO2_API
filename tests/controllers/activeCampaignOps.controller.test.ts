@@ -5,6 +5,16 @@ const logCreateMock = jest.fn()
 const logFindMock = jest.fn()
 const evaluateMock = jest.fn()
 const loggerErrorMock = jest.fn()
+const executionFindOneMock = jest.fn()
+const executionFindOneAndUpdateMock = jest.fn()
+let activeExecution: {
+  operation: string
+  requestId: string
+  ownerId: string
+  status: string
+  leaseExpiresAt?: Date
+  result?: unknown
+} | undefined
 
 jest.mock('../../src/models/user', () => ({ __esModule: true, default: { countDocuments: countDocumentsMock } }))
 jest.mock('../../src/models/product/Product', () => ({ __esModule: true, default: { find: productFindMock } }))
@@ -12,6 +22,13 @@ jest.mock('../../src/models/UserProduct', () => ({ __esModule: true, default: { 
 jest.mock('../../src/models/cron/CronExecutionLog', () => ({
   __esModule: true,
   default: { create: logCreateMock, find: logFindMock },
+}))
+jest.mock('../../src/models/ActiveCampaignExecution', () => ({
+  __esModule: true,
+  default: {
+    findOne: executionFindOneMock,
+    findOneAndUpdate: executionFindOneAndUpdateMock,
+  },
 }))
 jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
   __esModule: true,
@@ -29,18 +46,39 @@ import {
   expectCentralError,
   type CentralErrorRoute,
 } from '../support/centralErrorContract'
+import { resetRuntimeConfigForTests, useTestRuntimeConfig } from '../support/runtimeConfig'
 
 const emptyInput = { body: {}, params: {}, query: {} }
-const testCronRoute = (onNext?: () => void): CentralErrorRoute => ({
+const testCronRoute = (
+  onNext?: () => void,
+  input: typeof emptyInput = emptyInput,
+): CentralErrorRoute => ({
   kind: 'handler',
   method: 'post',
   handler: async (req, res, next) => {
-    await testCron(emptyInput, req, res, (error) => {
+    await testCron(input, req, res, (error) => {
       onNext?.()
       next(error)
     })
   },
 })
+
+function productQuery(value: unknown, rejected = false) {
+  const chain = {
+    limit: jest.fn(),
+    populate: jest.fn(),
+  }
+  chain.limit.mockReturnValue(chain)
+  if (rejected) chain.populate.mockRejectedValue(value)
+  else chain.populate.mockResolvedValue(value)
+  return chain
+}
+
+function userProductQuery(value: unknown) {
+  const chain = { limit: jest.fn() }
+  chain.limit.mockResolvedValue(value)
+  return chain
+}
 
 const cronLogsRoute: CentralErrorRoute = {
   kind: 'handler',
@@ -48,7 +86,54 @@ const cronLogsRoute: CentralErrorRoute = {
 }
 
 describe('ActiveCampaign operational boundary', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    useTestRuntimeConfig()
+    jest.clearAllMocks()
+    activeExecution = undefined
+    executionFindOneMock.mockImplementation(() => {
+      const chain = { select: jest.fn(), lean: jest.fn() }
+      chain.select.mockReturnValue(chain)
+      chain.lean.mockResolvedValue(activeExecution)
+      return chain
+    })
+    executionFindOneAndUpdateMock.mockImplementation((filter: { operation: string; ownerId?: string; status?: string }, update: { $set?: Record<string, unknown>; $unset?: Record<string, unknown> }) => {
+      const set = update.$set ?? {}
+      const requestId = typeof set.requestId === 'string' ? set.requestId : undefined
+      if (requestId !== undefined) {
+        const canClaim = !activeExecution
+          || activeExecution.operation !== filter.operation
+          || (activeExecution.status !== 'running' && activeExecution.requestId !== requestId)
+          || (activeExecution.status === 'running'
+            && activeExecution.leaseExpiresAt !== undefined
+            && activeExecution.leaseExpiresAt <= new Date())
+        if (!canClaim) return null
+        activeExecution = {
+          operation: filter.operation,
+          requestId,
+          ownerId: String(set.ownerId),
+          status: String(set.status),
+          leaseExpiresAt: set.leaseExpiresAt as Date,
+        }
+        return activeExecution
+      }
+      if (
+        activeExecution
+        && filter.ownerId === activeExecution.ownerId
+        && filter.status === activeExecution.status
+      ) {
+        Object.assign(activeExecution, set)
+        if (update.$unset?.leaseExpiresAt) delete activeExecution.leaseExpiresAt
+        return activeExecution
+      }
+      return null
+    })
+  })
+  afterEach(() => resetRuntimeConfigForTests())
+
+  const enableActiveCampaign = () => {
+    resetRuntimeConfigForTests()
+    useTestRuntimeConfig({ activeCampaignProductTagsEnabled: true })
+  }
   it.each([1, 10, 100])('bounds %i independent product reads and retains indexed results', async (size: number) => {
     let active = 0
     let peak = 0
@@ -104,21 +189,25 @@ describe('ActiveCampaign operational boundary', () => {
   it('continues after a user failure and records the exact execution counters', async () => {
     jest.spyOn(Date, 'now').mockReturnValueOnce(1_000).mockReturnValueOnce(1_000).mockReturnValueOnce(2_500)
     const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
-    productFindMock.mockReturnValue({ populate: jest.fn().mockResolvedValue([product]) })
-    userProductFindMock.mockResolvedValue([
+    enableActiveCampaign()
+    productFindMock.mockReturnValue(productQuery([product]))
+    userProductFindMock.mockReturnValue(userProductQuery([
       { _id: 'up-ok', userId: { toString: () => 'user-ok' } },
       { _id: 'up-fail', userId: { toString: () => 'user-fail' } },
       { _id: 'up-after', userId: { toString: () => 'user-after' } },
-    ])
+    ]))
     evaluateMock.mockResolvedValueOnce({ actionsExecuted: 2, errors: [] }).mockRejectedValueOnce(new Error('falhou')).mockResolvedValueOnce({ actionsExecuted: 3, errors: [] })
     logCreateMock.mockResolvedValue(undefined)
-    const response = await request(appForCentralError(testCronRoute()))
+    const response = await request(appForCentralError(testCronRoute(undefined, {
+      body: { dryRun: false }, params: {}, query: {},
+    })))
       .post('/target?__bo2_offline_loopback=1')
+      .set('X-Request-ID', 'manual-success')
       .send({})
 
-    expect(evaluateMock).toHaveBeenNthCalledWith(1, 'user-ok', 'product-1')
-    expect(evaluateMock).toHaveBeenNthCalledWith(2, 'user-fail', 'product-1')
-    expect(evaluateMock).toHaveBeenNthCalledWith(3, 'user-after', 'product-1')
+    expect(evaluateMock).toHaveBeenNthCalledWith(1, 'user-ok', 'product-1', false)
+    expect(evaluateMock).toHaveBeenNthCalledWith(2, 'user-fail', 'product-1', false)
+    expect(evaluateMock).toHaveBeenNthCalledWith(3, 'user-after', 'product-1', false)
     expect(logCreateMock).toHaveBeenCalledWith(expect.objectContaining({
       executionId: 'MANUAL_1000',
       status: 'success',
@@ -141,54 +230,87 @@ describe('ActiveCampaign operational boundary', () => {
     jest.restoreAllMocks()
   })
 
-  it('processes every active UserProduct because the manual run has no finite cap', async () => {
+  it('rejects a manual run above the finite cap before provider evaluation', async () => {
+    enableActiveCampaign()
     const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
-    productFindMock.mockReturnValue({ populate: jest.fn().mockResolvedValue([product]) })
-    userProductFindMock.mockResolvedValue(Array.from({ length: 201 }, (_value, index) => ({
+    productFindMock.mockReturnValue(productQuery([product]))
+    userProductFindMock.mockReturnValue(userProductQuery(Array.from({ length: 201 }, (_value, index) => ({
       _id: `up-${index}`,
       userId: { toString: () => `user-${index}` },
-    })))
-    evaluateMock.mockResolvedValue({ actionsExecuted: 0, errors: [] })
+    }))))
+    evaluateMock.mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      return { actionsExecuted: 0, errors: [] }
+    }).mockResolvedValue({ actionsExecuted: 0, errors: [] })
     logCreateMock.mockResolvedValue(undefined)
 
-    const response = await request(appForCentralError(testCronRoute()))
+    const response = await request(appForCentralError(testCronRoute(undefined, {
+      body: { dryRun: false }, params: {}, query: {},
+    })))
       .post('/target?__bo2_offline_loopback=1')
       .send({})
 
-    expect(response.status).toBe(200)
-    expect(response.body.data.results).toMatchObject({
-      totalProducts: 1,
-      totalUserProducts: 201,
-      decisionsEvaluated: 201,
-    })
-    expect(evaluateMock).toHaveBeenCalledTimes(201)
+    expect(response.status).toBe(413)
+    expect(response.body.code).toBe('AC_ACTIVE_CAMPAIGN_LIMIT_EXCEEDED')
+    expect(evaluateMock).not.toHaveBeenCalled()
   })
 
-  it('allows concurrent manual runs to enter the same provider evaluation', async () => {
+  it('rejects concurrent manual runs from entering the same provider evaluation', async () => {
+    enableActiveCampaign()
     const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
-    productFindMock.mockReturnValue({ populate: jest.fn().mockResolvedValue([product]) })
-    userProductFindMock.mockResolvedValue([
+    productFindMock.mockReturnValue(productQuery([product]))
+    userProductFindMock.mockReturnValue(userProductQuery([
       { _id: 'up-1', userId: { toString: () => 'user-1' } },
-    ])
-    let evaluations = 0
-    let release: () => void = () => undefined
-    const bothEvaluations = new Promise<void>((resolve) => { release = resolve })
-    evaluateMock.mockImplementation(async () => {
-      evaluations += 1
-      if (evaluations === 2) release()
-      await bothEvaluations
-      return { actionsExecuted: 0, errors: [] }
-    })
+    ]))
+    evaluateMock.mockResolvedValue({ actionsExecuted: 0, errors: [] })
     logCreateMock.mockResolvedValue(undefined)
-    const app = appForCentralError(testCronRoute())
+    const app = appForCentralError(testCronRoute(undefined, {
+      body: { dryRun: false }, params: {}, query: {},
+    }))
 
     const responses = await Promise.all([
       request(app).post('/target?__bo2_offline_loopback=1').send({}),
       request(app).post('/target?__bo2_offline_loopback=1').send({}),
     ])
 
-    expect(responses.map(response => response.status)).toEqual([200, 200])
-    expect(evaluateMock).toHaveBeenCalledTimes(2)
+    expect(responses.map(response => response.status).sort()).toEqual([200, 409])
+    expect(evaluateMock).toHaveBeenCalledTimes(1)
+
+    const replay = await request(app).post('/target?__bo2_offline_loopback=1').send({})
+    expect(replay.status).toBe(200)
+    expect(evaluateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('defaults manual runs to dry-run without an execution log', async () => {
+    const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
+    productFindMock.mockReturnValue(productQuery([product]))
+    userProductFindMock.mockReturnValue(userProductQuery([
+      { _id: 'up-1', userId: { toString: () => 'user-1' } },
+    ]))
+    evaluateMock.mockResolvedValue({ actionsExecuted: 3, errors: [] })
+
+    const response = await request(appForCentralError(testCronRoute()))
+      .post('/target?__bo2_offline_loopback=1')
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.dryRun).toBe(true)
+    expect(evaluateMock).toHaveBeenCalledWith('user-1', 'product-1', true)
+    expect(logCreateMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks a live manual run when the ActiveCampaign kill switch is off', async () => {
+    const response = await request(appForCentralError(testCronRoute(undefined, {
+      body: { dryRun: false }, params: {}, query: {},
+    })))
+      .post('/target?__bo2_offline_loopback=1')
+      .send({})
+
+    expect(response.status).toBe(503)
+    expect(response.body.code).toBe('AC_ACTIVE_CAMPAIGN_EXECUTION_DISABLED')
+    expect(productFindMock).not.toHaveBeenCalled()
+    expect(evaluateMock).not.toHaveBeenCalled()
+    expect(logCreateMock).not.toHaveBeenCalled()
   })
 
   it('returns canonical read stats without changing the count query', async () => {
@@ -223,15 +345,16 @@ describe('ActiveCampaign operational boundary', () => {
   })
 
   it('preserves the original central error when failed-run auditing also rejects', async () => {
+    enableActiveCampaign()
     const originalError = new Error('secret original evaluation failure')
     const auditError = new Error('secondary audit failure')
     const onNext = jest.fn()
-    productFindMock.mockReturnValue({
-      populate: jest.fn().mockRejectedValue(originalError),
-    })
+    productFindMock.mockReturnValue(productQuery(originalError, true))
     logCreateMock.mockRejectedValue(auditError)
 
-    const response = await request(appForCentralError(testCronRoute(onNext)))
+    const response = await request(appForCentralError(testCronRoute(onNext, {
+      body: { dryRun: false }, params: {}, query: {},
+    })))
       .post('/target?__bo2_offline_loopback=1')
       .send({})
 

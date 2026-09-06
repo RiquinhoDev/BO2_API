@@ -52,6 +52,16 @@ interface RecalculationResult {
   }>
 }
 
+export class EngagementRecalculationLimitError extends Error {
+  readonly limit: number
+
+  constructor(limit: number) {
+    super(`Recálculo de engagement limitado a ${limit} UserProducts por execução`)
+    this.name = 'EngagementRecalculationLimitError'
+    this.limit = limit
+  }
+}
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONFIG
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -66,7 +76,9 @@ const BATCH_SIZE = 1000  // âœ… Otimizado para 6500+ UserProducts
 // MAIN SERVICE
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-export async function recalculateAllEngagementMetrics(): Promise<RecalculationResult> {
+export async function recalculateAllEngagementMetrics(
+  maxItems?: number,
+): Promise<RecalculationResult> {
   logger.info('[EngagementRecalc] ðŸš€ Iniciando recÃ¡lculo diÃ¡rio (V3 Early Skip Optimized)')
   
   const stats: RecalculationStats = {
@@ -91,6 +103,10 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
     })
     
     stats.total = totalCount
+
+    if (maxItems !== undefined && totalCount > maxItems) {
+      throw new EngagementRecalculationLimitError(maxItems)
+    }
     
     logger.info('[EngagementRecalc] ðŸ“Š Total UserProducts ativos', { total: totalCount })
     

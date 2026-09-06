@@ -150,6 +150,13 @@ test.each(routes)('$name accepts its explicit DTO and real path params', async (
   await callRoute(route, route.body).expect(204)
 })
 
+test('test cron accepts the optional dryRun control', async () => {
+  await callRoute(
+    { name: 'test cron', method: 'post', path: '/api/activecampaign/test-cron', body: {} },
+    { dryRun: true },
+  ).expect(204)
+})
+
 test.each(routes)('$name rejects an extra role field', async (route) => {
   await callRoute(route, {
     ...route.body,

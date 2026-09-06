@@ -117,8 +117,8 @@ router.get('/tag-rules', cronController.getAvailableTagRules)
  */
 router.post(
   '/tag-rules-only',
-  withValidatedInput(cronEmptyInput, (input, _req, res, next) =>
-    cronController.triggerTagRulesOnly(input, res, next)),
+  withValidatedInput(cronEmptyInput, (input, req, res, next) =>
+    cronController.triggerTagRulesOnly(input, req, res, next)),
 )
 
 export default router

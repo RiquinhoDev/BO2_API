@@ -12,7 +12,7 @@ export const cronJobIdInput = validatedSchema({
 export const cronEmptyInput = validatedSchema({
   params: {},
   query: {},
-  body: {},
+  body: { dryRun: z.boolean().optional() },
 })
 
 export type CronJobIdInput = z.infer<typeof cronJobIdInput>

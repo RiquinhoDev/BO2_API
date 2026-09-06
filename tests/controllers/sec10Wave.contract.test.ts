@@ -84,6 +84,12 @@ const mockLegacyTagRule = Object.assign(
 mockLegacyTagRule.prototype.save = mockLegacyTagRuleSave
 const mockCronExecutionLogFind: ChainBoundaryMock = jest.fn()
 const mockCronExecutionLogCreate: AsyncBoundaryMock = jest.fn()
+const mockActiveCampaignExecutionFindOne: ChainBoundaryMock = jest.fn(() => ({
+  select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+}))
+const mockActiveCampaignExecutionFindOneAndUpdate: AsyncBoundaryMock = jest.fn().mockResolvedValue({
+  _id: 'execution-1',
+})
 const mockContactTagReaderGetTags: AsyncBoundaryMock = jest.fn()
 
 jest.mock('../../src/models', () => ({
@@ -261,6 +267,14 @@ jest.mock('../../src/models/cron/CronExecutionLog', () => ({
   },
 }))
 
+jest.mock('../../src/models/ActiveCampaignExecution', () => ({
+  __esModule: true,
+  default: {
+    findOne: mockActiveCampaignExecutionFindOne,
+    findOneAndUpdate: mockActiveCampaignExecutionFindOneAndUpdate,
+  },
+}))
+
 jest.mock('../../src/services/activeCampaign/contactTagReader.service', () => ({
   __esModule: true,
   default: { getContactTags: mockContactTagReaderGetTags },
@@ -274,6 +288,10 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
 jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   __esModule: true,
   default: {},
+}))
+
+jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
+  isActiveCampaignTagMutationEnabled: jest.fn(() => true),
 }))
 
 const mockLoggerInfo = jest.fn()
@@ -599,11 +617,11 @@ const operations: WaveOperation[] = [
   },
   {
     name: 'run manual ActiveCampaign evaluation',
-    route: validatedHandler(testCron, { params: {}, query: {}, body: {} }),
+    route: validatedHandler(testCron, { params: {}, query: {}, body: { dryRun: false } }),
     arrange: () => {
-      mockProductFind.mockReturnValue({
-        populate: jest.fn().mockRejectedValue(secret),
-      })
+      const chain = { limit: jest.fn(), populate: jest.fn().mockRejectedValue(secret) }
+      chain.limit.mockReturnValue(chain)
+      mockProductFind.mockReturnValue(chain)
       mockCronExecutionLogCreate.mockResolvedValue({})
     },
     expected: { code: 'AC_MANUAL_EVALUATION_FAILED', message: 'Erro na avaliação manual' },
@@ -794,7 +812,7 @@ describe('SEC-10 ActiveCampaign and tag-controller wave', () => {
 
     const response = await request(appForCentralError(operation.route, 'sec10-request', centralLogger))
       .post('/target' + offline)
-      .send({})
+      .send({ dryRun: false })
 
     expectCentralError(response, operation.expected)
     expect(mockCronExecutionLogCreate).toHaveBeenCalledTimes(2)

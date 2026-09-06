@@ -3,42 +3,40 @@ import { getOps02Decision } from '../../src/security/ops02Policy'
 
 type ExpectedRoute = {
   path: string
-  cap: string
-  idempotency: string
 }
 
 const routes: readonly ExpectedRoute[] = [
   {
     path: '/api/activecampaign/test-cron',
-    cap: 'activecampaign-test-cron-no-finite-cap',
-    idempotency: 'activecampaign-test-cron-no-run-lock',
   },
   {
     path: '/api/cron/tag-rules-only',
-    cap: 'activecampaign-tag-rules-only-no-finite-cap',
-    idempotency: 'activecampaign-tag-rules-only-no-run-lock',
   },
 ]
 
 describe('OPS-02 ActiveCampaign execution gaps', () => {
-  test.each(routes)('$path records its factual unresolved protections', (route) => {
+  test.each(routes)('$path records its factual execution protections', (route) => {
     const result = getOps02Decision('POST', route.path)
     if (!result) throw new Error(`Missing OPS-02 decision for POST ${route.path}`)
 
-    expect(result.cap).toEqual({ status: 'required', reason: route.cap })
+    expect(result.cap).toEqual({
+      status: 'verified',
+      reason: 'activecampaign-execution-max-active-user-products',
+      limit: 200,
+    })
     expect(result.idempotency).toEqual({
-      status: 'required',
-      reason: route.idempotency,
+      status: 'verified',
+      reason: 'activecampaign-execution-run-lock-and-replay',
     })
     expect(result.killSwitch).toEqual({
-      status: 'required',
-      reason: 'activecampaign-execution-no-kill-switch',
+      status: 'verified',
+      reason: 'AC_TAG_APPLY_ENABLED',
     })
     expect(result.dryRun).toEqual({
-      status: 'required',
-      reason: 'activecampaign-execution-no-dry-run',
+      status: 'verified',
+      reason: 'dry-run-no-provider-or-local-mutation',
     })
-    expect(result.status).toBe('needs-hardening')
+    expect(result.status).toBe('reviewed')
   })
 
   test.each(routes)('$path is outside the central bulk guard', (route) => {

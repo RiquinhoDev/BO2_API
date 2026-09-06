@@ -5,8 +5,10 @@ import mongoose from 'mongoose'
 import { CronExecution } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronEmptyInput } from '../../../security/cronDestructiveInput'
-import { internalError } from '../../../security/errorHandling'
+import { HttpError, internalError } from '../../../security/errorHandling'
 import { type JobIdParams, errorMessage } from '../../../services/cron/controllerSupport'
+import { requestIdFrom } from '../../../services/activeCampaign/activeCampaignExecution.service'
+import type { ValidatedRequest } from '../../../security/validatedInput'
 
 export const getJobHistory = async (
   req: Request<JobIdParams>,
@@ -178,7 +180,8 @@ export const getSchedulerStatus = async (req: Request, res: Response, next: Next
 // �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
 export const triggerTagRulesOnly = async (
-  _input: CronEmptyInput,
+  input: CronEmptyInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
@@ -194,13 +197,17 @@ export const triggerTagRulesOnly = async (
     const { executeTagRulesOnly } = await import('../../../services/cron/dailyPipeline.service')
     logger.info('�?��?  [TAG-RULES-ONLY] Import OK, a chamar executeTagRulesOnly()...')
 
-    const result = await executeTagRulesOnly()
+    const result = await executeTagRulesOnly({
+      dryRun: input.body.dryRun,
+      requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+    })
     logger.info('�?��?  [TAG-RULES-ONLY] executeTagRulesOnly() retornou!')
 
     const message = result.success
       ? 'Tag Rules Only executado com sucesso'
       : 'Tag Rules Only executado com erros'
     const data = {
+      dryRun: result.dryRun === true,
       duration: result.duration,
       completedAt: result.completedAt,
       steps: {
@@ -232,6 +239,8 @@ export const triggerTagRulesOnly = async (
     res.status(200).json(successResponse(data, { message }))
 
   } catch (error: unknown) {
-    next(internalError('Erro ao executar Tag Rules Only', 'CRON_TAG_RULES_TRIGGER_FAILED', error))
+    next(error instanceof HttpError
+      ? error
+      : internalError('Erro ao executar Tag Rules Only', 'CRON_TAG_RULES_TRIGGER_FAILED', error))
   }
 }

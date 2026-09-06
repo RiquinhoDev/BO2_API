@@ -243,19 +243,27 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
     'POST /api/activecampaign/test-cron',
     {
-      cap: { status: 'required', reason: 'activecampaign-test-cron-no-finite-cap' },
-      idempotency: { status: 'required', reason: 'activecampaign-test-cron-no-run-lock' },
-      killSwitch: { status: 'required', reason: 'activecampaign-execution-no-kill-switch' },
-      dryRun: { status: 'required', reason: 'activecampaign-execution-no-dry-run' },
+      cap: {
+        status: 'verified',
+        reason: 'activecampaign-execution-max-active-user-products',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
+      idempotency: { status: 'verified', reason: 'activecampaign-execution-run-lock-and-replay' },
+      killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
     },
   ],
   [
     'POST /api/cron/tag-rules-only',
     {
-      cap: { status: 'required', reason: 'activecampaign-tag-rules-only-no-finite-cap' },
-      idempotency: { status: 'required', reason: 'activecampaign-tag-rules-only-no-run-lock' },
-      killSwitch: { status: 'required', reason: 'activecampaign-execution-no-kill-switch' },
-      dryRun: { status: 'required', reason: 'activecampaign-execution-no-dry-run' },
+      cap: {
+        status: 'verified',
+        reason: 'activecampaign-execution-max-active-user-products',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
+      idempotency: { status: 'verified', reason: 'activecampaign-execution-run-lock-and-replay' },
+      killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
     },
   ],
   [

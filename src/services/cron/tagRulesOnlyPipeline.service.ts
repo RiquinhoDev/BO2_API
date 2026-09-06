@@ -1,14 +1,25 @@
 import logger from '../../utils/logger'
-import { Product, UserProduct, PipelineExecution } from '../../models'
+import { Product, UserProduct, PipelineExecution, TagRule } from '../../models'
 import { PipelineStepResult } from '../../types/cron.types'
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 import pipelineSnapshotService, { type PipelineSnapshot, type SnapshotComparison } from '../activeCampaign/pipelineSnapshot.service'
 import tagOrchestratorV2, { type OrchestrationResult } from '../activeCampaign/tagOrchestrator.service'
 import { hasPipelineReferences, type PipelineUserProduct } from './dailyPipelineSupport'
-
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
+import { isActiveCampaignTagMutationEnabled } from '../requestDrivenRuntimeConfig'
+import {
+  ActiveCampaignExecutionDisabledError,
+  ActiveCampaignExecutionInProgressError,
+  ActiveCampaignExecutionLimitError,
+  claimActiveCampaignExecution,
+  completeActiveCampaignExecution,
+  failActiveCampaignExecution,
+  requestIdFrom,
+} from '../activeCampaign/activeCampaignExecution.service'
 export interface TagRulesOnlyResult {
   success: boolean
+  dryRun?: boolean
   duration: number
   completedAt: Date
   steps: {
@@ -24,7 +35,67 @@ export interface TagRulesOnlyResult {
     tagsRemoved: number
   }
 }
+export interface TagRulesOnlyOptions {
+  dryRun?: boolean
+  requestId?: string
+}
+function dryRunResult(): TagRulesOnlyResult {
+  const step = { success: true, duration: 0, stats: {} }
+  return {
+    success: true,
+    dryRun: true,
+    duration: 0,
+    completedAt: new Date(),
+    steps: {
+      preCreateTags: step,
+      recalcEngagement: step,
+      evaluateTagRules: step,
+    },
+    errors: [],
+    summary: {
+      totalUserProducts: 0,
+      engagementUpdated: 0,
+      tagsApplied: 0,
+      tagsRemoved: 0,
+    },
+  }
+}
+async function assertTagRulesOnlyLimit(): Promise<void> {
+  const activeUserProducts = await UserProduct.countDocuments({ status: 'ACTIVE' })
+  if (activeUserProducts > MAX_BULK_OPERATION_ITEMS) {
+    throw new ActiveCampaignExecutionLimitError()
+  }
+  const activeTagRules = await TagRule.countDocuments({ isActive: true })
+  if (activeTagRules > MAX_BULK_OPERATION_ITEMS) {
+    throw new ActiveCampaignExecutionLimitError()
+  }
+}
+export async function executeTagRulesOnly(
+  options: TagRulesOnlyOptions = {},
+): Promise<TagRulesOnlyResult> {
+  const dryRun = options.dryRun !== false
+  if (dryRun) return dryRunResult()
+  if (!isActiveCampaignTagMutationEnabled()) {
+    throw new ActiveCampaignExecutionDisabledError()
+  }
+  const claim = await claimActiveCampaignExecution<TagRulesOnlyResult>(
+    'tag-rules-only',
+    requestIdFrom(options.requestId),
+  )
+  if (claim.kind === 'replay') return claim.result
+  if (claim.kind === 'in-progress') throw new ActiveCampaignExecutionInProgressError()
 
+  try {
+    await assertTagRulesOnlyLimit()
+    const result = await executeTagRulesOnlyLive()
+    result.dryRun = false
+    await completeActiveCampaignExecution('tag-rules-only', claim.ownerId, result)
+    return result
+  } catch (error: unknown) {
+    await failActiveCampaignExecution('tag-rules-only', claim.ownerId).catch(() => undefined)
+    throw error
+  }
+}
 /**
  * Executa APENAS os steps de tags (sem sync Hotmart/CursEduca)
  * Ãštil para aplicar tags rapidamente sem esperar pelo sync completo
@@ -34,7 +105,7 @@ export interface TagRulesOnlyResult {
  * - Step 4: Recalc Engagement (atualiza mÃ©tricas)
  * - Step 5: Evaluate Tag Rules (aplica/remove tags)
  */
-export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
+async function executeTagRulesOnlyLive(): Promise<TagRulesOnlyResult> {
   logger.info('[TAG-RULES] â–¶ï¸ FunÃ§Ã£o iniciada!')
 
   const startTime = Date.now()
@@ -111,7 +182,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
 
     try {
       logger.info('[TAG-RULES] â–¶ï¸ A chamar recalculateAllEngagementMetrics()...')
-      const recalcResult = await recalculateAllEngagementMetrics()
+      const recalcResult = await recalculateAllEngagementMetrics(MAX_BULK_OPERATION_ITEMS)
       logger.info('[TAG-RULES] âœ… recalculateAllEngagementMetrics() retornou!')
 
       result.steps.recalcEngagement = {
@@ -180,7 +251,12 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
         .populate({ path: 'productId', select: 'code' })
+        .limit(MAX_BULK_OPERATION_ITEMS + 1)
         .lean<PipelineUserProduct[]>()
+
+      if (userProducts.length > MAX_BULK_OPERATION_ITEMS) {
+        throw new ActiveCampaignExecutionLimitError()
+      }
 
       logger.info(`[TAG-RULES] ðŸ“Š Total UserProducts ativos: ${userProducts.length}`)
 
