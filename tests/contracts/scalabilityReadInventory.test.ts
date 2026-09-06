@@ -53,8 +53,27 @@ test('SCALE-03 records constrained sequential dispositions with behavioral evide
     } else {
       expect(entry.disposition).toBe('already-compliant')
       expect(entry.constraint).toMatch(/^constrained-sequential:/)
+      expect(entry.evidence).toEqual(expect.arrayContaining([
+        expect.stringContaining('N=1/10/100'),
+      ]))
     }
     expect(entry.evidence.length).toBeGreaterThan(0)
+  }
+
+  const legacyIds = ['student-movement.ordered-writes', 'guru-discrepancy.compensation']
+  const assertLegacyEvidence = (entries: typeof constrained) => {
+    for (const entry of entries.filter(({ id }: { id: string }) => legacyIds.includes(id))) {
+      expect(entry.evidence).toEqual(expect.arrayContaining([
+        expect.stringContaining('N=1/10/100'),
+      ]))
+    }
+  }
+  assertLegacyEvidence(constrained)
+  for (const id of legacyIds) {
+    const evidenceOverlay = constrained.map((entry: { id: string; evidence: string[] }) => entry.id === id
+      ? { ...entry, evidence: entry.evidence.filter((item: string) => !item.includes('N=1/10/100')) }
+      : entry)
+    expect(() => assertLegacyEvidence(evidenceOverlay)).toThrow()
   }
 
   const guardCases = [
