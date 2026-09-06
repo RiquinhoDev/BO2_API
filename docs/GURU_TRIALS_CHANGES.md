@@ -8,7 +8,7 @@
 
 ## ⚠️ Princípio Fundamental
 
-**Nada inativa automaticamente.** O cron e o `checkExpiredTrials()` apenas **MARCAM** `UserProduct.status = PARA_INATIVAR`. A inativação real no CursEduca (chamada API) continua a ser feita manualmente na tab "Gerir Subscrições" / fluxo de inativação existente (`inactivateSingle` / `inactivateBulk`). A execução com mutação exige `CURSEDUCA_INACTIVATION_ENABLED=true`; `dryRun` pode gerar o plano com o switch desligado e não faz mutações. O fluxo limita `all=true` a 200 registos, salta estados locais já `INACTIVE` e serializa execuções concorrentes através de claim durável de 60 segundos (6x o timeout do provider de 10 segundos); falha/exception liberta o claim e lease expirado permite retry. Idempotency no provider continua fora do BO2_API: um crash depois de o provider aceitar a chamada mas antes da persistência local mantém uma janela de resposta remota incerta.
+**Nada inativa automaticamente.** O cron e o `checkExpiredTrials()` apenas **MARCAM** `UserProduct.status = PARA_INATIVAR`. A inativação real no CursEduca (chamada API) continua a ser feita manualmente na tab "Gerir Subscrições" / fluxo de inativação existente (`inactivateSingle` / `inactivateBulk`). A execução com mutação exige `CURSEDUCA_INACTIVATION_ENABLED=true`; `dryRun` pode gerar o plano com o switch desligado e não faz mutações. O fluxo limita `all=true` a 200 registos, salta estados locais já `INACTIVE`, coordena single/bulk por `memberId` com receipt durável e replays canónicos por `X-Request-ID`; falha/exception liberta o claim. Provider success seguido de falha local ou do receipt fica `indeterminate` e bloqueia novas tentativas até reconciliação: o provider continua sem semântica exactly-once garantida pelo BO2_API.
 
 ---
 

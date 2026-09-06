@@ -232,3 +232,57 @@ test('single dry-run returns a plan without provider or local mutation', async (
   expect(inactivate).not.toHaveBeenCalled()
   expect(repo.markInactive).not.toHaveBeenCalled()
 })
+
+test('route adapter forwards the real X-Request-ID to the single service', async () => {
+  const service = {
+    inactivateSingle: jest.fn(async () => ({
+      kind: 'success' as const,
+      memberId: 'member-1',
+      email: 'member@example.test',
+    })),
+    inactivateBulk: jest.fn(),
+  } as unknown as ReturnType<typeof createGuruExternalInactivationService>
+  const handlers = createGuruExternalInactivationHandlers(service)
+  const app = express()
+  app.use(express.json())
+  app.post('/single', (req, res, next) => {
+    void handlers.inactivateSingle(
+      { params: {}, query: {}, body: req.body },
+      res,
+      next,
+      req.get('x-request-id') || undefined,
+    )
+  })
+
+  await request(app)
+    .post('/single')
+    .query({ __bo2_offline_loopback: '1' })
+    .set('X-Request-ID', 'route-single-a')
+    .send({ userProductId: '0123456789abcdef01234567' })
+    .expect(200)
+
+  expect(service.inactivateSingle).toHaveBeenCalledWith(
+    { userProductId: '0123456789abcdef01234567' },
+    'route-single-a',
+  )
+})
+
+test('single maps an indeterminate provider/local boundary to a canonical 503', async () => {
+  const service = {
+    inactivateSingle: jest.fn(async () => ({ kind: 'indeterminate' as const })),
+    inactivateBulk: jest.fn(),
+  } as unknown as ReturnType<typeof createGuruExternalInactivationService>
+  const handlers = createGuruExternalInactivationHandlers(service)
+  const next = jest.fn()
+
+  await handlers.inactivateSingle({
+    params: {},
+    query: {},
+    body: { userProductId: '0123456789abcdef01234567' },
+  }, response(), next, 'single-a')
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    status: 503,
+    code: 'GURU_INACTIVATION_INDETERMINATE',
+  }))
+})

@@ -2,8 +2,8 @@ import axios from 'axios'
 import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConfig'
 
 export type CurseducaInactivationResult =
-  | { success: true; response: unknown }
-  | { success: false; error: string }
+  | { success: true; response: unknown; providerAttempted?: true }
+  | { success: false; error: string; providerAttempted?: boolean }
 
 export const CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS = 10_000
 
@@ -30,6 +30,7 @@ export const axiosCurseducaInactivationClient: CurseducaInactivationClient = {
       return {
         success: false,
         error: 'Credenciais CursEduca não configuradas (API_KEY ou ACCESS_TOKEN)',
+        providerAttempted: false,
       }
     }
     try {
@@ -45,9 +46,9 @@ export const axiosCurseducaInactivationClient: CurseducaInactivationClient = {
           timeout: CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS,
         },
       )
-      return { success: true, response: response.data }
+      return { success: true, response: response.data, providerAttempted: true }
     } catch (error: unknown) {
-      return { success: false, error: errorMessage(error) }
+      return { success: false, error: errorMessage(error), providerAttempted: true }
     }
   },
 }

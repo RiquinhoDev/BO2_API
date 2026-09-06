@@ -1,6 +1,7 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
 import { asyncRoute } from '../security/asyncRoute'
 import { Router } from 'express'
+import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
 import { withValidatedInput } from '../security/validatedInput'
 import {
   guruEmptyInput,
@@ -309,14 +310,14 @@ router.get('/inactivation/inactive', asyncRoute(listInactivated))
  * Inativar um único membro no CursEduca
  * Body: { userProductId: string } ou { curseducaUserId: string }
  */
-router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, _req, res, next) => inactivateSingle(input, res, next)))
+router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, req, res, next) => inactivateSingle(input, res, next, requestIdFrom(req.get('x-request-id') || res.locals.correlationId))))
 
 /**
  * POST /guru/inactivation/bulk
  * Inativar múltiplos membros no CursEduca
  * Body: { userProductIds: string[] } ou { all: true }
  */
-router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, _req, res, next) => inactivateBulk(input, res, next)))
+router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, req, res, next) => inactivateBulk(input, res, next, requestIdFrom(req.get('x-request-id') || res.locals.correlationId))))
 
 /**
  * POST /guru/inactivation/revert

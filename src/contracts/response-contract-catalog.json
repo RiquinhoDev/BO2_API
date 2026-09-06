@@ -3962,7 +3962,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationExternal.controller.ts:109",
+    "evidence": "src/controllers/guruInactivationExternal.controller.ts:146",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4073,7 +4073,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationExternal.controller.ts:64",
+    "evidence": "src/controllers/guruInactivationExternal.controller.ts:79",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {

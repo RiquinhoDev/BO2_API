@@ -7,8 +7,8 @@ function decision(path: string) {
   return result
 }
 
-describe('OPS-02 CursEduca inactivation gaps', () => {
-  test('single keeps only the provider replay gap after hardening', () => {
+describe('OPS-02 CursEduca inactivation protections', () => {
+  test('single proves durable replay and member owner fencing', () => {
     const result = decision('/api/guru/inactivation/single')
 
     expect(result.cap).toEqual({
@@ -16,8 +16,8 @@ describe('OPS-02 CursEduca inactivation gaps', () => {
       reason: 'not-caller-bulk',
     })
     expect(result.idempotency).toEqual({
-      status: 'required',
-      reason: 'curseduca-inactivation-single-replay-repeats-provider-call',
+      status: 'verified',
+      reason: 'curseduca-inactivation-durable-receipt-and-member-owner-fence',
     })
     expect(result.killSwitch).toEqual({
       status: 'verified',
@@ -27,10 +27,10 @@ describe('OPS-02 CursEduca inactivation gaps', () => {
       status: 'verified',
       reason: 'dry-run-no-provider-or-local-mutation',
     })
-    expect(result.status).toBe('needs-hardening')
+    expect(result.status).toBe('reviewed')
   })
 
-  test('bulk keeps only the provider replay gap after finite all-mode hardening', () => {
+  test('bulk proves durable run replay and finite all-mode hardening', () => {
     const result = decision('/api/guru/inactivation/bulk')
 
     expect(result.cap).toEqual({
@@ -39,8 +39,8 @@ describe('OPS-02 CursEduca inactivation gaps', () => {
       limit: MAX_BULK_OPERATION_ITEMS,
     })
     expect(result.idempotency).toEqual({
-      status: 'required',
-      reason: 'curseduca-inactivation-bulk-replay-repeats-provider-call',
+      status: 'verified',
+      reason: 'curseduca-inactivation-durable-receipt-and-member-owner-fence',
     })
     expect(result.killSwitch).toEqual({
       status: 'verified',
@@ -50,6 +50,6 @@ describe('OPS-02 CursEduca inactivation gaps', () => {
       status: 'verified',
       reason: 'dry-run-no-provider-or-local-mutation',
     })
-    expect(result.status).toBe('needs-hardening')
+    expect(result.status).toBe('reviewed')
   })
 })

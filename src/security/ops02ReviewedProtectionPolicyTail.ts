@@ -136,8 +136,8 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
     'POST /api/guru/inactivation/single',
     {
       idempotency: {
-        status: 'required',
-        reason: 'curseduca-inactivation-single-replay-repeats-provider-call',
+        status: 'verified',
+        reason: 'curseduca-inactivation-durable-receipt-and-member-owner-fence',
       },
       killSwitch: { status: 'verified', reason: 'CURSEDUCA_INACTIVATION_ENABLED' },
       dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
@@ -152,8 +152,8 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
         limit: MAX_BULK_OPERATION_ITEMS,
       },
       idempotency: {
-        status: 'required',
-        reason: 'curseduca-inactivation-bulk-replay-repeats-provider-call',
+        status: 'verified',
+        reason: 'curseduca-inactivation-durable-receipt-and-member-owner-fence',
       },
       killSwitch: { status: 'verified', reason: 'CURSEDUCA_INACTIVATION_ENABLED' },
       dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },

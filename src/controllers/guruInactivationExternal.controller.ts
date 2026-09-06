@@ -21,6 +21,7 @@ export const createGuruExternalInactivationHandlers = (
     input: GuruInactivationSingleInput,
     res: Response,
     next: NextFunction,
+    requestId?: string,
   ) {
     if (!input.body.userProductId && !input.body.curseducaUserId) {
       return res.status(400).json({
@@ -29,7 +30,7 @@ export const createGuruExternalInactivationHandlers = (
       })
     }
     try {
-      const result = await service.inactivateSingle(input.body)
+      const result = await service.inactivateSingle(input.body, requestId)
       if (result.kind === 'disabled') {
         return next(new HttpError({
           status: 503,
@@ -51,6 +52,20 @@ export const createGuruExternalInactivationHandlers = (
           status: 409,
           code: 'GURU_INACTIVATION_IN_PROGRESS',
           publicMessage: 'Inativação CursEduca já está em processamento',
+        }))
+      }
+      if (result.kind === 'indeterminate') {
+        return next(new HttpError({
+          status: 503,
+          code: 'GURU_INACTIVATION_INDETERMINATE',
+          publicMessage: 'Resultado da inativação CursEduca ficou indeterminado; requer reconciliação',
+        }))
+      }
+      if (result.kind === 'request-id-reused') {
+        return next(new HttpError({
+          status: 409,
+          code: 'GURU_INACTIVATION_REQUEST_ID_REUSED',
+          publicMessage: 'X-Request-ID já foi usado noutro alvo',
         }))
       }
       if (result.kind === 'remote-failure') {
@@ -89,6 +104,7 @@ export const createGuruExternalInactivationHandlers = (
     input: GuruInactivationBulkInput,
     res: Response,
     next: NextFunction,
+    requestId?: string,
   ) {
     if (input.body.all !== true && input.body.userProductIds === undefined) {
       return res.status(400).json({
@@ -97,7 +113,28 @@ export const createGuruExternalInactivationHandlers = (
       })
     }
     try {
-      const result = await service.inactivateBulk(input.body)
+      const result = await service.inactivateBulk(input.body, requestId)
+      if ('kind' in result) {
+        if (result.kind === 'in-progress') {
+          return next(new HttpError({
+            status: 409,
+            code: 'GURU_INACTIVATION_IN_PROGRESS',
+            publicMessage: 'Inativação CursEduca já está em processamento',
+          }))
+        }
+        if (result.kind === 'indeterminate') {
+          return next(new HttpError({
+            status: 503,
+            code: 'GURU_INACTIVATION_INDETERMINATE',
+            publicMessage: 'Resultado da inativação CursEduca ficou indeterminado; requer reconciliação',
+          }))
+        }
+        return next(new HttpError({
+          status: 409,
+          code: 'GURU_INACTIVATION_REQUEST_ID_REUSED',
+          publicMessage: 'X-Request-ID já foi usado noutro run',
+        }))
+      }
       if (result.disabled) {
         return next(new HttpError({
           status: 503,

@@ -1445,6 +1445,14 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Fresh offline proof for this product-tag slice: focused gate passed **6 suites / 41 tests**; the full backend gate passed **481/483 suites** and **3079/3091 tests** (**2 suites / 12 tests skipped**). Types, build, lint, route catalog, response catalog (**409 decisions; 213 Front calls; 188 consumers**), SCALE (**40/0, 11/0, 24/0; 368 Mongoose sites**) and diff-check also passed. No provider, production datastore, Railway, domain or network was contacted. OPS-02 hardening debt remains **13** decisions (**6 mixed, 7 provider, 10 bulk**).
 - This closes the three ActiveCampaign product-tag policy rows in code/offline evidence; isolated Railway/database provisioning, external-provider observation, domain/Front deployment and stable promotion remain unclaimed.
 
+### [x] OPS-02 — CursEduca inactivation single/bulk receipts (2026-09-06)
+
+- `POST /api/guru/inactivation/single` and `/bulk` now receive the real `X-Request-ID` from the route. Live single execution replays its canonical result before local `INACTIVE` short-circuit; live bulk persists a run receipt keyed by a sorted/deduplicated input fingerprint, so `all=true` replay does not re-read an empty queue and payload reuse with a different fingerprint is rejected atomically.
+- Single and bulk effects share a durable target receipt keyed by normalized CursEduca `memberId`; numeric/string representations converge, overlapping runs serialize, stale leases become `indeterminate`, and an indeterminate target/run blocks new work until reconciliation. Bulk preserves per-item continue-on-error and canonical partial results; `dryRun`, `CURSEDUCA_INACTIVATION_ENABLED` and the 200-item cap remain unchanged.
+- The provider client records whether an attempt was actually made. Provider success followed by either User/UserProduct/local persistence failure or receipt settlement failure is never reported as retryable success; it returns/maps to canonical `503 GURU_INACTIVATION_INDETERMINATE`. The provider API remains at-least-once/indeterminate because BO2_API cannot make its remote mutation exactly-once.
+- Fresh focused offline proof: **17 suites / 117 tests passed** for the CursEduca receipt, service, controller, policy and debt slices. No real CursEduca, production Mongo, Railway, domain or network was contacted; full repository gates remain the final promotion prerequisite.
+- OPS-02 hardening debt is now **11** decisions (**6 mixed, 5 provider, 9 bulk**). Isolated Railway/database provisioning, external-provider observation, domain/Front deployment and stable promotion remain unclaimed.
+
 ### [x] SCALE-03 — strict ActiveCampaign read boundary (2026-09-06)
 
 - Legacy ActiveCampaign tag reads preserve their broad compatibility fallback; native protection and weekly monitoring now consume the strict result `{ contactFound, tags }` and fail closed on generic provider/read errors.

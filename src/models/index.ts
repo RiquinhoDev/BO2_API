@@ -18,6 +18,7 @@ import './cron/CronExecutionLog'
 import './cron/PipelineExecution'
 import './ActiveCampaignExecution'
 import './ActiveCampaignProductTagReceipt'
+import './GuruCurseducaInactivationReceipt'
 import './HotmartWebhook'
 import './IdsDiferentes'
 import './InactivationList'
@@ -59,6 +60,7 @@ export { default as CronExecutionLog } from './cron/CronExecutionLog'
 export { default as PipelineExecution } from './cron/PipelineExecution'
 export { default as ActiveCampaignExecution } from './ActiveCampaignExecution'
 export { default as ActiveCampaignProductTagReceipt } from './ActiveCampaignProductTagReceipt'
+export { default as GuruCurseducaInactivationReceipt } from './GuruCurseducaInactivationReceipt'
 export { default as HotmartWebhook } from './HotmartWebhook'
 export { default as IdsDiferentes } from './IdsDiferentes'
 export { default as InactivationList } from './InactivationList'
@@ -118,6 +120,7 @@ const modelsToCheck = [
   'PipelineExecution',
   'ActiveCampaignExecution',
   'ActiveCampaignProductTagReceipt',
+  'GuruCurseducaInactivationReceipt',
   'TagRule',
   'UserAction',
   'UserHistory',
