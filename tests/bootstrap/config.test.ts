@@ -209,6 +209,24 @@ test('execução mutável manual de Renewal AC fica desligada por omissão e exi
     .toBe(true)
 })
 
+test('execução mutável manual de DiscordRoles fica desligada por omissão e exige flag tipada', () => {
+  expect(loadConfig(VALID_ENV).renewal.discordRolesManualExecutionEnabled).toBe(false)
+  expect(loadConfig({
+    ...VALID_ENV,
+    DISCORD_BOT_URL: 'https://discord.example.test',
+    BOT_SHARED_SECRET: 'bot-secret',
+    DISCORD_ROLES_MANUAL_EXECUTION_ENABLED: 'true',
+  }).renewal.discordRolesManualExecutionEnabled)
+    .toBe(true)
+})
+
+test('execução manual de DiscordRoles exige integração Discord configurada', () => {
+  expect(() => loadConfig({
+    ...VALID_ENV,
+    DISCORD_ROLES_MANUAL_EXECUTION_ENABLED: 'true',
+  })).toThrow('DISCORD_BOT_URL')
+})
+
 test('loadConfig nao ativa Redis localhost por omissao', () => {
   expect(
     loadConfig({
@@ -528,6 +546,7 @@ test('renewal settings are parsed once into the typed startup boundary', () => {
     hotmartOgiProductId: 'ogi-product',
     discordRolesSyncEnabled: true,
     discordRolesAutoExecute: true,
+    discordRolesManualExecutionEnabled: false,
     discordMessagesEnabled: true,
     discordScheduledMessagesEnabled: true,
     discordRolesMaxOpsPerRun: 25,

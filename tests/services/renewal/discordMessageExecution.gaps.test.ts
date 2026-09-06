@@ -5,6 +5,7 @@ const mockRuntimeConfig = {
     discordMessagesEnabled: true,
     discordRolesSyncEnabled: false,
     discordRolesAutoExecute: false,
+    discordRolesManualExecutionEnabled: false,
     discordRolesMaxOpsPerRun: 100,
     discordMessageChannelId: 'channel-1',
     discordMessageChannels: ['channel-1:Renewals'],

@@ -30,6 +30,8 @@ import {
   sendDiscordMessage
 } from '../services/renewal/discordRolesSync.service'
 import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
+import { cronManualExecutionView, getCronManualCapability } from '../services/cron/scheduler/manualCapabilities'
+import { isRolesManualExecutionEnabled } from '../services/renewal/discord/planning'
 
 const router = Router()
 
@@ -63,10 +65,32 @@ function messageReceiptFailure(result: { kind?: string; message: string }): neve
 router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
   const status = await getDiscordRenewalStatus()
   const cronJob = await CronJobConfig.findOne({ name: 'DiscordRolesSync' })
-    .select('schedule.enabled schedule.cronExpression isActive lastRun nextRun')
+    .select('name syncType syncConfig tagRules tagRuleOptions __v schedule.enabled schedule.cronExpression isActive lastRun nextRun')
     .lean()
     .exec()
-  res.json({ success: true, data: { ...status, cronJob: cronJob || null } })
+  const manualExecution = cronJob
+    ? cronManualExecutionView(
+      cronJob,
+      getCronManualCapability(cronJob).id === 'discord-roles-sync' && isRolesManualExecutionEnabled(),
+      { blockedReason: 'Execução manual dos cargos Discord desativada' },
+    )
+    : {
+      capability: 'discord-roles-sync',
+      status: 'blocked' as const,
+      cap: { status: 'required' as const, reason: 'discord-roles-sync-job-missing' },
+      dryRunSupported: false,
+      mutableEnabled: false,
+      blockedReason: 'Job DiscordRolesSync não encontrado; execução manual bloqueada',
+    }
+  const cronJobStatus = cronJob
+    ? {
+      schedule: cronJob.schedule,
+      isActive: cronJob.isActive,
+      lastRun: cronJob.lastRun,
+      nextRun: cronJob.nextRun,
+    }
+    : null
+  res.json({ success: true, data: { ...status, cronJob: cronJobStatus, manualExecution } })
 }))
 
 /** GET /api/discord-renewal/changes?status=&batchId=&search=&limit=&skip=
@@ -98,7 +122,7 @@ router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
 
 /** POST /api/discord-renewal/plan — reconciliação (dry-run, só BD) */
 router.post('/plan', asyncRoute(async (_req: Request, res: Response) => {
-  const report = await generateDiscordRolesPlan()
+  const report = await generateDiscordRolesPlan({ dryRun: true })
   const outcome = report.anomalyAborted ? 'anomaly-aborted' : 'planned'
   res.json(successResponse({ outcome, report }))
 }))
@@ -123,7 +147,9 @@ router.post('/execute', withValidatedInput(discordRenewalExecuteInput, async (in
     includePlanned: input.body.includePlanned === true,
     batchId: input.body.batchId,
     limit: input.body.limit,
-    executedBy: actor(req, input.body.actor)
+    executedBy: actor(req, input.body.actor),
+    actorId: actor(req, input.body.actor),
+    requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
   })
   res.json(successResponse({ report }))
 }))

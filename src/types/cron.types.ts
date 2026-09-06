@@ -69,7 +69,7 @@ export interface CronExecutionResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan
 }
 
 export interface DailyPipelinePlan {
@@ -142,6 +142,27 @@ export interface RenewalAcSyncPlan {
   blocked: number
   skippedDuplicates: number
   refundReverts: number
+  overCap: boolean
+  limit: number
+  truncated: boolean
+  /** Lower bound of source rows beyond the bounded sample. */
+  remaining: number
+}
+
+export interface DiscordRolesSyncPlan {
+  operation: 'discord-roles-sync'
+  dryRun: true
+  isBackfill: boolean
+  studentsWithClass: number
+  studentsLinked: number
+  accountsDesired: number
+  invalidTurma: number
+  planned: number
+  newAssignments: number
+  realChanges: number
+  removals: number
+  skippedDuplicates: number
+  anomalyAborted: boolean
   overCap: boolean
   limit: number
   truncated: boolean

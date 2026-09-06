@@ -3,10 +3,12 @@ import type {
   AchievementEvaluationPlan,
   CronExecutionCleanupPlan,
   DailyPipelinePlan,
+  DiscordRolesSyncPlan,
   WeeklyTagSnapshotPlan,
   RenewalAcSyncPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
+import { normalizePlannedExecution } from './plannedExecutionNormalizer'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
 import { executeDailyPipeline } from '../dailyPipeline.service'
@@ -30,7 +32,7 @@ export interface CronDispatchResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan
 }
 
 export interface CronDispatchOptions {
@@ -77,7 +79,7 @@ const SPECIFIC_JOB_NAMES = [
 ] as const
 
 function matchesSpecificJob(jobName: string, specificName: string): boolean {
-  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalAcSync'
+  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync'
     ? jobName === specificName
     : jobName.includes(specificName)
 }
@@ -162,8 +164,8 @@ const defaultDependencies: CronDispatchDependencies = {
       dryRun: options?.dryRun,
       phaseHooks: options?.phaseHooks,
     }),
-  runDiscordRolesSync: async () =>
-    (await import('../../renewal/discordRolesSync.service')).runDiscordRolesSyncJob(),
+  runDiscordRolesSync: async (options) =>
+    (await import('../../renewal/discordRolesSync.service')).runDiscordRolesSyncJob(options),
   runRenewalAcSync: async (options) =>
     (await import('../../renewal/renewalAcSync.service')).runRenewalAcSyncJob({
       ...options,
@@ -251,11 +253,11 @@ export class CronJobDispatcher {
         }
       }
 
-      if (job.name.includes('DiscordRolesSync')) {
-        return this.normalizePlannedExecution(await this.dependencies.runDiscordRolesSync(options), 'accountsDesired')
+      if (job.name === 'DiscordRolesSync') {
+        return normalizePlannedExecution(await this.dependencies.runDiscordRolesSync(options), 'accountsDesired')
       }
       if (job.name === 'RenewalAcSync') {
-        return this.normalizePlannedExecution(await this.dependencies.runRenewalAcSync(options), 'classChangesSeen')
+        return normalizePlannedExecution(await this.dependencies.runRenewalAcSync(options), 'classChangesSeen')
       }
       if (job.name.includes('AchievementEvaluation')) {
         const report = recordOf(await this.dependencies.evaluateAchievements(options))
@@ -294,7 +296,7 @@ export class CronJobDispatcher {
       if (!runner) throw new Error(`Job específico não encontrado: ${job.name}`)
       return normalizeGenericResult(await runner(options))
     } catch (error) {
-      if ((job.name === 'WeeklyTagSnapshot' || job.name === 'RenewalAcSync')
+      if ((job.name === 'WeeklyTagSnapshot' || job.name === 'RenewalAcSync' || job.name === 'DiscordRolesSync')
         && (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError'
           || typeof error === 'object' && error !== null && 'status' in error
           && (error as { status?: unknown }).status === 413)) {
@@ -340,50 +342,6 @@ export class CronJobDispatcher {
       errorMessage: stringOf(report, 'error') ?? stringOf(report, 'errorMessage'),
       ...(dryRun ? { dryRun: true } : {}),
       ...(Object.keys(plan).length > 0 ? { plan: plan as unknown as CronExecutionCleanupPlan } : {}),
-    }
-  }
-
-  private normalizePlannedExecution(value: unknown, totalKey: 'accountsDesired' | 'classChangesSeen'): CronDispatchResult {
-    const report = recordOf(value)
-    const plan = nestedRecordOf(report, 'plan')
-    const execution = nestedRecordOf(report, 'execution')
-    const anomalyAborted = booleanOf(plan, 'anomalyAborted') === true
-    const blocked = totalKey === 'classChangesSeen' ? numberOf(plan, 'blocked') : 0
-    const notInGuild = totalKey === 'accountsDesired' ? numberOf(execution, 'notInGuild') : 0
-    const failed = numberOf(execution, 'failed')
-    const dryRun = booleanOf(report, 'dryRun') === true || booleanOf(plan, 'dryRun') === true
-    const renewalPlan = totalKey === 'classChangesSeen' && plan.operation === 'renewal-ac-sync'
-      ? {
-        operation: 'renewal-ac-sync' as const,
-        dryRun: true as const,
-        windowHours: numberOf(plan, 'windowHours'),
-        classChangesSeen: numberOf(plan, 'classChangesSeen'),
-        anomalyAborted: booleanOf(plan, 'anomalyAborted') === true,
-        planned: numberOf(plan, 'planned'),
-        blocked: numberOf(plan, 'blocked'),
-        skippedDuplicates: numberOf(plan, 'skippedDuplicates'),
-        refundReverts: numberOf(plan, 'refundReverts'),
-        overCap: booleanOf(plan, 'overCap') === true,
-        limit: numberOf(plan, 'limit'),
-        truncated: booleanOf(plan, 'truncated') === true,
-        remaining: numberOf(plan, 'remaining'),
-      } satisfies RenewalAcSyncPlan
-      : undefined
-    const errorMessage = totalKey === 'classChangesSeen' && anomalyAborted
-      ? 'Plano Renewal AC abortado por anomalia'
-      : stringOf(plan, 'anomalyDetail')
-    return {
-      success: !anomalyAborted && failed === 0,
-      stats: {
-        total: numberOf(plan, totalKey),
-        inserted: numberOf(plan, 'planned'),
-        updated: numberOf(execution, 'applied'),
-        errors: failed + (anomalyAborted ? 1 : 0),
-        skipped: blocked + numberOf(plan, 'skippedDuplicates') + notInGuild
-      },
-      errorMessage,
-      ...(dryRun ? { dryRun: true } : {}),
-      ...(renewalPlan ? { plan: renewalPlan } : {}),
     }
   }
 

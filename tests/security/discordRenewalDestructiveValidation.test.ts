@@ -43,6 +43,12 @@ jest.mock('../../src/services/renewal/discordScheduledMessages.service', () => (
   })),
 }))
 
+const mockCronFindOne = jest.fn()
+jest.mock('../../src/models/SyncModels/CronJobConfig', () => ({
+  __esModule: true,
+  default: { findOne: mockCronFindOne },
+}))
+
 import {
   executeDiscordRolesPlan,
   sendDiscordMessage,
@@ -54,6 +60,16 @@ import {
 import discordRenewalRouter from '../../src/routes/discordRenewal.routes'
 
 const marker = { __bo2_offline_loopback: '1' }
+
+function cronQuery(result: unknown) {
+  return {
+    select: () => ({
+      lean: () => ({
+        exec: jest.fn().mockResolvedValue(result),
+      }),
+    }),
+  }
+}
 
 type DestructiveRoute = {
   name: string
@@ -114,6 +130,14 @@ function callRoute(route: DestructiveRoute, body: Record<string, unknown>) {
   return Object.keys(body).length > 0 ? pending.send(body) : pending
 }
 
+beforeEach(() => {
+  mockCronFindOne.mockReturnValue(cronQuery({
+    _id: { toString: () => 'discord-job-id' },
+    name: 'DiscordRolesSync',
+    syncType: 'discord',
+  }))
+})
+
 test.each(routes)('$name accepts its explicit DTO and real path params', async (route) => {
   await callRoute(route, route.body).expect(200)
 })
@@ -139,12 +163,46 @@ test('execute preserves actor from the body', async () => {
   await request(buildApp())
     .post('/api/discord-renewal/execute')
     .query(marker)
+    .set('X-Request-ID', 'role-route-a')
     .send({ actor: 'reviewer@example.test' })
     .expect(200)
 
   expect(execute).toHaveBeenCalledWith(expect.objectContaining({
     executedBy: 'reviewer@example.test',
+    actorId: 'reviewer@example.test',
+    requestId: 'role-route-a',
   }))
+})
+
+test('status exposes backend-owned manual block reason for the exact DiscordRoles job', async () => {
+  const response = await request(buildApp())
+    .get('/api/discord-renewal/status')
+    .query(marker)
+    .expect(200)
+
+  expect(response.body.data.manualExecution).toMatchObject({
+    capability: 'discord-roles-sync',
+    status: 'implemented',
+    dryRunSupported: true,
+    mutableEnabled: false,
+    blockedReason: 'Execução manual dos cargos Discord desativada',
+  })
+})
+
+test('status fails closed when the canonical DiscordRoles job is missing', async () => {
+  mockCronFindOne.mockReturnValue(cronQuery(null))
+
+  const response = await request(buildApp())
+    .get('/api/discord-renewal/status')
+    .query(marker)
+    .expect(200)
+
+  expect(response.body.data.manualExecution).toMatchObject({
+    capability: 'discord-roles-sync',
+    status: 'blocked',
+    mutableEnabled: false,
+    blockedReason: 'Job DiscordRolesSync não encontrado; execução manual bloqueada',
+  })
 })
 
 test('message routes forward the real X-Request-ID and scheduled dry-run', async () => {

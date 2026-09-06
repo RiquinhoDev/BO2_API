@@ -207,6 +207,7 @@ describe('CronJobExecutor', () => {
     expect(dependencies.dispatch).toHaveBeenCalledWith(job, {
       dryRun: true,
       phaseHooks: undefined,
+      triggeredBy: 'MANUAL',
     })
     expect(job.recordExecution).not.toHaveBeenCalled()
     expect(dependencies.saveHistory).not.toHaveBeenCalled()

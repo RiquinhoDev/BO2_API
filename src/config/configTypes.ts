@@ -121,6 +121,7 @@ export interface RenewalConfig {
   readonly hotmartOgiProductId?: string
   readonly discordRolesSyncEnabled: boolean
   readonly discordRolesAutoExecute: boolean
+  readonly discordRolesManualExecutionEnabled: boolean
   readonly discordMessagesEnabled: boolean
   readonly discordScheduledMessagesEnabled: boolean
   readonly discordRolesMaxOpsPerRun: number

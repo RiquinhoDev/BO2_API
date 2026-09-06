@@ -1,5 +1,6 @@
 export * from './discord/planning'
 export * from './discord/execution'
+export * from './discord/job'
 
 import { expireStaleRoleChanges, generateDiscordRolesPlan } from './discord/planning'
 import {
@@ -8,9 +9,9 @@ import {
   executeDiscordRolesPlan,
   getDiscordRenewalStatus,
   renderMessage,
-  runDiscordRolesSyncJob,
   sendDiscordMessage
 } from './discord/execution'
+import { runDiscordRolesSyncJob } from './discord/job'
 
 export default {
   generateDiscordRolesPlan,

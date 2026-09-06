@@ -110,6 +110,15 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'DiscordRolesSync',
+    capability: implemented(
+      'discord-roles-sync',
+      'cron-job',
+      { status: 'verified', reason: 'discord-roles-sync-max-planning-inputs', limit: 20_000 },
+      { status: 'verified', reason: 'DISCORD_ROLES_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.name === 'DiscordScheduledMessages',
     capability: implemented(
       'discord-scheduled-messages',

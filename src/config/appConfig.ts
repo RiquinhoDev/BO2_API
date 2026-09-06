@@ -302,14 +302,12 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     env.DISCORD_ROLES_AUTO_EXECUTE,
     'DISCORD_ROLES_AUTO_EXECUTE',
   )
+  const discordRolesManualExecutionEnabled = parseBooleanFlag(env.DISCORD_ROLES_MANUAL_EXECUTION_ENABLED, 'DISCORD_ROLES_MANUAL_EXECUTION_ENABLED')
   const discordMessagesEnabled = parseBooleanFlag(
     env.DISCORD_MESSAGES_ENABLED,
     'DISCORD_MESSAGES_ENABLED',
   )
-  const discordScheduledMessagesEnabled = parseBooleanFlag(
-    env.DISCORD_SCHEDULED_MESSAGES_ENABLED,
-    'DISCORD_SCHEDULED_MESSAGES_ENABLED',
-  )
+  const discordScheduledMessagesEnabled = parseBooleanFlag(env.DISCORD_SCHEDULED_MESSAGES_ENABLED, 'DISCORD_SCHEDULED_MESSAGES_ENABLED')
   const discordRolesMaxOpsPerRun = parseBoundedInteger(
     env.DISCORD_ROLES_MAX_OPS_PER_RUN,
     'DISCORD_ROLES_MAX_OPS_PER_RUN',
@@ -333,6 +331,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
 
   if (
     (discordRolesSyncEnabled ||
+      discordRolesManualExecutionEnabled ||
       discordRolesAutoExecute ||
       discordMessagesEnabled ||
       discordScheduledMessagesEnabled) &&
@@ -342,7 +341,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
   }
 
   if (
-    (discordRolesSyncEnabled || discordRolesAutoExecute || discordMessagesEnabled || discordScheduledMessagesEnabled) &&
+    (discordRolesSyncEnabled || discordRolesManualExecutionEnabled || discordRolesAutoExecute || discordMessagesEnabled || discordScheduledMessagesEnabled) &&
     integrations.discord.configured &&
     !integrations.discord.value.sharedSecret
   ) {
@@ -361,6 +360,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     ...(hotmartOgiProductId ? { hotmartOgiProductId } : {}),
     discordRolesSyncEnabled,
     discordRolesAutoExecute,
+    discordRolesManualExecutionEnabled,
     discordMessagesEnabled,
     discordScheduledMessagesEnabled,
     discordRolesMaxOpsPerRun,

@@ -1,6 +1,18 @@
 import logger from '../../../utils/logger'
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { HttpError } from '../../../security/errorHandling'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
+import CronJobConfig from '../../../models/SyncModels/CronJobConfig'
+import {
+  compositeExecutionFingerprint,
+  runCompositeExecutionWithReceipt,
+} from '../../cron/compositeExecution.service'
+import {
+  cronManualFingerprintPayload,
+  getCronManualCapability,
+  type CronManualCapabilityJob,
+} from '../../cron/scheduler/manualCapabilities'
 import {
   DiscordMessageTemplate,
   DiscordRoleChange,
@@ -12,18 +24,17 @@ import {
   botHeaders,
   botUrl,
   configuredBotUrl,
-  DiscordPlanReport,
-  expireStaleRoleChanges,
-  generateDiscordRolesPlan,
   getDefaultMessageChannelId,
   getMessageChannels,
   isMessagesEnabled,
+  isRolesManualExecutionEnabled,
   isRolesAutoExecuteEnabled,
   isRolesSyncEnabled,
   maxOpsPerRun,
   PLANNED_TTL_HOURS,
   RENEWAL_ROLES,
-  ROLE_NAME_BY_ID
+  ROLE_NAME_BY_ID,
+  expireStaleRoleChanges,
 } from './planning'
 import {
   executeDiscordMessageReceipt,
@@ -69,6 +80,38 @@ function responseMessage(error: unknown): string | undefined {
   return typeof data.message === 'string' ? data.message : undefined
 }
 
+function beforeLocalMutation(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
+}
+
+function beforeProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.providerStarted()
+}
+
+function afterProviderWrite(phaseHooks?: CronExecutionPhaseHooks): void {
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.providerSucceeded()
+}
+
+export async function preflightRoleExecutionCapacity(projectedPlanned: number): Promise<void> {
+  const cap = maxOpsPerRun()
+  const candidates = await DiscordRoleChange.find({ status: { $in: ['APPROVED', 'PLANNED'] } })
+    .sort({ status: 1, plannedAt: 1, _id: 1 })
+    .limit(cap + 1)
+    .select('_id')
+    .lean()
+    .exec()
+  if (candidates.length + Math.max(0, projectedPlanned) > cap) {
+    throw new HttpError({
+      status: 413,
+      code: 'DISCORD_ROLES_EXECUTION_CAP_EXCEEDED',
+      publicMessage: 'Execução Discord excede o limite por operação',
+    })
+  }
+}
+
 export async function approveRoleChanges(ids: string[], approvedBy: string): Promise<number> {
   const res = await DiscordRoleChange.updateMany(
     { _id: { $in: ids }, status: 'PLANNED' },
@@ -93,6 +136,51 @@ export async function executeDiscordRolesPlan(options: {
   batchId?: string
   limit?: number
   executedBy: string
+  strictCap?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
+  requestId?: string
+  actorId?: string
+}): Promise<DiscordExecuteReport> {
+  if (options.requestId) {
+    const job = await CronJobConfig.findOne({ name: 'DiscordRolesSync' }) as unknown as CronManualCapabilityJob | null
+    if (!job) {
+      throw new HttpError({ status: 404, code: 'CRON_JOB_NOT_FOUND', publicMessage: 'Job DiscordRolesSync não encontrado' })
+    }
+    const capability = getCronManualCapability(job)
+    if (capability.status === 'blocked') {
+      throw new HttpError({ status: 503, code: 'CRON_JOB_CAPABILITY_BLOCKED', publicMessage: capability.blockedReason || 'Capability manual bloqueada' })
+    }
+    if (!isRolesManualExecutionEnabled()) {
+      throw new HttpError({ status: 503, code: 'DISCORD_ROLES_MANUAL_EXECUTION_DISABLED', publicMessage: 'Execução manual dos cargos Discord desativada' })
+    }
+    const actorId = options.actorId || options.executedBy
+    const fingerprint = compositeExecutionFingerprint(actorId, {
+      ...cronManualFingerprintPayload(job),
+      entryPoint: 'discord-renewal-execute',
+      includePlanned: options.includePlanned === true,
+      batchId: options.batchId || null,
+      limit: options.limit || null,
+    })
+    return runCompositeExecutionWithReceipt({
+      operation: capability.operation,
+      identity: capability.identity(job),
+      actorId,
+      fingerprint,
+      requestId: options.requestId,
+      run: phaseHooks => executeDiscordRolesPlan({ ...options, requestId: undefined, strictCap: true, phaseHooks }),
+    })
+  }
+
+  return executeDiscordRolesPlanInternal(options)
+}
+
+async function executeDiscordRolesPlanInternal(options: {
+  includePlanned?: boolean
+  batchId?: string
+  limit?: number
+  executedBy: string
+  strictCap?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
 }): Promise<DiscordExecuteReport> {
   const report: DiscordExecuteReport = {
     attempted: 0,
@@ -108,7 +196,8 @@ export async function executeDiscordRolesPlan(options: {
     return report
   }
 
-  await expireStaleRoleChanges()
+  if (options.strictCap) await preflightRoleExecutionCapacity(0)
+  await expireStaleRoleChanges(options.phaseHooks)
 
   const statuses: Array<IDiscordRoleChange['status']> = options.includePlanned
     ? ['APPROVED', 'PLANNED']
@@ -121,7 +210,7 @@ export async function executeDiscordRolesPlan(options: {
     ? Math.min(Math.floor(requested), maxOpsPerRun())
     : maxOpsPerRun()
   const candidates = await DiscordRoleChange.find(query)
-    .sort({ status: 1, plannedAt: 1 })
+    .sort({ status: 1, plannedAt: 1, _id: 1 })
     .limit(cap + 1)
     .exec()
 
@@ -134,6 +223,7 @@ export async function executeDiscordRolesPlan(options: {
 
     let results: DiscordRoleApplyResult[] = []
     try {
+      beforeProviderWrite(options.phaseHooks)
       const resp = await axios.post<DiscordRoleApplyResponse>(
         `${botUrl()}/renewal/roles/apply`,
         {
@@ -145,10 +235,18 @@ export async function executeDiscordRolesPlan(options: {
         },
         { headers: botHeaders(), timeout: 120000 }
       )
-      results = resp.data.results || []
+      results = Array.isArray(resp.data.results) ? resp.data.results : []
+      const resultByAccount = new Map(results.map((r) => [String(r.discordUserId), r]))
+      if (results.length !== batch.length || resultByAccount.size !== batch.length
+        || batch.some((change) => !resultByAccount.has(String(change.discordUserId)))) {
+        throw new Error('resultado completo do bot indisponível')
+      }
+      afterProviderWrite(options.phaseHooks)
     } catch (error: unknown) {
       const msg = `Chamada ao bot falhou: ${errorStatus(error) || ''} ${errorMessage(error)}`
       logger.error(`❌ [DiscordRoles] ${msg}`)
+      if (options.phaseHooks) throw error
+      beforeLocalMutation(options.phaseHooks)
       await DiscordRoleChange.updateMany(
         { _id: { $in: batch.map((c) => c._id) } },
         { $set: { status: 'FAILED', error: msg }, $inc: { attempts: 1 } }
@@ -161,11 +259,13 @@ export async function executeDiscordRolesPlan(options: {
     for (const change of batch) {
       const r = resultByAccount.get(String(change.discordUserId))
       if (r?.ok) {
+        beforeLocalMutation(options.phaseHooks)
         await DiscordRoleChange.updateOne(
           { _id: change._id },
           { $set: { status: 'APPLIED', appliedAt: new Date() }, $inc: { attempts: 1 } }
         )
         if (change.payload.addRoleId) {
+          beforeLocalMutation(options.phaseHooks)
           await DiscordRoleState.updateOne(
             { discordUserId: change.discordUserId },
             {
@@ -181,16 +281,19 @@ export async function executeDiscordRolesPlan(options: {
             { upsert: true }
           )
         } else {
+          beforeLocalMutation(options.phaseHooks)
           await DiscordRoleState.deleteOne({ discordUserId: change.discordUserId })
         }
         report.applied += 1
       } else if (r?.notInGuild) {
+        beforeLocalMutation(options.phaseHooks)
         await DiscordRoleChange.updateOne(
           { _id: change._id },
           { $set: { status: 'BLOCKED', notInGuild: true, blockedReason: 'Membro não está no servidor Discord' }, $inc: { attempts: 1 } }
         )
         report.notInGuild += 1
       } else {
+        beforeLocalMutation(options.phaseHooks)
         await DiscordRoleChange.updateOne(
           { _id: change._id },
           { $set: { status: 'FAILED', error: r?.error || 'sem resultado do bot' }, $inc: { attempts: 1 } }
@@ -364,26 +467,4 @@ export async function getDiscordRenewalStatus() {
     lastPlannedAt: lastPlanned?.plannedAt || null,
     botHealth
   }
-}
-
-export interface DiscordCronReport {
-  expired: number
-  plan: DiscordPlanReport
-  execution: DiscordExecuteReport | null
-}
-
-export async function runDiscordRolesSyncJob(): Promise<DiscordCronReport> {
-  const expired = await expireStaleRoleChanges()
-  const plan = await generateDiscordRolesPlan()
-
-  let execution: DiscordExecuteReport | null = null
-  if (plan.anomalyAborted) {
-    logger.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
-  } else if (isRolesSyncEnabled() && isRolesAutoExecuteEnabled()) {
-    execution = await executeDiscordRolesPlan({ includePlanned: true, executedBy: 'cron:DiscordRolesSync' })
-  } else {
-    logger.info('📋 [DiscordRoles] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
-  }
-
-  return { expired, plan, execution }
 }

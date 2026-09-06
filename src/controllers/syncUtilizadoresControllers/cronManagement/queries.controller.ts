@@ -20,6 +20,7 @@ import {
 import { isScheduledMessagesEnabled } from '../../../services/renewal/discordScheduledMessages.service'
 import { isMessagesEnabled } from '../../../services/renewal/discord/planning'
 import { isManualExecutionEnabled } from '../../../services/renewal/renewalAcSync.service'
+import { isRolesManualExecutionEnabled } from '../../../services/renewal/discord/planning'
 import WeeklyTagMonitoringConfig from '../../../models/tagMonitoring/WeeklyTagMonitoringConfig'
 
 interface WeeklyManualState {
@@ -45,6 +46,7 @@ function manualMutableEnabled(
     return { enabled: isScheduledMessagesEnabled() && isMessagesEnabled() }
   }
   if (capability.id === 'renewal-ac-sync') return { enabled: isManualExecutionEnabled() }
+  if (capability.id === 'discord-roles-sync') return { enabled: isRolesManualExecutionEnabled() }
   return { enabled: false }
 }
 

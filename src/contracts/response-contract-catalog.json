@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:130",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:132",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:180",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:182",
     "frontConsumer": null
   },
   {
@@ -1509,7 +1509,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:96",
+    "evidence": "src/routes/discordRenewal.routes.ts:120",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1520,7 +1520,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:203",
+    "evidence": "src/routes/discordRenewal.routes.ts:229",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1531,7 +1531,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:218",
+    "evidence": "src/routes/discordRenewal.routes.ts:244",
     "frontConsumer": null
   },
   {
@@ -1542,7 +1542,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:234",
+    "evidence": "src/routes/discordRenewal.routes.ts:260",
     "frontConsumer": null
   },
   {
@@ -1553,7 +1553,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:69",
+    "evidence": "src/routes/discordRenewal.routes.ts:93",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1564,7 +1564,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:139",
+    "evidence": "src/routes/discordRenewal.routes.ts:165",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3140,7 +3140,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:226",
+    "evidence": "src/routes/discordRenewal.routes.ts:252",
     "frontConsumer": null
   },
   {
@@ -3789,7 +3789,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:117",
+    "evidence": "src/routes/discordRenewal.routes.ts:141",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3800,7 +3800,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:128",
+    "evidence": "src/routes/discordRenewal.routes.ts:154",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3811,7 +3811,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:175",
+    "evidence": "src/routes/discordRenewal.routes.ts:201",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3823,7 +3823,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:196",
+    "evidence": "src/routes/discordRenewal.routes.ts:222",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3834,7 +3834,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:103",
+    "evidence": "src/routes/discordRenewal.routes.ts:127",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3845,7 +3845,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:249",
+    "evidence": "src/routes/discordRenewal.routes.ts:275",
     "frontConsumer": null
   },
   {
@@ -3856,7 +3856,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:280",
+    "evidence": "src/routes/discordRenewal.routes.ts:306",
     "frontConsumer": null
   },
   {
@@ -4843,7 +4843,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:167",
+    "evidence": "src/routes/discordRenewal.routes.ts:193",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {

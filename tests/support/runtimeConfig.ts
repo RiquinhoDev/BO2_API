@@ -80,6 +80,7 @@ export function createTestRuntimeConfig(options: {
       maxChangesPerRun: 50,
       discordRolesSyncEnabled: false,
       discordRolesAutoExecute: false,
+      discordRolesManualExecutionEnabled: false,
       discordMessagesEnabled: false,
       discordScheduledMessagesEnabled: false,
       discordRolesMaxOpsPerRun: 100,

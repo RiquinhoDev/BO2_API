@@ -25,6 +25,9 @@ import {
 } from '../../../models/discordRenewal'
 import User from '../../../models/user'
 import { parseTurmaName } from '../turmaParser'
+import { HttpError } from '../../../security/errorHandling'
+import { MAX_PROVIDER_READ_ITEMS } from '../../../security/providerReadBatchPolicy'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 // ─────────────────────────────────────────────────────────────
 // SWITCHES E CONFIG (runtime)
@@ -35,6 +38,7 @@ const discordIntegration = () => getRuntimeConfig().integrations.discord
 
 export const isRolesSyncEnabled = () => renewalConfig().discordRolesSyncEnabled
 export const isRolesAutoExecuteEnabled = () => renewalConfig().discordRolesAutoExecute
+export const isRolesManualExecutionEnabled = () => renewalConfig().discordRolesManualExecutionEnabled
 export const isMessagesEnabled = () => renewalConfig().discordMessagesEnabled
 
 export const configuredBotUrl = (): string | null => {
@@ -97,8 +101,10 @@ export function getMessageChannels(): Array<{ channelId: string; name: string }>
 // EXPIRAÇÃO DE PLANOS VELHOS
 // ─────────────────────────────────────────────────────────────
 
-export async function expireStaleRoleChanges(): Promise<number> {
+export async function expireStaleRoleChanges(phaseHooks?: CronExecutionPhaseHooks): Promise<number> {
   const now = Date.now()
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
   const res = await DiscordRoleChange.updateMany(
     {
       $or: [
@@ -116,6 +122,7 @@ export async function expireStaleRoleChanges(): Promise<number> {
 // ─────────────────────────────────────────────────────────────
 
 export interface DiscordPlanReport {
+  dryRun: boolean
   batchId: string
   isBackfill: boolean
   studentsWithClass: number
@@ -130,12 +137,70 @@ export interface DiscordPlanReport {
   anomalyAborted: boolean
   anomalyDetail?: string
   overCap: boolean
+  limit: number
+  truncated: boolean
+  remaining: number
 }
 
-export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
+export interface DiscordPlanOptions {
+  dryRun?: boolean
+  phaseHooks?: CronExecutionPhaseHooks
+}
+
+interface DiscordPlanInputs {
+  students: Array<{
+    _id: mongoose.Types.ObjectId
+    email?: string
+    discord?: { discordIds?: string[] }
+    hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> }
+  }>
+  states: Array<{ discordUserId: string; roleId: string }>
+  truncated: boolean
+  remaining: number
+}
+
+function planCapExceeded(): HttpError {
+  return new HttpError({
+    status: 413,
+    code: 'DISCORD_ROLES_PLAN_CAP_EXCEEDED',
+    publicMessage: 'Plano Discord excede o limite de leitura permitido',
+  })
+}
+
+export async function prepareDiscordPlanInputs(): Promise<DiscordPlanInputs> {
+  const students = await User.find({
+    'hotmart.enrolledClasses.0': { $exists: true }
+  })
+    .select('email discord.discordIds hotmart.enrolledClasses')
+    .sort({ _id: 1 })
+    .limit(MAX_PROVIDER_READ_ITEMS + 1)
+    .lean()
+    .exec() as DiscordPlanInputs['students']
+  const states = await DiscordRoleState.find({})
+    .sort({ discordUserId: 1, _id: 1 })
+    .limit(MAX_PROVIDER_READ_ITEMS + 1)
+    .lean()
+    .exec() as DiscordPlanInputs['states']
+  const studentsTruncated = students.length > MAX_PROVIDER_READ_ITEMS
+  const statesTruncated = states.length > MAX_PROVIDER_READ_ITEMS
+  return {
+    students: students.slice(0, MAX_PROVIDER_READ_ITEMS),
+    states: states.slice(0, MAX_PROVIDER_READ_ITEMS),
+    truncated: studentsTruncated || statesTruncated,
+    remaining: (studentsTruncated ? 1 : 0) + (statesTruncated ? 1 : 0),
+  }
+}
+
+export function assertDiscordPlanInputsWithinCap(inputs: Pick<DiscordPlanReport, 'truncated'>): void {
+  if (inputs.truncated) throw planCapExceeded()
+}
+
+export async function generateDiscordRolesPlan(options: DiscordPlanOptions = {}): Promise<DiscordPlanReport> {
+  const dryRun = options.dryRun === true
   const batchId = `discord-${new Date().toISOString().replace(/[:.]/g, '-')}`
 
   const report: DiscordPlanReport = {
+    dryRun,
     batchId,
     isBackfill: false,
     studentsWithClass: 0,
@@ -148,21 +213,18 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     removals: 0,
     skippedDuplicates: 0,
     anomalyAborted: false,
-    overCap: false
+    overCap: false,
+    limit: MAX_PROVIDER_READ_ITEMS,
+    truncated: false,
+    remaining: 0,
   }
 
   // 1. Estado desejado: alunos com turma activa + discord ligado
-  const students = await (User).find({
-    'hotmart.enrolledClasses.0': { $exists: true }
-  })
-    .select('email discord.discordIds hotmart.enrolledClasses')
-    .lean()
-    .exec() as Array<{
-      _id: mongoose.Types.ObjectId
-      email?: string
-      discord?: { discordIds?: string[] }
-      hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> }
-    }>
+  const inputs = await prepareDiscordPlanInputs()
+  const students = inputs.students
+  report.truncated = inputs.truncated
+  report.remaining = inputs.remaining
+  if (inputs.truncated && !dryRun) assertDiscordPlanInputsWithinCap(report)
 
   report.studentsWithClass = students.length
 
@@ -211,10 +273,7 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
   report.accountsDesired = desiredByAccount.size
 
   // 2. Estado aplicado (registado por nós)
-  const states = await DiscordRoleState.find({}).lean().exec() as Array<{
-    discordUserId: string
-    roleId: string
-  }>
+  const states = inputs.states
   const stateByAccount = new Map(states.map((s) => [String(s.discordUserId), s.roleId]))
   report.isBackfill = states.length === 0
 
@@ -256,6 +315,13 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
   // 5. Persistir changes (dedupe por conta: 1 change viva por discordUserId)
   const notInGuildCutoff = new Date(Date.now() - NOT_IN_GUILD_RETRY_DAYS * 24 * 3600e3)
 
+  if (dryRun) {
+    report.planned = pending.length
+    report.removals = pending.filter((p) => !p.desired).length
+    report.overCap = report.planned > maxOpsPerRun()
+    return report
+  }
+
   for (const p of pending) {
     const addRoleId = p.desired?.roleId || null
     const living = await DiscordRoleChange.findOne({
@@ -276,6 +342,8 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     // auto-corrige drift de cargos postos/tirados à mão no Discord
     const removeRoleIds = ALL_RENEWAL_ROLE_IDS.filter((id) => id !== addRoleId)
 
+    options.phaseHooks?.assertOwnership?.()
+    options.phaseHooks?.localMutationStarted()
     await DiscordRoleChange.create({
       email: p.desired?.email || (await emailForState(p.discordUserId)),
       userId: p.desired?.userId,
