@@ -88,15 +88,17 @@ const createSharedProject = rootDir => ({
 })
 
 const rootTestPath = relativePath => `<rootDir>/${relativePath}`
+const pathSeparatorPattern = path.sep === '\\' ? '\\\\' : '/'
+const relativePathPattern = relativePath => relativePath.split('/').join(pathSeparatorPattern)
 
 const createJestProjects = rootDirectory => {
   const rootDir = path.resolve(rootDirectory)
   const integrationPaths = INTEGRATION_TEST_FILES.map(rootTestPath)
   const unitIgnorePatterns = [
-    '<rootDir>/tests/load/',
-    '<rootDir>/tests/e2e/',
-    '<rootDir>/tests/sprint1/',
-    ...integrationPaths,
+    relativePathPattern('tests/load/'),
+    relativePathPattern('tests/e2e/'),
+    relativePathPattern('tests/sprint1/'),
+    ...INTEGRATION_TEST_FILES.map(relativePathPattern),
   ]
 
   return [

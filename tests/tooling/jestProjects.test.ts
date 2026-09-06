@@ -105,6 +105,8 @@ describe('Jest project topology', () => {
     const rootPattern = toPosix(repositoryRoot)
     const asRootPattern = (relativePath: string): string =>
       `<rootDir>/${relativePath}`
+    const asUnitPattern = (relativePath: string): string =>
+      relativePath.split('/').join(path.sep === '\\' ? '\\\\' : '/')
 
     expect(integration.testMatch).toEqual(
       INTEGRATION_TEST_FILES.map(relativePath => asRootPattern(relativePath)),
@@ -113,14 +115,14 @@ describe('Jest project topology', () => {
     expect(e2e.testMatch).toEqual(['<rootDir>/tests/e2e/**/*.spec.ts'])
     expect(unit.testPathIgnorePatterns).toEqual(
       expect.arrayContaining([
-        '<rootDir>/tests/load/',
-        '<rootDir>/tests/e2e/',
-        '<rootDir>/tests/sprint1/',
+        asUnitPattern('tests/load/'),
+        asUnitPattern('tests/e2e/'),
+        asUnitPattern('tests/sprint1/'),
       ]),
     )
 
     const ignoredByUnit = (relativePath: string): boolean => {
-      const absolutePath = toPosix(path.join(repositoryRoot, relativePath))
+      const absolutePath = path.join(repositoryRoot, relativePath)
       return (unit.testPathIgnorePatterns ?? []).some(pattern => {
         const resolvedPattern = pattern.replace(
           '<rootDir>',
@@ -154,5 +156,21 @@ describe('Jest project topology', () => {
     expect(discovered.filter(relativePath => (owners.get(relativePath) ?? []).length === 1)).toEqual(
       expected,
     )
+  })
+
+  it('matches native Windows paths when isolating every integration manifest entry', () => {
+    const nativeRoot = path.resolve(repositoryRoot)
+    const asRootPattern = (relativePath: string): string => `<rootDir>/${relativePath}`
+
+    for (const relativePath of INTEGRATION_TEST_FILES) {
+      const nativePath = path.join(nativeRoot, ...relativePath.split('/'))
+      const ignoredByUnit = (unit.testPathIgnorePatterns ?? []).some(pattern => {
+        const resolvedPattern = pattern.replace('<rootDir>', escapeRegExp(nativeRoot))
+        return new RegExp(resolvedPattern).test(nativePath)
+      })
+
+      expect(ignoredByUnit).toBe(true)
+      expect(integration.testMatch).toContain(asRootPattern(relativePath))
+    }
   })
 })
