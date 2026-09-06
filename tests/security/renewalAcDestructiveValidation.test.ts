@@ -5,18 +5,6 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
 const mockCronFindOne = jest.fn()
-const mockManualExecution = {
-  capability: 'renewal-ac-sync',
-  status: 'implemented',
-  cap: {
-    status: 'verified',
-    reason: 'renewal-ac-sync-max-planning-and-refund-inputs',
-    limit: 20_000,
-  },
-  dryRunSupported: true,
-  mutableEnabled: false,
-  blockedReason: 'Execução mutável desativada pelo backend',
-}
 
 jest.mock('../../src/services/renewal/renewalAcSync.service', () => ({
   approveChanges: jest.fn(async () => 0),
@@ -30,7 +18,6 @@ jest.mock('../../src/services/renewal/renewalAcSync.service', () => ({
     masterEnabled: true,
   })),
   generatePlan: jest.fn(async () => ({ anomalyAborted: false })),
-  getRenewalAcManualExecution: jest.fn(() => mockManualExecution),
   getRenewalAcStatus: jest.fn(async () => ({})),
   isManualExecutionEnabled: jest.fn(() => false),
   revertChange: jest.fn(async () => ({
@@ -59,24 +46,26 @@ const renewalAcService = jest.requireMock(
   '../../src/services/renewal/renewalAcSync.service',
 ) as {
   executeManualPlan: jest.Mock
+  isManualExecutionEnabled: jest.Mock
   revertChange: jest.Mock
 }
 
 const marker = { __bo2_offline_loopback: '1' }
 const objectId = '507f1f77bcf86cd799439011'
 
-function nullCronQuery() {
+function cronQuery(result: unknown) {
   return {
     select: () => ({
       lean: () => ({
-        exec: jest.fn().mockResolvedValue(null),
+        exec: jest.fn().mockResolvedValue(result),
       }),
     }),
   }
 }
 
 beforeEach(() => {
-  mockCronFindOne.mockReturnValue(nullCronQuery())
+  renewalAcService.isManualExecutionEnabled.mockReturnValue(false)
+  mockCronFindOne.mockReturnValue(cronQuery(null))
 })
 
 type DestructiveRoute = {
@@ -177,6 +166,8 @@ test('revert rejects an invalid ObjectId at the boundary', async () => {
 })
 
 test('renewal AC status exposes canonical backend-owned manual execution metadata', async () => {
+  renewalAcService.isManualExecutionEnabled.mockReturnValue(true)
+
   const response = await request(buildApp())
     .get('/api/renewal-ac/status')
     .query(marker)
@@ -184,14 +175,34 @@ test('renewal AC status exposes canonical backend-owned manual execution metadat
 
   expect(response.body.data.manualExecution).toEqual({
     capability: 'renewal-ac-sync',
-    status: 'implemented',
+    status: 'blocked',
     cap: {
-      status: 'verified',
-      reason: 'renewal-ac-sync-max-planning-and-refund-inputs',
-      limit: 20_000,
+      status: 'required',
+      reason: 'renewal-ac-sync-job-unavailable',
     },
-    dryRunSupported: true,
+    dryRunSupported: false,
     mutableEnabled: false,
-    blockedReason: 'Execução mutável desativada pelo backend',
+    blockedReason: 'Job RenewalAcSync indisponível no backend',
+  })
+})
+
+test('renewal AC status uses the queried canonical job when available', async () => {
+  renewalAcService.isManualExecutionEnabled.mockReturnValue(true)
+  mockCronFindOne.mockReturnValue(cronQuery({
+    _id: { toString: () => objectId },
+    name: 'RenewalAcSync',
+    syncType: 'hotmart',
+  }))
+
+  const response = await request(buildApp())
+    .get('/api/renewal-ac/status')
+    .query(marker)
+    .expect(200)
+
+  expect(response.body.data.manualExecution).toMatchObject({
+    capability: 'renewal-ac-sync',
+    status: 'implemented',
+    dryRunSupported: true,
+    mutableEnabled: true,
   })
 })

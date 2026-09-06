@@ -4,12 +4,12 @@ import renewalAcSync, {
   executePlan,
   expireStaleChanges,
   generatePlan,
-  getRenewalAcStatus,
   revertChange,
   runRenewalAcSyncJob
 } from '../../src/services/renewal/renewalAcSync.service'
 import * as planning from '../../src/services/renewal/activeCampaign/planning'
 import * as execution from '../../src/services/renewal/activeCampaign/execution'
+import { getRenewalAcStatus } from '../../src/services/renewal/activeCampaign/status'
 
 describe('renewal ActiveCampaign service topology', () => {
   it('keeps planning and dry-run responsibilities in the planning module', () => {
@@ -22,8 +22,11 @@ describe('renewal ActiveCampaign service topology', () => {
     expect(execution.approveChanges).toBe(approveChanges)
     expect(execution.executePlan).toBe(executePlan)
     expect(execution.revertChange).toBe(revertChange)
-    expect(execution.getRenewalAcStatus).toBe(getRenewalAcStatus)
     expect(execution.runRenewalAcSyncJob).toBe(runRenewalAcSyncJob)
+  })
+
+  it('keeps status reads in the status module', () => {
+    expect(renewalAcSync.getRenewalAcStatus).toBe(getRenewalAcStatus)
   })
 
   it('preserves the legacy default facade', () => {

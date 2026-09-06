@@ -85,7 +85,6 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
 import {
   executeManualPlan,
   executePlan,
-  getRenewalAcManualExecution,
   runRenewalAcSyncJob,
 } from '../../src/services/renewal/activeCampaign/execution'
 import { MAX_PROVIDER_READ_ITEMS } from '../../src/security/providerReadBatchPolicy'
@@ -150,20 +149,6 @@ beforeEach(() => {
       providerSucceeded: jest.fn(),
       localMutationStarted: jest.fn(),
     }))
-})
-
-test('Renewal AC manual status uses the canonical generic capability view', () => {
-  expect(getRenewalAcManualExecution()).toEqual({
-    capability: 'renewal-ac-sync',
-    status: 'implemented',
-    cap: {
-      status: 'verified',
-      reason: 'renewal-ac-sync-max-planning-and-refund-inputs',
-      limit: MAX_PROVIDER_READ_ITEMS,
-    },
-    dryRunSupported: true,
-    mutableEnabled: true,
-  })
 })
 
 test('live Renewal AC execution marks provider and local phases around each mutation', async () => {

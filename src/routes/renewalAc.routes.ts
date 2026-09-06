@@ -21,10 +21,13 @@ import { withValidatedInput } from '../security/validatedInput'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
+import { getRenewalAcManualExecution } from '../services/renewal/renewalAcManualExecution'
+import { isManualExecutionEnabled } from '../services/renewal/renewalAcSync.service'
+import type { CronManualCapabilityJob } from '../services/cron/scheduler/manualCapabilities'
 import {
   approveChanges,
   executeManualPlan,
-  generatePlan, getRenewalAcManualExecution,
+  generatePlan,
   getRenewalAcStatus,
   revertChange
 } from '../services/renewal/renewalAcSync.service'
@@ -42,11 +45,21 @@ function actor(req: Pick<Request, 'user'>, validatedActor?: string): string {
 router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
   const status = await getRenewalAcStatus()
   const cronJob = await CronJobConfig.findOne({ name: 'RenewalAcSync' })
-    .select('schedule.enabled schedule.cronExpression isActive lastRun nextRun')
+    .select('_id name syncType schedule.enabled schedule.cronExpression isActive lastRun nextRun')
     .lean()
     .exec()
 
-  res.json({ success: true, data: { ...status, cronJob: cronJob || null, manualExecution: getRenewalAcManualExecution() } })
+  res.json({
+    success: true,
+    data: {
+      ...status,
+      cronJob: cronJob || null,
+      manualExecution: getRenewalAcManualExecution(
+        cronJob as CronManualCapabilityJob | null,
+        isManualExecutionEnabled(),
+      ),
+    },
+  })
 }))
 
 /**
