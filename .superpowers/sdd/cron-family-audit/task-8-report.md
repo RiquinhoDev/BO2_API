@@ -132,3 +132,68 @@ Touched hand-written source/test files remain at or below 500 physical lines. Th
 - Scheduled Hotmart semantics were preserved at the dispatcher boundary, but no production scheduler execution was claimed.
 - Existing Mongoose duplicate-index/reserved-path warnings appeared in Jest output; they are pre-existing and did not fail the focused gates.
 - Operational receipt replay/conflict/indeterminate behavior is inherited from the canonical Tasks 5–7 execution path and was not re-run as a full integration suite here; independent round 1 re-review remains required.
+
+## Fix round 2/5 — implementation pending independent re-review — 2026-09-07
+
+Round 2 addressed all five blockers from `task-8-review-round-2.md` without provider, network, real-DB, install, push, merge, rebase, main, deploy, or browser work. This section supersedes the earlier implementation-only status; completion is not claimed.
+
+Backend commit: `6c6494c4 fix(cron): govern Hotmart sync plan`.
+
+Front commit: `b9c8b45 fix(cron): harden Hotmart preview UI`.
+
+### Blocker resolutions
+
+- Effective Hotmart execution is now planned before effects from bounded local snapshots. The plan counts `6` per source item (User create/update, UserProduct, snapshot, two history records), `8 + configured batch count` report/history effects, one Class and one class-history effect per class-bearing item, deterministic reactivation operation/row effects, and physical `20,001` sentinels. Live writes consume only the preflight-approved budget; the counter is a guard, not the first overflow detector.
+- The plan is executable rather than discarded-read metadata: scoped products/classes/UserProducts/snapshots are carried into live execution, product preload is replaced by `loadSnapshot`, planned null class results remain null, and the post-mutation UserProduct result is merged before snapshot comparison. User/UserProduct/Class writes use optimistic predicates; snapshot latest `_id`/date is revalidated immediately before comparison.
+- Hotmart preview now returns zero live effect stats and a separate predicted `plan`; the dispatcher normalizer accepts that real shape only in dry-run mode, rejects over-cap/contradictory/error/truncated/anomalous plans, and rejects non-empty live stats in preview mode.
+- Lessons transport rejects failed, partial, incomplete, error-bearing, malformed, and over-bound envelopes/lessons. No failed HTTP-200 response is converted into a synthetic zero-progress map.
+- Both Front request-identity classifiers retain IDs only for canonical in-progress/indeterminate 409s (plus network/timeout/eligible transient failures). Definitive 409 conflicts rotate identity. The specialised Hotmart preview now shows a sanitized counter summary and never renders raw plan fields.
+
+### Round 2 TDD and focused gates
+
+Initial Round 2 RED before the production fixes:
+
+```text
+npm.cmd exec -- jest tests/services/cron/hotmartSyncReviewRound2.test.ts --runInBand --no-cache
+FAIL; Tests: 4 failed, 1 passed, 5 total
+Observed: 4,000-user cap path did not fail closed, preview stats were source effects instead of zero, over-cap preview plan was accepted, and failed lessons envelope resolved to an empty progress map.
+```
+
+Optimistic UserProduct RED (guard temporarily absent):
+
+```text
+npm.cmd exec -- jest tests/services/cron/hotmartSyncReviewRound2.test.ts --runInBand --no-cache -t "same-id changed UserProduct"
+FAIL; Tests: 1 failed, 6 skipped, 7 total
+Observed: planned `updatedAt` was absent from the write predicate.
+```
+
+Backend GREEN:
+
+```text
+npm.cmd exec -- jest tests/services/cron/hotmartSyncReviewRound1.test.ts tests/services/cron/hotmartSyncReviewRound2.test.ts tests/services/cron/hotmartSyncSafety.test.ts tests/services/cron/schedulerJobDispatcher.test.ts tests/services/cron/schedulerJobDispatcher.pipeline.test.ts tests/services/cron/schedulerJobExecution.test.ts tests/services/universalSync.runtimeConfig.test.ts --runInBand --no-cache
+Test Suites: 7 passed, 7 total
+Tests: 79 passed, 79 total
+```
+
+Additional backend checks:
+
+```text
+npm.cmd run types:check -- --pretty false
+pass
+git diff --check
+pass
+```
+
+Front GREEN:
+
+```text
+npm.cmd test -- --runInBand src/features/cron/__tests__/useCronManagement.requestIdentity.test.tsx src/pages/gerirAlunos/hotmartSync/hooks/__tests__/useExecuteJob.policy.test.tsx src/pages/gerirAlunos/hotmartSync/__tests__/SyncPage.test.tsx
+Test Suites: 3 passed, 3 total
+Tests: 10 passed, 10 total
+npm.cmd exec -- tsc --noEmit --pretty false
+pass
+git diff --check
+pass
+```
+
+Expected pre-existing warnings remain: Mongoose duplicate-index/reserved-path warnings in backend Jest and React `act`/TypeScript interop warnings in Front Jest. No full backend suite was run; parent owns that gate. Request independent re-review now. Do not treat this round as independently approved or operationally closed.
