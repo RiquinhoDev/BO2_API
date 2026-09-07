@@ -21,7 +21,17 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
   weeklyTagSnapshot: jest.fn(async () => ({ success: true, total: 7 })),
   clarezaRefresh: jest.fn(async () => ({ success: true, updated: 8 })),
   guruTrialCheck: jest.fn(async () => ({ success: true, skipped: 9 })),
-  syncRenewalOffers: jest.fn(async () => ({ upserted: 2, deactivated: 1, unknownNames: ['x'] })),
+  syncRenewalOffers: jest.fn(async () => ({
+    success: true,
+    total: 3,
+    inserted: 0,
+    updated: 2,
+    errors: 0,
+    skipped: 1,
+    upserted: 2,
+    deactivated: 1,
+    unknownNames: ['x'],
+  })),
   runScheduledMessages: jest.fn(async () => ({ checked: 5, sent: 2, skipped: [{ rule: 'r', reason: 'x' }] })),
   runDiscordRolesSync: jest.fn(async () => ({
     plan: { anomalyAborted: false, accountsDesired: 5, planned: 3, skippedDuplicates: 1 },
