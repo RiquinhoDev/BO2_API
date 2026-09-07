@@ -26,6 +26,20 @@ export interface IHotmartSale {
   priceValue: number | null
   currency: string | null
   paymentMode: string | null
+
+  /**
+   * `purchase.recurrency_number` da Hotmart — a "Quantidade de cobrança".
+   *
+   * Vem 1 (ou ausente) numa compra avulsa e 2, 3, 4… nas cobranças
+   * seguintes de um plano de prestações. É o único sinal fiável para as
+   * distinguir: **cada cobrança de um plano traz o seu próprio código de
+   * transacção**, portanto agrupar por transacção não as apanha. Sem este
+   * campo, um plano de cinco prestações passaria por cinco compras e daria
+   * cinco anos de acesso.
+   */
+  recurrencyNumber: number | null
+  /** `purchase.payment.installments_number` — quantas cobranças tem o plano. */
+  installmentsNumber: number | null
 }
 
 export interface IHotmartSaleHistory extends Document {
@@ -61,7 +75,11 @@ const hotmartSaleSchema = new Schema<IHotmartSale>(
     orderDate: { type: Date, default: null },
     priceValue: { type: Number, default: null },
     currency: { type: String, default: null },
-    paymentMode: { type: String, default: null }
+    paymentMode: { type: String, default: null },
+    // null = a Hotmart não mandou. Trata-se como 1: descartar por omissão
+    // apagaria a maioria das compras avulsas, que nem sequer trazem o campo.
+    recurrencyNumber: { type: Number, default: null },
+    installmentsNumber: { type: Number, default: null }
   },
   { _id: false }
 )

@@ -5,6 +5,7 @@ import {
   ramoDaTurma,
   reguaDaChefia,
   reguaNossa,
+  fimDoAcessoAcumulado,
   turmaDaChefia,
   type VendaBruta
 } from '../reguaDaChefia'
@@ -162,6 +163,60 @@ test('as compras sao ordenadas antes de acumular, venham como vierem', () => {
     venda({ aprovada: d('2024-07-15').getTime() })
   ])
   assert.equal(s(reguaDaChefia(datas)!.fim), '2026-09-30')
+})
+
+// ── A ponte para os ciclos, e a borla que ela evita ─────────────────
+
+test('carmonaa513 — quatro cobrancas de um plano valem UM ano, nao quatro', () => {
+  // O caso real: paga 90EUR por mes. Cada cobranca traz o SEU codigo de
+  // transaccao (HP2197312778, HP2960341231, HP0567644111), portanto
+  // agrupar por transaccao nao as apanha. So o recurrencyNumber as separa.
+  const plano = [
+    { data: d('2026-06-01'), recurrencyNumber: 1 },
+    { data: d('2026-07-01'), recurrencyNumber: 2 },
+    { data: d('2026-08-01'), recurrencyNumber: 3 },
+    { data: d('2026-09-01'), recurrencyNumber: 4 }
+  ]
+  assert.equal(s(fimDoAcessoAcumulado(plano)), '2027-06-30')
+})
+
+test('a compra dupla do mesmo dia continua a dar dois anos, sem o multiplicador', () => {
+  // 397EUR + 97EUR no mesmo dia. Hoje o sistema faz anos=2; a acumulacao
+  // chega ao mesmo somando. E porque chegam ao mesmo que NAO se podem
+  // aplicar as duas: dariam 36 meses.
+  const compras = [
+    { data: d('2025-05-22'), recurrencyNumber: 1 },
+    { data: d('2025-05-22'), recurrencyNumber: 1 }
+  ]
+  assert.equal(s(fimDoAcessoAcumulado(compras)), '2027-05-31')
+})
+
+test('alvessonia — tres compras no mesmo dia dao TRES anos, nao dois', () => {
+  // O tecto de anos=2 dava-lhe 2027-05-31. A chefia diz 2028-05-31.
+  const compras = [
+    { data: d('2025-05-19'), recurrencyNumber: 1 },
+    { data: d('2025-05-19'), recurrencyNumber: 1 },
+    { data: d('2025-05-19'), recurrencyNumber: 1 }
+  ]
+  assert.equal(s(fimDoAcessoAcumulado(compras)), '2028-05-31')
+})
+
+test('reembolsadas nao entram na acumulacao', () => {
+  const compras = [
+    { data: d('2025-03-01'), recurrencyNumber: 1 },
+    { data: d('2025-03-01'), recurrencyNumber: 1, reembolsada: true }
+  ]
+  assert.equal(s(fimDoAcessoAcumulado(compras)), '2026-03-31')
+})
+
+test('recurrencyNumber ausente conta como compra', () => {
+  assert.equal(s(fimDoAcessoAcumulado([{ data: d('2025-03-10') }])), '2026-03-31')
+  assert.equal(s(fimDoAcessoAcumulado([{ data: d('2025-03-10'), recurrencyNumber: null }])), '2026-03-31')
+})
+
+test('sem compras validas nao ha data', () => {
+  assert.equal(fimDoAcessoAcumulado([]), null)
+  assert.equal(fimDoAcessoAcumulado([{ data: d('2025-01-01'), recurrencyNumber: 3 }]), null)
 })
 
 // ── A turma sai da data ─────────────────────────────────────────────

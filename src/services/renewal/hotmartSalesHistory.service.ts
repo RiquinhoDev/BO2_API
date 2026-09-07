@@ -141,6 +141,16 @@ function extractPaymentMode(item: any): string | null {
   return firstString(item, ['purchase.offer.payment_mode', 'offer.payment_mode', 'purchase.payment.type'])
 }
 
+/** Primeiro caminho que dê um inteiro finito. Ausente devolve null. */
+function extractInteiro(item: any, paths: string[]): number | null {
+  for (const path of paths) {
+    const raw = getValue(item, path)
+    const n = typeof raw === 'string' ? Number(raw) : raw
+    if (typeof n === 'number' && Number.isFinite(n)) return n
+  }
+  return null
+}
+
 function extractBuyerEmail(item: any): string | null {
   const email = firstString(item, ['buyer.email', 'purchase.buyer.email'])
   return email ? email.toLowerCase() : null
@@ -181,7 +191,12 @@ function parseSaleItem(item: any): IHotmartSale {
     orderDate: toDate(getValue(item, 'purchase.order_date') ?? getValue(item, 'order_date')),
     priceValue: price.value,
     currency: price.currency,
-    paymentMode: extractPaymentMode(item)
+    paymentMode: extractPaymentMode(item),
+    recurrencyNumber: extractInteiro(item, ['purchase.recurrency_number', 'recurrency_number']),
+    installmentsNumber: extractInteiro(item, [
+      'purchase.payment.installments_number',
+      'payment.installments_number'
+    ])
   }
 }
 

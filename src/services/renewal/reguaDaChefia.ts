@@ -176,6 +176,44 @@ export function turmaDaChefia(fim: Date): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// A ponte para o resto do sistema
+// ─────────────────────────────────────────────────────────────
+
+/** Uma compra tal como o sistema a guarda nos ciclos. */
+export interface CompraDoCiclo {
+  data: Date
+  reembolsada?: boolean
+  recurrencyNumber?: number | null
+}
+
+/**
+ * O fim do acesso pelas regras da chefia, a partir das compras que o
+ * sistema já tem agrupadas em ciclos.
+ *
+ * **Substitui o multiplicador `anos`, não se soma a ele.** As duas coisas
+ * fazem o mesmo trabalho — transformar 397€ + 97€ no mesmo dia em 24 meses
+ * — uma multiplicando e a outra somando. Aplicar as duas dá 36 meses a
+ * quem comprou dois anos: medido, 123 alunos.
+ *
+ * Reproduz o resultado actual em 130 dos 142 alunos com a extensão. Dos 12
+ * que mudam, 11 ganham um mês (o arredondamento passa a ser só no fim,
+ * regra 6) e um ganha um ano — a `alvessonia`, que comprou três vezes no
+ * mesmo dia e a quem o tecto de `anos = 2` dava dois.
+ *
+ * @param compras todas as compras do aluno, de todos os ciclos, por
+ *        qualquer ordem. Reembolsadas e prestações são descartadas aqui.
+ */
+export function fimDoAcessoAcumulado(compras: CompraDoCiclo[]): Date | null {
+  const datas = compras
+    .filter((c) => c.reembolsada !== true)
+    .filter((c) => (c.recurrencyNumber === null || c.recurrencyNumber === undefined ? 1 : Number(c.recurrencyNumber)) === 1)
+    .map((c) => c.data)
+    .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+
+  return reguaDaChefia(datas)?.fim ?? null
+}
+
+// ─────────────────────────────────────────────────────────────
 // A régua que o sistema aplica hoje
 // ─────────────────────────────────────────────────────────────
 

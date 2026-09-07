@@ -178,7 +178,8 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
       produtoId: venda.hotmartProductId,
       transacao: venda.transaction,
       extensao: venda.hotmartProductId === ID_PRODUTO_EXTENSAO,
-      reembolsada: false
+      reembolsada: false,
+      recurrencyNumber: venda.recurrencyNumber ?? null
     }
 
     const actual = grupos[grupos.length - 1]

@@ -18,6 +18,13 @@ export interface VendaEntrada {
   currency: string | null
   /** MULTIPLE_PAYMENTS marca um plano de prestações; PAY_IN_FULL uma compra única. */
   paymentMode?: string | null
+  /**
+   * `purchase.recurrency_number` — a "Quantidade de cobrança".
+   * 1 (ou ausente) numa compra; 2, 3, 4… nas cobranças seguintes de um
+   * plano. Cada cobrança traz o SEU código de transacção, por isso este é
+   * o único sinal que as distingue.
+   */
+  recurrencyNumber?: number | null
 }
 
 /** Uma tag do aluno tal como vem do espelho `acstudenttags`. */
@@ -48,6 +55,8 @@ export interface CompraCiclo {
   extensao: boolean
   /** true quando a linha da Hotmart terminou em REFUNDED/CHARGEBACK. */
   reembolsada?: boolean
+  /** A "Quantidade de cobrança". >1 marca uma prestação, que não é compra nova. */
+  recurrencyNumber?: number | null
 }
 
 export interface CicloBase {
