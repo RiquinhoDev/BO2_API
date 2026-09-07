@@ -75,7 +75,7 @@ export function transformUserForFrontend(
 
           const existingClass = baseCombined.allClasses.find(
             currentClass => currentClass.classId === productCode
-              || currentClass.className.includes(productName)
+              || currentClass.className?.includes(productName)
           )
 
           if (!existingClass) {
@@ -139,7 +139,11 @@ export function transformUserForFrontend(
         return tagsByProduct
       }, {})
 
-      const testimonialData = user.communicationByCourse?.get('TESTIMONIALS')
+      // .lean() never hydrates a Map-typed path into a real Map — it stays a
+      // plain object, so `.get` is not a function here.
+      const testimonialData = (user.communicationByCourse as
+        | Record<string, { currentTags?: string[]; lastTagAppliedAt?: Date }>
+        | undefined)?.['TESTIMONIALS']
       const testimonialTags = testimonialData?.currentTags || []
 
       if (testimonialTags.length > 0) {

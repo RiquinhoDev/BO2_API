@@ -354,7 +354,10 @@ function parseObservability(
     metricsEnabled,
     logDirectory,
     fileLoggingEnabled: nodeEnv !== 'test',
-    consoleLoggingEnabled: nodeEnv === 'development',
+    // Console is what Railway actually captures — file logging alone writes
+    // into the container's ephemeral filesystem, invisible outside it and
+    // wiped on every redeploy. Off only in test, same as file logging.
+    consoleLoggingEnabled: nodeEnv !== 'test',
   }
 }
 

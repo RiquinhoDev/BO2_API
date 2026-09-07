@@ -240,7 +240,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
 test.each([
   ['test', false, false],
   ['development', true, true],
-  ['production', true, false],
+  ['production', true, true],
 ] as const)('loadConfig derives logger transports for %s', (nodeEnv, fileLoggingEnabled, consoleLoggingEnabled) => {
   const config = loadConfig({
     ...VALID_ENV,

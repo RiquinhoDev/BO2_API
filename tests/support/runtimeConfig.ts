@@ -33,7 +33,7 @@ export function createTestRuntimeConfig(options: {
       metricsEnabled: options.metricsEnabled ?? false,
       logDirectory: 'logs',
       fileLoggingEnabled: nodeEnv !== 'test',
-      consoleLoggingEnabled: nodeEnv === 'development',
+      consoleLoggingEnabled: nodeEnv !== 'test',
     },
     integrations: {
       activeCampaign: { configured: false },
