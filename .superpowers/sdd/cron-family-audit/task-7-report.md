@@ -180,10 +180,10 @@ Before the fixes, the focused regressions were run and failed for the expected m
 
 ### Fresh GREEN evidence and gates
 
-- Provider safety GREEN: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts` — `1/1` suite, `17/17` tests passed.
+- Provider safety GREEN: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts` — `1/1` suite, `20/20` tests passed.
 - Dispatcher safety GREEN: `npm.cmd test -- --runInBand tests/services/cron/schedulerRenewalOfferDispatcher.test.ts` — `1/1` suite, `5/5` tests passed.
 - Combined provider/dispatcher GREEN: `2/2` suites, `25/25` tests passed.
-- Backend focused Task 7 gate: `8/8` suites, `125/125` tests passed.
+- Backend focused Task 7 gate: `8/8` suites, `126/126` tests passed.
 - Front focused gate: `4/4` suites, `20/20` tests passed.
 - Backend `npm.cmd run types:check`: exit `0`.
 - Backend `npm.cmd run lint`: exit `0`.
