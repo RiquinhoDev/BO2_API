@@ -3,6 +3,7 @@ import type { RenewalOfferSyncPlan } from '../../../types/cron.types'
 import { RENEWAL_OFFER_LIMIT } from '../../renewal/renewalSync.types'
 
 const FIXED_ERROR = 'Execução RenewalOfferSync falhou'
+const COUNTER_KEYS = ['total', 'inserted', 'updated', 'errors', 'skipped', 'upserted', 'deactivated'] as const
 
 function recordOf(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -10,9 +11,20 @@ function recordOf(value: unknown): Record<string, unknown> {
     : {}
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function validCounter(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value >= 0
+    && value <= RENEWAL_OFFER_LIMIT
+}
+
 function safeCount(record: Record<string, unknown>, key: string): number {
   const value = record[key]
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+  return validCounter(value) ? value : 0
 }
 
 export function sanitizeRenewalOfferPlan(value: unknown): Record<string, unknown> | undefined {
@@ -21,18 +33,18 @@ export function sanitizeRenewalOfferPlan(value: unknown): Record<string, unknown
   for (const key of ['dryRun', 'truncated', 'anomaly']) {
     if (plan[key] !== undefined && typeof plan[key] !== 'boolean') return undefined
   }
-  if (plan.dryRun !== true) return undefined
+  if (plan.dryRun !== true || plan.anomaly !== false || plan.truncated !== false) return undefined
   const numericKeys = ['create', 'update', 'reactivate', 'deactivate', 'unchanged', 'totalOperations', 'limit', 'remaining']
   if (numericKeys.some(key => plan[key] === undefined)) return undefined
   const safe: Record<string, unknown> = {
     operation: 'renewal-offer-sync',
     dryRun: true,
-    truncated: plan.truncated === true,
-    anomaly: plan.anomaly === true,
+    truncated: false,
+    anomaly: false,
   }
   for (const key of numericKeys) {
     if (plan[key] === undefined) continue
-    if (typeof plan[key] !== 'number' || !Number.isSafeInteger(plan[key]) || plan[key] < 0) return undefined
+    if (!validCounter(plan[key])) return undefined
     safe[key] = plan[key]
   }
   const operationCount = ['create', 'update', 'reactivate', 'deactivate']
@@ -40,10 +52,24 @@ export function sanitizeRenewalOfferPlan(value: unknown): Record<string, unknown
   if (safe.limit !== RENEWAL_OFFER_LIMIT
     || safe.totalOperations !== operationCount
     || operationCount > RENEWAL_OFFER_LIMIT
-    || (safe.truncated === false && safe.remaining !== 0)) {
+    || safe.remaining !== 0) {
     return undefined
   }
   return safe
+}
+
+function validReportEnvelope(report: Record<string, unknown>): boolean {
+  if (typeof report.success !== 'boolean') return false
+  if (report.dryRun !== undefined && report.dryRun !== true) return false
+  if (COUNTER_KEYS.some(key => report[key] !== undefined && !validCounter(report[key]))) return false
+  if (['total', 'inserted', 'updated', 'errors', 'skipped'].some(key => !validCounter(report[key]))) return false
+  if (report.unknownNames !== undefined
+    && (!Array.isArray(report.unknownNames) || report.unknownNames.length > RENEWAL_OFFER_LIMIT)) return false
+  const plan = report.plan
+  if (plan !== undefined && !sanitizeRenewalOfferPlan(plan)) return false
+  if (report.dryRun === true && plan === undefined) return false
+  if (report.dryRun !== true && plan !== undefined) return false
+  return true
 }
 
 export function normalizeRenewalOfferDispatch(value: unknown): {
@@ -54,13 +80,14 @@ export function normalizeRenewalOfferDispatch(value: unknown): {
   plan?: RenewalOfferSyncPlan
 } {
   const report = recordOf(value)
+  const envelopeValid = isRecord(value) && validReportEnvelope(report)
   const errorsValid = report.errors === undefined || (typeof report.errors === 'number' && Number.isSafeInteger(report.errors) && report.errors >= 0)
   const errors = safeCount(report, 'errors')
   const successFlag = report.success === undefined || typeof report.success === 'boolean' ? report.success !== false : false
   const plan = sanitizeRenewalOfferPlan(report.plan)
   const planValid = report.plan === undefined ? report.dryRun !== true : plan !== undefined
-  const success = errorsValid && successFlag && errors === 0 && planValid
-  const total = safeCount(report, 'total') || safeCount(report, 'upserted') + safeCount(report, 'deactivated')
+  const success = envelopeValid && errorsValid && successFlag && errors === 0 && planValid
+  const total = safeCount(report, 'total')
   const updated = Object.prototype.hasOwnProperty.call(report, 'updated')
     ? safeCount(report, 'updated')
     : safeCount(report, 'upserted')

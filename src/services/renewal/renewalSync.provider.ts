@@ -33,14 +33,45 @@ function firstString(obj: unknown, paths: readonly string[]): string | null {
   return null
 }
 
-function firstScalarString(obj: unknown, paths: readonly string[]): string | null {
-  for (const path of paths) {
-    const value = getValue(obj, path)
-    if ((typeof value === 'string' || typeof value === 'number') && String(value).trim()) {
-      return String(value).trim()
-    }
+const PRODUCT_ID_PATHS = [
+  'purchase.product.id', 'purchase.product.product_id', 'purchase.product.ucode',
+  'purchase.productId', 'purchase.product_id', 'product.id', 'product.product_id',
+  'product.ucode', 'productId', 'product_id',
+] as const
+const OFFER_CODE_PATHS = [
+  'purchase.offer.code', 'purchase.offer.offer_code', 'purchase.offerCode',
+  'purchase.offer_code', 'offer.code', 'offer.offer_code', 'offerCode', 'offer_code',
+] as const
+const OFFER_NAME_PATHS = [
+  'purchase.offer.name', 'purchase.offer.offer_name', 'purchase.offerName',
+  'purchase.offer_name', 'offer.name', 'offer.offer_name', 'offerName', 'offer_name',
+] as const
+const TRANSACTION_ID_PATHS = [
+  'purchase.transaction', 'purchase.transaction_id', 'purchase.transactionId',
+  'transaction', 'transaction_id', 'transactionId',
+] as const
+
+function identityValue(
+  item: unknown,
+  paths: readonly string[],
+  required: boolean,
+  code: string,
+): string | null {
+  const values = paths
+    .map(path => getValue(item, path))
+    .filter(value => value !== undefined)
+  if (values.some(value => (typeof value !== 'string' && typeof value !== 'number') || !String(value).trim())) {
+    throw new HttpError({ status: 422, code, publicMessage: 'Identidade da oferta Hotmart inválida' })
   }
-  return null
+  const normalized = values.map(value => String(value).trim())
+  const unique = [...new Set(normalized)]
+  if (unique.length > 1) {
+    throw new HttpError({ status: 422, code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_CONFLICT', publicMessage: 'Identidade da oferta Hotmart inconsistente' })
+  }
+  if (required && unique.length === 0) {
+    throw new HttpError({ status: 422, code, publicMessage: 'Identidade da oferta Hotmart inválida' })
+  }
+  return unique[0] || null
 }
 
 function providerError(data: Record<string, unknown>): boolean {
@@ -65,46 +96,51 @@ function salesItems(data: Record<string, unknown>): unknown[] {
   return data[present[0]] as unknown[]
 }
 
-function nextPageToken(data: Record<string, unknown>): string | null {
-  const locations = ['page_info.next_page_token', 'pageInfo.nextPageToken', 'pagination.next_page_token', 'pagination.nextPageToken', 'next_page_token']
-  const present = locations.filter(path => getValue(data, path) !== undefined)
-  if (present.length > 1) {
-    const values = present.map(path => getValue(data, path))
-    if (new Set(values.map(value => typeof value === 'string' ? value : String(value))).size > 1) {
-      throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
-    }
-  }
-  if (present.length === 0) return null
-  const value = getValue(data, present[0])
-  if (value === null || value === '') return null
-  if (typeof value !== 'string') {
+function pagination(data: Record<string, unknown>): { next: string | null; more: boolean | undefined } {
+  const containers = ['page_info', 'pageInfo', 'pagination'].filter(key => Object.prototype.hasOwnProperty.call(data, key))
+  if (containers.length !== 1 || !recordOf(data[containers[0]])) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
-  return value.trim() || null
-}
-
-function hasMore(data: Record<string, unknown>): boolean | undefined {
-  const values = [
-    getValue(data, 'page_info.has_more'), getValue(data, 'page_info.hasMore'),
-    getValue(data, 'pageInfo.hasMore'), getValue(data, 'pagination.has_more'),
-    getValue(data, 'pagination.hasMore'), getValue(data, 'has_more'), getValue(data, 'hasMore'),
-  ].filter(value => value !== undefined)
-  if (values.length === 0) return undefined
-  if (!values.every(value => typeof value === 'boolean') || new Set(values).size > 1) {
+  const container = data[containers[0]] as Record<string, unknown>
+  const allowedKeys = new Set(['next_page_token', 'nextPageToken', 'has_more', 'hasMore'])
+  if (Object.keys(container).some(key => !allowedKeys.has(key))) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
-  return values[0] as boolean
+  const tokenValues = ['next_page_token', 'nextPageToken']
+    .filter(key => Object.prototype.hasOwnProperty.call(container, key))
+    .map(key => container[key])
+  if (tokenValues.some(value => value !== null && (typeof value !== 'string' || !value.trim()))) {
+    throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
+  }
+  const tokens = [...new Set(tokenValues.filter((value): value is string => typeof value === 'string').map(value => value.trim()).filter(Boolean))]
+  if (tokens.length > 1 || (tokenValues.includes(null) && tokens.length > 0)) {
+    throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
+  }
+  const moreValues = ['has_more', 'hasMore']
+    .filter(key => Object.prototype.hasOwnProperty.call(container, key))
+    .map(key => container[key])
+  if (moreValues.some(value => typeof value !== 'boolean') || new Set(moreValues).size > 1) {
+    throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
+  }
+  return { next: tokens[0] || null, more: moreValues[0] as boolean | undefined }
 }
 
-function extractOffer(item: unknown): { offerCode: string; offerName: string } | null {
-  const offerCode = firstString(item, ['purchase.offer.code', 'purchase.offer.offer_code', 'purchase.offerCode', 'purchase.offer_code', 'offer.code', 'offer.offer_code', 'offerCode', 'offer_code'])
-  if (!offerCode) return null
-  const offerName = firstString(item, ['purchase.offer.name', 'purchase.offer.offer_name', 'purchase.offerName', 'purchase.offer_name', 'offer.name', 'offer.offer_name', 'offerName', 'offer_name'])
-  return { offerCode, offerName: offerName || '' }
+function extractOffer(item: unknown): { offerCode: string; offerName: string; transactionId: string } {
+  if (!recordOf(item)) {
+    throw new HttpError({ status: 422, code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID', publicMessage: 'Identidade da oferta Hotmart inválida' })
+  }
+  const product = identityValue(item, PRODUCT_ID_PATHS, true, 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID')
+  const offerCode = identityValue(item, OFFER_CODE_PATHS, true, 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID')
+  const transactionId = identityValue(item, TRANSACTION_ID_PATHS, true, 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID')
+  const offerName = identityValue(item, OFFER_NAME_PATHS, false, 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID')
+  if (!product || !offerCode || !transactionId) {
+    throw new HttpError({ status: 422, code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID', publicMessage: 'Identidade da oferta Hotmart inválida' })
+  }
+  return { offerCode, offerName: offerName || '', transactionId }
 }
 
 function productId(item: unknown): string | null {
-  return firstScalarString(item, ['purchase.product.id', 'purchase.product.product_id', 'purchase.product.ucode', 'purchase.productId', 'purchase.product_id', 'product.id', 'product.product_id', 'product.ucode', 'productId', 'product_id'])
+  return identityValue(item, PRODUCT_ID_PATHS, true, 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID')
 }
 
 function paymentMode(item: unknown): string | null {
@@ -171,6 +207,7 @@ export async function fetchHotmartOffers(
 ): Promise<HotmartOfferSnapshot[]> {
   const offers = new Map<string, HotmartOfferSnapshot>()
   const seenTokens = new Set<string>()
+  const seenTransactions = new Set<string>()
   let pageToken: string | null = null
   let acceptedSales = 0
   let page = 0
@@ -193,8 +230,13 @@ export async function fetchHotmartOffers(
       throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_RESPONSE_INVALID', publicMessage: 'Resposta Hotmart inválida para ofertas de renovação' })
     }
     const items = salesItems(data)
-    const next = nextPageToken(data)
-    const more = hasMore(data)
+    if (items.length > RENEWAL_OFFER_PAGE_SIZE) {
+      throw new HttpError({ status: 413, code: 'RENEWAL_OFFER_PROVIDER_PAGE_SIZE_EXCEEDED', publicMessage: 'Página Hotmart excedeu o limite seguro' })
+    }
+    const pageIdentities = items.map(item => extractOffer(item))
+    const nextPage = pagination(data)
+    const next = nextPage.next
+    const more = nextPage.more
     if (acceptedSales + items.length > RENEWAL_OFFER_LIMIT) {
       throw new HttpError({ status: 413, code: 'RENEWAL_OFFER_PROVIDER_SALES_CAP_EXCEEDED', publicMessage: 'Leitura Hotmart excedeu o limite seguro' })
     }
@@ -202,12 +244,13 @@ export async function fetchHotmartOffers(
       throw new HttpError({ status: 413, code: 'RENEWAL_OFFER_PROVIDER_SALES_CAP_EXCEEDED', publicMessage: 'Leitura Hotmart excedeu o limite seguro' })
     }
     acceptedSales += items.length
-    for (const item of items) {
-      if (productId(item) !== ogiHotmartProductId) continue
-      const identity = extractOffer(item)
-      if (!identity) {
-        throw new HttpError({ status: 422, code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID', publicMessage: 'Identidade da oferta Hotmart inválida' })
+    for (const [index, item] of items.entries()) {
+      const identity = pageIdentities[index]
+      if (seenTransactions.has(identity.transactionId)) {
+        throw new HttpError({ status: 409, code: 'RENEWAL_OFFER_PROVIDER_SALE_DUPLICATE', publicMessage: 'Venda Hotmart repetida na paginação' })
       }
+      seenTransactions.add(identity.transactionId)
+      if (productId(item) !== ogiHotmartProductId) continue
       const snapshot = offers.get(identity.offerCode) || createSnapshot(identity.offerCode, identity.offerName)
       collectSale(snapshot, item, identity.offerName)
       offers.set(identity.offerCode, snapshot)

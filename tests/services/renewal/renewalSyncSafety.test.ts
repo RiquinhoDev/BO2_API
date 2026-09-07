@@ -57,10 +57,15 @@ function sale(code = 'O1', name = 'Renova OGI 2501') {
     purchase: {
       product: { id: 'ogi-prod' },
       offer: { code, name, payment_mode: 'ONE_TIME' },
+      transaction: `${code}-${name}`,
       price: { value: 10, currency_code: 'EUR' },
     },
     buyer: { email: 'buyer@example.test' },
   }
+}
+
+function saleWithTransaction(code = 'O1', name = 'Renova OGI 2501', transaction = `${code}-${name}`) {
+  return { ...sale(code, name), purchase: { ...sale(code, name).purchase, transaction } }
 }
 
 function phaseHooks() {
@@ -164,13 +169,21 @@ test('dry-run returns bounded counts and performs no local writes or mutation ho
 })
 
 test('rejects a continuation advertised after the accepted-sales budget without fetching again', async () => {
-  const items = Array.from({ length: 20_000 }, (_, index) => sale(`O${index}`, `Renova ${index}`))
-  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items, page_info: { next_page_token: 'too-many' } } })
+  let calls = 0
+  jest.mocked(axios.get).mockImplementation(async () => {
+    calls += 1
+    return {
+      data: {
+        items: Array.from({ length: 100 }, (_, index) => sale(`O${calls}-${index}`, `Renova ${calls}-${index}`)),
+        page_info: { next_page_token: calls === 200 ? 'too-many' : `next-${calls}` },
+      },
+    }
+  })
 
   await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
     code: 'RENEWAL_OFFER_PROVIDER_SALES_CAP_EXCEEDED',
   })
-  expect(axios.get).toHaveBeenCalledTimes(1)
+  expect(axios.get).toHaveBeenCalledTimes(200)
   expect(mockRenewalOffer.create).not.toHaveBeenCalled()
 })
 
@@ -181,6 +194,76 @@ test('rejects partial provider envelopes before accepting any sale', async () =>
     code: 'RENEWAL_OFFER_PROVIDER_RESPONSE_INVALID',
   })
   expect(mockRenewalOffer.create).not.toHaveBeenCalled()
+})
+
+test('rejects a provider page larger than the requested page size before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: Array.from({ length: 101 }, (_, index) => sale(`O${index}`)), page_info: {} } })
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGE_SIZE_EXCEEDED',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+  expect(mockRenewalOffer.create).not.toHaveBeenCalled()
+})
+
+test('rejects malformed pagination metadata before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], page_info: null } })
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+})
+
+test('rejects a sale without product identity before filtering non-OGI sales', async () => {
+  const invalid = sale()
+  delete (invalid.purchase.product as { id?: string }).id
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [invalid], page_info: {} } })
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+})
+
+test('rejects contradictory offer identity aliases before filtering the product', async () => {
+  const contradictory = sale()
+  ;(contradictory as { offer?: { code: string } }).offer = { code: 'OTHER' }
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [contradictory], page_info: {} } })
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_IDENTITY_CONFLICT',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+})
+
+test('rejects the same transaction repeated on a later page even with a new cursor', async () => {
+  jest.mocked(axios.get)
+    .mockResolvedValueOnce({ data: { items: [saleWithTransaction('O1', 'Renova OGI 2501', 'tx-1')], page_info: { next_page_token: 'next' } } })
+    .mockResolvedValueOnce({ data: { items: [saleWithTransaction('O1', 'Renova OGI 2501', 'tx-1')], page_info: {} } })
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_SALE_DUPLICATE',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+})
+
+test('allows distinct transactions for the same provider offer', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({
+    data: {
+      items: [
+        saleWithTransaction('O1', 'Renova OGI 2501', 'tx-1'),
+        saleWithTransaction('O1', 'Renova OGI 2501', 'tx-2'),
+      ],
+      page_info: {},
+    },
+  })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).resolves.toMatchObject({
+    success: true,
+    total: 1,
+    plan: { create: 1, totalOperations: 1 },
+  })
 })
 
 test('rejects conflicting names for one provider offer identity', async () => {
@@ -210,6 +293,53 @@ test('rejects an optimistic local mutation conflict instead of settling success'
     code: 'RENEWAL_OFFER_MUTATION_CONFLICT',
   })
   expect(hooks.localMutationStarted).toHaveBeenCalledTimes(1)
+})
+
+test('includes the observed offer name in the optimistic update predicate', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], page_info: {} } })
+  mockRenewalOffer.find.mockReturnValue(query([{
+    _id: 'offer-id',
+    offerCode: 'O1',
+    offerName: 'Renova OGI 2501',
+    isActive: true,
+    source: 'hotmart_sync',
+    isManuallyEdited: false,
+    lastSeenAt: new Date(0),
+    periodStart: new Date(0),
+  }]))
+  mockRenewalOffer.updateOne.mockImplementationOnce(async (filter: Record<string, unknown>) => (
+    filter.offerName === 'Renova OGI 2501'
+      ? { acknowledged: true, matchedCount: 0, modifiedCount: 0 }
+      : { acknowledged: true, matchedCount: 1, modifiedCount: 1 }
+  ))
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_MUTATION_CONFLICT',
+  })
+})
+
+test('includes the observed period start in the optimistic deactivation predicate', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [], page_info: {} } })
+  const periodStart = new Date(0)
+  mockRenewalOffer.find.mockReturnValue(query([{
+    _id: 'offer-id',
+    offerCode: 'O1',
+    offerName: 'Renova OGI 2501',
+    isActive: true,
+    source: 'hotmart_sync',
+    isManuallyEdited: false,
+    lastSeenAt: new Date(0),
+    periodStart,
+  }]))
+  mockRenewalOffer.updateOne.mockImplementationOnce(async (filter: Record<string, unknown>) => (
+    filter.periodStart === periodStart
+      ? { acknowledged: true, matchedCount: 0, modifiedCount: 0 }
+      : { acknowledged: true, matchedCount: 1, modifiedCount: 1 }
+  ))
+
+  await expect(runSync({ phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_MUTATION_CONFLICT',
+  })
 })
 
 test('rejects effective operations over the aggregate mutation cap before any write', async () => {

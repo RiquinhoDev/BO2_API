@@ -181,13 +181,20 @@ function observedUpdate(offer: EnrichedHotmartOffer, existing: PlainOffer | unde
 }
 
 function existingFilter(existing: PlainOffer): Record<string, unknown> {
+  const observed = (field: string, value: unknown): Record<string, unknown> => {
+    if (value !== undefined && value !== null) return { [field]: value }
+    if (value === null) return { [field]: { $exists: true, $eq: null } }
+    return { [field]: { $exists: false } }
+  }
   return {
     _id: existing._id,
     offerCode: existing.offerCode,
-    isActive: existing.isActive,
-    source: existing.source,
-    isManuallyEdited: existing.isManuallyEdited,
-    ...(existing.lastSeenAt ? { lastSeenAt: existing.lastSeenAt } : {}),
+    ...observed('offerName', existing.offerName),
+    ...observed('isActive', existing.isActive),
+    ...observed('source', existing.source),
+    ...observed('isManuallyEdited', existing.isManuallyEdited),
+    ...observed('lastSeenAt', existing.lastSeenAt),
+    ...observed('periodStart', existing.periodStart),
   }
 }
 

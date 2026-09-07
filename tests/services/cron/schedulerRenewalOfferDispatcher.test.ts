@@ -40,6 +40,10 @@ describe('CronJobDispatcher RenewalOfferSync', () => {
     const dependencies = createDependencies()
     dependencies.syncRenewalOffers.mockResolvedValueOnce({
       success: true,
+      total: 5,
+      inserted: 0,
+      updated: 4,
+      skipped: 0,
       upserted: 4,
       deactivated: 1,
       errors: 0,
@@ -136,6 +140,64 @@ describe('CronJobDispatcher RenewalOfferSync', () => {
     })
 
     dependencies.syncRenewalOffers.mockResolvedValueOnce({ success: true, dryRun: true })
+    await expect(new CronJobDispatcher(dependencies).execute(job('RenewalOfferSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução RenewalOfferSync falhou',
+    })
+  })
+
+  it('does not treat an absent or over-cap live envelope as success', async () => {
+    const dependencies = createDependencies()
+    dependencies.syncRenewalOffers.mockResolvedValueOnce({})
+
+    await expect(new CronJobDispatcher(dependencies).execute(job('RenewalOfferSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução RenewalOfferSync falhou',
+    })
+
+    dependencies.syncRenewalOffers.mockResolvedValueOnce({
+      success: true,
+      total: 20_001,
+      inserted: 0,
+      updated: 0,
+      errors: 0,
+      skipped: 0,
+      upserted: 20_001,
+      deactivated: 0,
+      unknownNames: [],
+    })
+    await expect(new CronJobDispatcher(dependencies).execute(job('RenewalOfferSync'))).resolves.toMatchObject({
+      success: false,
+      errorMessage: 'Execução RenewalOfferSync falhou',
+    })
+  })
+
+  it('rejects anomalous or over-cap preview state instead of settling success', async () => {
+    const dependencies = createDependencies()
+    dependencies.syncRenewalOffers.mockResolvedValueOnce({
+      success: true,
+      total: 1,
+      inserted: 0,
+      updated: 0,
+      errors: 0,
+      skipped: 0,
+      dryRun: true,
+      plan: {
+        operation: 'renewal-offer-sync',
+        dryRun: true,
+        create: 0,
+        update: 0,
+        reactivate: 0,
+        deactivate: 0,
+        unchanged: 99_999,
+        totalOperations: 0,
+        limit: 20_000,
+        remaining: 0,
+        truncated: false,
+        anomaly: true,
+      },
+    })
+
     await expect(new CronJobDispatcher(dependencies).execute(job('RenewalOfferSync'))).resolves.toMatchObject({
       success: false,
       errorMessage: 'Execução RenewalOfferSync falhou',
