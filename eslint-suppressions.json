@@ -174,9 +174,6 @@
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart/transport.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
     "preserve-caught-error": {
       "count": 2
     }
