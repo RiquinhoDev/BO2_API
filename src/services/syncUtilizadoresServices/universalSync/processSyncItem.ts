@@ -391,6 +391,7 @@ export const processSyncItem = async (
       userProducts,
       snapshotContext.syncType,
       snapshotContext.syncId,
+      config.phaseHooks,
     )
 
     if (comparison.hasChanges && comparison.summary.totalChanges > 1) {

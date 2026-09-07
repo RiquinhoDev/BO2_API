@@ -1,7 +1,7 @@
 # Task 8 — Hotmart manual sync safety and Front contract
 
 Date: 2026-09-07
-Status: implementation and offline evidence complete; provider, operational, production, and deployment closure intentionally not claimed.
+Status: round 1 remediation implemented with focused offline evidence; independent re-review pending. Provider, operational, production, and deployment closure intentionally not claimed.
 
 ## Scope and preflight
 
@@ -30,16 +30,30 @@ Status: implementation and offline evidence complete; provider, operational, pro
 - Added a negative test proving `Nightly Job de Hotmart` cannot obtain Hotmart authorization from a similar name when the backend capability is blocked.
 - No parallel Front mutation path was added; existing generic Cron controls remain backend-policy driven.
 
+### Review round 1 remediation
+
+- Backend finding 1: report/snapshot/history helper writes now re-assert ownership and local mutation phase immediately before each model write; phase-enabled helper failures escape instead of becoming partial success.
+- Backend finding 2: UniversalSync Hotmart preflight now models effective User/UserProduct/Class/class-history/snapshot/report effects, caps actual updateMany targets, and uses bounded `limit + 1` local reads; an under-item source can fail closed before effects.
+- Backend finding 3: Hotmart dispatcher preserves typed control errors and converts provider/UniversalSync details to the fixed public failure `Execução Hotmart sync falhou`.
+- Backend finding 4: mode-aware normalizer rejects dry-run mismatches, non-boolean mode, malformed success/error counters, contradictory plan counters, and invalid preview plans.
+- Backend finding 5: adapter validates the complete raw provider snapshot (including stable identity and duplicate checks) before progress enrichment; provider failures and invalid rows escape.
+- Backend finding 6: every `requestWithRetry` attempt and lesson/progress request receives provider/ownership hooks; ownership loss stops further lessons/retries and escapes.
+- Front finding 7: generic Cron now retains one request ID per `job + mode` over timeout/409/504/indeterminate outcomes and rotates only after definitive success/failure.
+- Front finding 8: specialized Hotmart `JobsList`/`useExecuteJob` now consume backend-owned policy, expose preview/live modes, call the canonical Cron trigger envelope (`executionSucceeded`, `dryRun`, `x-request-id`), and retain per-job/mode identity; absent/blocked policy fails closed.
+
 ## Commits
 
 Backend:
 
 - `3f50becf feat(cron): harden Hotmart manual sync`
 - `e878e053 chore(lint): prune Hotmart suppressions`
+- `7ec34f77 fix(cron): accept Hotmart pagination aliases`
 
 Front:
 
 - `e7d60e2 test(cron): cover Hotmart backend policy`
+- `[round-1 backend commit to be recorded after local commit]`
+- `[round-1 front commit to be recorded after local commit]`
 
 ## TDD evidence
 
@@ -65,7 +79,7 @@ Test Suites: 7 passed, 7 total
 Tests: 99 passed, 99 total
 ```
 
-The Task 8 safety suite itself ended at `10 passed, 10 total`, covering exact capability/switch, page overflow, malformed envelope, contradictory aliases, repeated cursor and identity, dispatcher propagation, preview zero writes, pre-effect effective overflow, and strict result sanitization.
+The Task 8 safety suite first ended at `10 passed, 10 total`; after the explicit top-level cursor-alias compatibility fix it ended at `11 passed, 11 total`. It covers exact capability/switch, page overflow, malformed envelope, contradictory aliases, repeated cursor and identity, supported top-level pagination, dispatcher propagation, preview zero writes, pre-effect effective overflow, and strict result sanitization.
 
 Front focused command:
 
@@ -73,6 +87,20 @@ Front focused command:
 npm.cmd test -- --runInBand src/features/cron
 Test Suites: 10 passed, 10 total
 Tests: 68 passed, 68 total
+```
+
+Round 1 TDD evidence:
+
+```text
+Backend RED: hotmartSyncReviewRound1.test.ts — 7 failed (normalizer, provider hooks/snapshot, public error, ownership fence, effective cap).
+Backend GREEN: npm.cmd exec -- jest tests/services/cron/hotmartSyncReviewRound1.test.ts tests/services/cron/hotmartSyncSafety.test.ts tests/services/cron/schedulerJobDispatcher.test.ts tests/services/cron/schedulerJobDispatcher.pipeline.test.ts tests/services/cron/schedulerJobExecution.test.ts tests/services/universalSync.runtimeConfig.test.ts --runInBand --no-cache
+Test Suites: 6 passed, 6 total; Tests: 72 passed, 72 total.
+
+Front RED: useCronManagement.requestIdentity.test.tsx — failed with `Expected: 1; Received: 2` request IDs before identity retention implementation.
+Front GREEN: npm.cmd test -- --runInBand src/features/cron/__tests__/useCronManagement.requestIdentity.test.tsx src/features/cron/__tests__/useCronManagement.test.tsx src/features/cron/__tests__/cron.api.test.ts src/features/cron/__tests__/cron.manualExecution.test.ts src/features/cron/__tests__/cron.schemas.test.ts src/features/cron/components/__tests__/CronJobList.test.tsx src/pages/gerirAlunos/hotmartSync/hooks/__tests__/useExecuteJob.policy.test.tsx src/pages/gerirAlunos/hotmartSync/hooks/__tests__/mutationHooks.coverage.test.tsx src/pages/gerirAlunos/hotmartSync/components/__tests__/JobViews.test.tsx src/pages/gerirAlunos/hotmartSync/__tests__/SyncPage.test.tsx
+Test Suites: 10 passed, 10 total; Tests: 53 passed, 53 total.
+Front specialized RED: useExecuteJob.policy.test.tsx — missing canonical `executionSucceeded` and policy guard; 2 failed.
+Front specialized GREEN: same focused command above; 2 specialized tests pass within the 10-suite/53-test result.
 ```
 
 ## Exact validation
@@ -103,4 +131,4 @@ Touched hand-written source/test files remain at or below 500 physical lines. Th
 - No Hotmart/provider call, network integration, real MongoDB/production DB, browser/live-user session, deployment, promotion, push, merge, rebase, or `main` mutation was performed.
 - Scheduled Hotmart semantics were preserved at the dispatcher boundary, but no production scheduler execution was claimed.
 - Existing Mongoose duplicate-index/reserved-path warnings appeared in Jest output; they are pre-existing and did not fail the focused gates.
-- Operational receipt replay/conflict/indeterminate behavior is inherited from the canonical Tasks 5–7 execution path and was not re-run as a full integration suite here; parent review remains required.
+- Operational receipt replay/conflict/indeterminate behavior is inherited from the canonical Tasks 5–7 execution path and was not re-run as a full integration suite here; independent round 1 re-review remains required.

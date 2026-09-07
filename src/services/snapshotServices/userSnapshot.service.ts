@@ -10,6 +10,7 @@ import UserHistory from '../../models/UserHistory'
 import type { IUser } from '../../models/user'
 import type { IUserProduct } from '../../models/UserProduct'
 import { compareSnapshots, type ComparisonResult } from './snapshotComparison.service'
+import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
 
 function populatedProductName(productId: unknown): string {
   return productId && typeof productId === 'object' && 'name' in productId && typeof productId.name === 'string'
@@ -37,7 +38,8 @@ export async function createUserSnapshot(
   user: IUser,
   products: IUserProduct[],
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
-  syncId?: mongoose.Types.ObjectId
+  syncId?: mongoose.Types.ObjectId,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<IUserSnapshot> {
   // Construir array de produtos
   const productSnapshots: IProductSnapshot[] = products.map((product) => {
@@ -123,6 +125,8 @@ export async function createUserSnapshot(
     }
   })
 
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
   await snapshot.save()
   return snapshot
 }
@@ -162,7 +166,8 @@ export async function compareAndRecordChanges(
   user: IUser,
   products: IUserProduct[],
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
-  syncId?: mongoose.Types.ObjectId
+  syncId?: mongoose.Types.ObjectId,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<ComparisonResult> {
   // Buscar último snapshot
   const lastSnapshot = await getLastUserSnapshot(user._id, syncType)
@@ -226,6 +231,8 @@ export async function compareAndRecordChanges(
 
   // Inserir em batch
   if (historyRecords.length > 0) {
+    phaseHooks?.assertOwnership?.()
+    phaseHooks?.localMutationStarted()
     await UserHistory.insertMany(historyRecords)
     logger.info(`✅ [Snapshot] ${historyRecords.length} alterações registadas para ${user.email}`)
   }
@@ -247,16 +254,17 @@ export async function snapshotAndCompare(
   user: IUser,
   products: IUserProduct[],
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
-  syncId?: mongoose.Types.ObjectId
+  syncId?: mongoose.Types.ObjectId,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<{
   snapshot: IUserSnapshot
   comparison: ComparisonResult
 }> {
   // 1. Comparar e registar ANTES de criar novo snapshot
-  const comparison = await compareAndRecordChanges(user, products, syncType, syncId)
+  const comparison = await compareAndRecordChanges(user, products, syncType, syncId, phaseHooks)
 
   // 2. Criar novo snapshot
-  const snapshot = await createUserSnapshot(user, products, syncType, syncId)
+  const snapshot = await createUserSnapshot(user, products, syncType, syncId, phaseHooks)
 
   return {
     snapshot,

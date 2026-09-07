@@ -41,13 +41,17 @@ const getRetryDelayMs = (error: unknown, attempt: number, baseDelayMs: number) =
 
 export async function requestWithRetry<T>(
   fn: () => Promise<T>,
-  options: { maxRetries: number; baseDelayMs: number }
+  options: { maxRetries: number; baseDelayMs: number; phaseHooks?: CronExecutionPhaseHooks }
 ): Promise<T> {
   let attempt = 0
 
   while (true) {
+    options.phaseHooks?.assertOwnership?.()
+    options.phaseHooks?.providerStarted()
     try {
-      return await fn()
+      const result = await fn()
+      options.phaseHooks?.providerSucceeded()
+      return result
     } catch (error: unknown) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined
       if (status !== 429 || attempt >= options.maxRetries) {
@@ -183,7 +187,7 @@ export const getHotmartAccessToken = async (): Promise<string> => {
   }
 }
 
-interface HotmartFetchOptions {
+export interface HotmartFetchOptions {
   phaseHooks?: CronExecutionPhaseHooks
 }
 
@@ -253,7 +257,7 @@ const normalizePageInfo = (payload: Record<string, unknown>): { nextPageToken: s
   return { nextPageToken, hasMore }
 }
 
-const stableHotmartUserId = (user: HotmartUser): string => {
+export const stableHotmartUserId = (user: HotmartUser): string => {
   if (!isRecord(user)) throw providerError('HOTMART_PROVIDER_USER_INVALID', 'utilizador não é objecto')
   const values = ['id', 'user_id', 'uid', 'code']
     .map(key => user[key as keyof HotmartUser])
@@ -290,8 +294,6 @@ export const fetchAllHotmartUsers = async (
 
       logger.info(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
 
-      options.phaseHooks?.assertOwnership?.()
-      options.phaseHooks?.providerStarted()
       const response = await requestWithRetry(
         () => axios.get<HotmartUsersResponse>(requestUrl, {
           headers: {
@@ -300,9 +302,8 @@ export const fetchAllHotmartUsers = async (
           },
           timeout: 30000
         }),
-        { maxRetries: 5, baseDelayMs: 1000 }
+        { maxRetries: 5, baseDelayMs: 1000, phaseHooks: options.phaseHooks }
       )
-      options.phaseHooks?.providerSucceeded()
 
       const payload = response.data as unknown
       if (!isRecord(payload)) throw providerError('HOTMART_PROVIDER_ENVELOPE_INVALID', 'resposta não é objecto')
@@ -348,6 +349,9 @@ export const fetchAllHotmartUsers = async (
     return allUsers
   } catch (error: unknown) {
     logger.error('❌ [HotmartFetch] Erro:', responseData(error) || errorMessage(error))
+    if (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError') {
+      throw error
+    }
     if (error instanceof Error && typeof (error as { code?: unknown }).code === 'string') {
       throw error
     }
@@ -357,7 +361,8 @@ export const fetchAllHotmartUsers = async (
 
 export const fetchUserLessons = async (
   userId: string,
-  accessToken: string
+  accessToken: string,
+  options: HotmartFetchOptions = {},
 ): Promise<HotmartLesson[]> => {
   const subdomain = getHotmartSubdomain()
   try {
@@ -372,25 +377,27 @@ export const fetchUserLessons = async (
           timeout: 10000
         }
       ),
-      { maxRetries: 3, baseDelayMs: 500 }
+      { maxRetries: 3, baseDelayMs: 500, phaseHooks: options.phaseHooks }
     )
 
-    return response.data.lessons || []
+    if (!Array.isArray(response.data.lessons)) {
+      throw providerError('HOTMART_PROVIDER_LESSONS_INVALID', 'lista de lições inválida')
+    }
+    return response.data.lessons
   } catch (error: unknown) {
     logger.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, errorMessage(error))
-    return []
+    throw error
   }
 }
 
 export const fetchBatchUserProgress = async (
   users: HotmartUser[],
   accessToken: string,
-  concurrency: number = 5
+  concurrency: number = 5,
+  options: HotmartFetchOptions = {},
 ): Promise<Map<string, ProgressData>> => {
   const progressMap = new Map<string, ProgressData>()
-  const userIds = users
-    .map(u => u.id || u.user_id || u.uid || u.code)
-    .filter((value): value is string => Boolean(value))
+  const userIds = users.map(user => stableHotmartUserId(user))
 
   logger.info('📊 [HotmartProgress] Iniciando fetch de progresso...')
   logger.info(`   👥 Total users: ${userIds.length}`)
@@ -407,15 +414,8 @@ export const fetchBatchUserProgress = async (
     const batchStart = Date.now()
 
     const progressPromises = batch.map(async (userId) => {
-      try {
-        const lessons = await fetchUserLessons(userId, accessToken)
-        if (lessons.length > 0) {
-          const progress = calculateProgress(lessons)
-          progressMap.set(userId, progress)
-        }
-      } catch {
-        // Silencioso - não logar cada erro
-      }
+      const lessons = await fetchUserLessons(userId, accessToken, options)
+      progressMap.set(userId, calculateProgress(lessons))
     })
 
     await Promise.all(progressPromises)

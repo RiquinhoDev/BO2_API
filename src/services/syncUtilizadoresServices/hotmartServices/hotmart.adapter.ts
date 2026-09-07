@@ -11,6 +11,7 @@ import { assertProviderReadBatchSize } from '../../../security/providerReadBatch
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
+import { stableHotmartUserId } from './hotmart/transport'
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -71,6 +72,16 @@ export const fetchHotmartDataForSync = async (
 
     logger.info(`✅ [HotmartAdapter] ${rawUsers.length} utilizadores encontrados`)
 
+    // Validate the complete bounded provider snapshot before any enrichment I/O.
+    // A malformed identity/email/name must never be silently filtered after progress calls.
+    const snapshotIds = new Set<string>()
+    for (const rawUser of rawUsers) {
+      hotmartHelpers.validateHotmartUser(rawUser)
+      const stableId = stableHotmartUserId(rawUser)
+      if (snapshotIds.has(stableId)) throw new Error('Hotmart snapshot contém identidade repetida')
+      snapshotIds.add(stableId)
+    }
+
     // STEP 3: BUSCAR PROGRESSO (SE NECESSÁRIO)
     let progressMap = new Map<string, ProgressData>()
 
@@ -86,7 +97,8 @@ export const fetchHotmartDataForSync = async (
       progressMap = await hotmartHelpers.fetchBatchUserProgress(
         rawUsers,
         accessToken,
-        options.progressConcurrency || 2
+        options.progressConcurrency || 2,
+        { phaseHooks: options.phaseHooks },
       )
 
       const progressDuration = Math.floor((Date.now() - progressStart) / 1000)
@@ -191,6 +203,7 @@ if (!hotmartId) {
   })
       } catch (error: unknown) {
         errors.push(`${rawUser.email || 'unknown'}: ${errorMessage(error)}`)
+        throw error
       }
     }
 
@@ -209,6 +222,9 @@ if (!hotmartId) {
     return normalizedUsers
   } catch (error: unknown) {
     logger.error('❌ [HotmartAdapter] Erro fatal:', error)
+    if (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError') {
+      throw error
+    }
     if (error instanceof Error && (
       typeof (error as { code?: unknown }).code === 'string' ||
       (error as { status?: unknown }).status === 413

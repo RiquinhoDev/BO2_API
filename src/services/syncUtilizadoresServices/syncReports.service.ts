@@ -15,6 +15,12 @@ import SyncReport, {
 import { Types } from 'mongoose'
 import User from '../../models/user'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
+import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
+
+const beforeReportWrite = (phaseHooks?: CronExecutionPhaseHooks): void => {
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
+}
 
 export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
   try {
@@ -63,7 +69,8 @@ export interface CreateReportOptions {
 }
 
 export const createSyncReport = async (
-  options: CreateReportOptions
+  options: CreateReportOptions,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<ISyncReport> => {
   logger.info('📝 [SyncReports] Criando novo report:', options.jobName)
   
@@ -88,6 +95,7 @@ export const createSyncReport = async (
       }
     }
     
+    beforeReportWrite(phaseHooks)
     const report = await SyncReport.create({
       jobId: jobIdObj,
       jobName: options.jobName,
@@ -124,13 +132,15 @@ export const createSyncReport = async (
     
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao criar report:', error)
+    if (phaseHooks) throw error
     throw new Error(`Falha ao criar report: ${errorMessage(error)}`)
   }
 }
 
 export const updateReportStats = async (
   reportId: string,
-  stats: Partial<ISyncReportStats>
+  stats: Partial<ISyncReportStats>,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<ISyncReport | null> => {
   try {
     const report = await SyncReport.findById(reportId)
@@ -139,17 +149,20 @@ export const updateReportStats = async (
       return null
     }
     Object.assign(report.stats, stats)
+    beforeReportWrite(phaseHooks)
     await report.save()
     return report
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao atualizar stats:', error)
+    if (phaseHooks) throw error
     return null
   }
 }
 
 export const completeReport = async (
   reportId: string,
-  status: 'success' | 'failed' | 'partial'
+  status: 'success' | 'failed' | 'partial',
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<ISyncReport | null> => {
   logger.info(`🏁 [SyncReports] Finalizando report ${reportId} com status: ${status}`)
   
@@ -160,6 +173,7 @@ export const completeReport = async (
       return null
     }
     
+    beforeReportWrite(phaseHooks)
     await report.addLog('info', `Finalizando sync com status: ${status}`, {
       totalProcessed: report.stats.total,
       errors: report.stats.errors
@@ -167,6 +181,7 @@ export const completeReport = async (
     
     const afterSnapshot = await createSnapshot()
     report.snapshots.after = afterSnapshot
+    beforeReportWrite(phaseHooks)
     await report.markAsComplete(status)
     
     logger.info(`✅ [SyncReports] Report finalizado: ${reportId}`)
@@ -177,6 +192,7 @@ export const completeReport = async (
     
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao finalizar report:', error)
+    if (phaseHooks) throw error
     return null
   }
 }
@@ -186,7 +202,8 @@ export const addReportError = async (
   message: string,
   userId?: string,
   userEmail?: string,
-  stack?: string
+  stack?: string,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
@@ -194,9 +211,11 @@ export const addReportError = async (
       logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar erro: ${reportId}`)
       return
     }
+    beforeReportWrite(phaseHooks)
     await report.addError({ message, userId, userEmail, stack })
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar erro ao report:', error)
+    if (phaseHooks) throw error
   }
 }
 
@@ -204,7 +223,8 @@ export const addReportWarning = async (
   reportId: string,
   message: string,
   userId?: string,
-  context?: string
+  context?: string,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
@@ -212,9 +232,11 @@ export const addReportWarning = async (
       logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar warning: ${reportId}`)
       return
     }
+    beforeReportWrite(phaseHooks)
     await report.addWarning({ message, userId, context })
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar warning ao report:', error)
+    if (phaseHooks) throw error
   }
 }
 
@@ -222,7 +244,8 @@ export const addReportLog = async (
   reportId: string,
   level: 'info' | 'warn' | 'error' | 'debug',
   message: string,
-  meta?: unknown
+  meta?: unknown,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
@@ -230,9 +253,11 @@ export const addReportLog = async (
       logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar log: ${reportId}`)
       return
     }
+    beforeReportWrite(phaseHooks)
     await report.addLog(level, message, meta)
   } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar log ao report:', error)
+    if (phaseHooks) throw error
   }
 }
 

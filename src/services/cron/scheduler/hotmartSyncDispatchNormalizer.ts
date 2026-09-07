@@ -24,13 +24,21 @@ const sanitizePlan = (value: unknown): HotmartSyncPlan | undefined => {
     safe[key] = plan[key]
   }
   const total = safe.total as number
-  if ((safe.inserted as number) + (safe.updated as number) + (safe.errors as number) + (safe.skipped as number) > total) {
+  const counted = (safe.inserted as number) + (safe.updated as number) + (safe.errors as number) + (safe.skipped as number)
+  if (counted !== total || (safe.remaining as number) !== 0) {
     return undefined
   }
   return safe as unknown as HotmartSyncPlan
 }
 
-export function normalizeHotmartSyncDispatch(value: unknown): {
+export interface HotmartDispatchNormalizationOptions {
+  requestedDryRun?: boolean
+}
+
+export function normalizeHotmartSyncDispatch(
+  value: unknown,
+  options: HotmartDispatchNormalizationOptions = {},
+): {
   success: boolean
   stats: ILastRunStats
   errorMessage?: string
@@ -43,11 +51,18 @@ export function normalizeHotmartSyncDispatch(value: unknown): {
   const keys = ['total', 'inserted', 'updated', 'errors', 'skipped']
   const validStats = keys.every(key => safeInt(statsSource[key]))
     && (statsSource.total as number) <= LIMIT
-    && (statsSource.inserted as number) + (statsSource.updated as number) + (statsSource.errors as number) + (statsSource.skipped as number) <= (statsSource.total as number)
-  const dryRun = result.dryRun === true
+    && (statsSource.inserted as number) + (statsSource.updated as number) + (statsSource.errors as number) + (statsSource.skipped as number) === (statsSource.total as number)
+  const hasDryRun = Object.prototype.hasOwnProperty.call(result, 'dryRun')
+  const dryRunValue = result.dryRun
+  const validDryRunField = !hasDryRun || typeof dryRunValue === 'boolean'
+  const dryRun = dryRunValue === true
+  const validRequestedMode = options.requestedDryRun === undefined
+    ? validDryRunField
+    : options.requestedDryRun === dryRun && validDryRunField
   const plan = dryRun ? sanitizePlan(result.plan) : undefined
   const validSuccess = typeof result.success === 'boolean' && result.success === true
-  const success = validSuccess && validStats && (!dryRun || plan !== undefined)
+  const success = validSuccess && validStats && statsSource.errors === 0
+    && validRequestedMode && (!dryRun || plan !== undefined)
   const stats: ILastRunStats = validStats
     ? {
       total: statsSource.total as number,

@@ -22,6 +22,7 @@ import { syncRenewalOffers } from '../../renewal/renewalSync.service'
 import hotmartAdapter from '../../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import universalSyncService from '../../syncUtilizadoresServices/universalSync'
+import { HttpError } from '../../../security/errorHandling'
 
 export type UniversalSyncRequest = UniversalSyncConfig
 
@@ -117,6 +118,31 @@ const nestedRecordOf = (record: Record<string, unknown>, key: string): Record<st
 
 const errorMessageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
+
+const shouldPropagateHotmartControlError = (error: unknown): boolean => {
+  if (error instanceof HttpError) {
+    return error.status === 409 || error.status === 413 || error.status === 503
+  }
+  if (error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError') return true
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { status?: unknown; code?: unknown }
+    return candidate.status === 409 || candidate.status === 413 || candidate.code === 'COMPOSITE_EXECUTION_IN_PROGRESS'
+  }
+  return false
+}
+
+const asHotmartControlError = (error: unknown): HttpError => {
+  const candidate = typeof error === 'object' && error !== null
+    ? error as { code?: unknown; status?: unknown }
+    : {}
+  const code = typeof candidate.code === 'string' ? candidate.code : 'HOTMART_SYNC_LIMIT_EXCEEDED'
+  return new HttpError({
+    status: 413,
+    code,
+    publicMessage: 'Limite de segurança do sync Hotmart excedido',
+    cause: error,
+  })
+}
 
 const normalizeGenericResult = (value: unknown): CronDispatchResult => {
   const result = recordOf(value)
@@ -380,31 +406,47 @@ export class CronJobDispatcher {
     syncType: 'hotmart' | 'curseduca',
     options: CronDispatchOptions = {},
   ): Promise<CronDispatchResult> {
-    const sourceData =
-      syncType === 'hotmart'
-        ? await this.dependencies.fetchHotmart(options)
-        : await this.dependencies.fetchCurseduca(options)
-    const result = recordOf(
-      await this.dependencies.executeUniversalSync({
-        syncType,
-        jobName: job.name,
-        jobId: job._id.toString(),
-        triggeredBy: options.triggeredBy ?? 'CRON',
-        ...(options.dryRun === true ? { dryRun: true } : {}),
-        ...(options.phaseHooks ? { phaseHooks: options.phaseHooks } : {}),
-        fullSync: true,
-        includeProgress: true,
-        includeTags: false,
-        batchSize: 50,
-        sourceData
-      })
-    )
-    return syncType === 'hotmart'
-      ? normalizeHotmartSyncDispatch(result)
-      : {
-        success: booleanOf(result, 'success') === true,
-        stats: this.readStats(result)
+    try {
+      const sourceData =
+        syncType === 'hotmart'
+          ? await this.dependencies.fetchHotmart(options)
+          : await this.dependencies.fetchCurseduca(options)
+      const result = recordOf(
+        await this.dependencies.executeUniversalSync({
+          syncType,
+          jobName: job.name,
+          jobId: job._id.toString(),
+          triggeredBy: options.triggeredBy ?? 'CRON',
+          ...(options.dryRun === true ? { dryRun: true } : {}),
+          ...(options.phaseHooks ? { phaseHooks: options.phaseHooks } : {}),
+          fullSync: true,
+          includeProgress: true,
+          includeTags: false,
+          batchSize: 50,
+          sourceData
+        })
+      )
+      return syncType === 'hotmart'
+        ? normalizeHotmartSyncDispatch(result, { requestedDryRun: options.dryRun === true })
+        : {
+          success: booleanOf(result, 'success') === true,
+          stats: this.readStats(result)
+        }
+    } catch (error: unknown) {
+      if (syncType !== 'hotmart') throw error
+      if (!(error instanceof HttpError)
+        && typeof error === 'object' && error !== null
+        && (error as { status?: unknown }).status === 413) {
+        throw asHotmartControlError(error)
       }
+      if (shouldPropagateHotmartControlError(error)) throw error
+      logger.error('Erro interno no sync Hotmart', error)
+      return {
+        success: false,
+        stats: { ...EMPTY_STATS, errors: 1 },
+        errorMessage: 'Execução Hotmart sync falhou',
+      }
+    }
   }
 
   private executeDiscordSync(): CronDispatchResult {
