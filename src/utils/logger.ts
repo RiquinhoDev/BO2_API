@@ -30,8 +30,12 @@ const redactFormat = winston.format((info) => {
   return redacted
 })
 
+// No colorize(): it throws (`colors[Colorizer.allColors[lookup]] is not a
+// function`) with the winston/logform versions this project has installed,
+// which crash-looped the whole container the moment console logging turned
+// on in production -- every route 502'd, including /health, which does no
+// I/O at all. Plain text is worth losing the color to never repeat that.
 const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
   winston.format.timestamp({ format: 'HH:mm:ss' }),
   winston.format.printf(({ timestamp, level, message, ...metadata }) => {
     const suffix = Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : ''
