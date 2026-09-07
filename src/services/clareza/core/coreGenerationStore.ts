@@ -55,12 +55,16 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
   }
 
   async readCandidate(generationId: string): Promise<CoreGenerationCandidate | null> {
-    const found = await ClarezaCoreGeneration.findOne({ generationId }).lean()
+    // Bounded so an Atlas blip fails fast into the caller's existing
+    // CoreGenerationUnavailableError/503 path instead of hanging until
+    // Railway's edge proxy kills the connection with a bare 502 (no CORS
+    // headers -- looks like a CORS bug to the browser, isn't one).
+    const found = await ClarezaCoreGeneration.findOne({ generationId }).maxTimeMS(5_000).lean()
     return found ? decodeCandidate(found) : null
   }
 
   async readPublished(): Promise<CoreGenerationCandidate | null> {
-    const pointer = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).lean()
+    const pointer = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).maxTimeMS(5_000).lean()
     return pointer ? this.readCandidate(pointer.currentGenerationId) : null
   }
 
