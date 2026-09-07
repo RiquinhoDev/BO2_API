@@ -110,3 +110,94 @@ Touched hand-written source/test files in both repos are at most 500 physical li
 - Front build output retains existing baseline-browser-mapping/Browserslist, Tailwind ambiguous-class, and large-chunk warnings; build and lint still exited green.
 - Response catalog validation requires the real Front root; the gate was run with that root explicitly configured.
 - Front working tree still contains only the pre-existing unrelated `.claude/settings.local.json` modification and `scripts/git-hooks/` untracked directory after the Task 7 commit.
+
+## Round 1/5 independent-review fixes — 2026-09-07
+
+Review disposition: all five Important findings fixed. P3 items were not addressed.
+
+### Finding 1 — provider completeness and page bounds
+
+Root cause: the first implementation bounded total accumulation but accepted a nullable/malformed `page_info`, accepted pages larger than the requested 100 items, and filtered missing product identities away before validating them. That allowed an incomplete snapshot to reach stale-deactivation planning.
+
+Fix:
+
+- Require exactly one object pagination envelope (`page_info`, `pageInfo`, or `pagination`) with only known token/has-more keys and valid types.
+- Reject page length over 100 before any accumulation or local read.
+- Validate every item as an object with required product, offer, and transaction identity before product filtering.
+- Reject contradictory identity aliases and malformed identity values.
+- Keep rejection before local snapshot reads and before any mutation.
+
+### Finding 2 — progress and sale identity
+
+Root cause: provider pages were aggregated by offer code only; a repeated transaction appearing under a new cursor was counted again, while contradictory aliases silently preferred the first path.
+
+Fix:
+
+- Normalize stable transaction identity from supported Hotmart transaction aliases.
+- Reject duplicate transaction identities across and within pages, including a new cursor.
+- Keep distinct transactions for the same offer as separate sales and aggregate them into one offer snapshot.
+- Preserve repeated/non-progress cursor rejection and reject continuation after the page/item budget.
+
+### Finding 3 — optimistic overwrite protection
+
+Root cause: update predicates omitted observed `offerName`; deactivation predicates omitted observed `periodStart`, and absent values were not represented explicitly.
+
+Fix:
+
+- Include every decision/write-relevant observed field: `offerName`, `isActive`, `source`, `isManuallyEdited`, `lastSeenAt`, and `periodStart`, alongside `_id` and `offerCode`.
+- Represent missing values with `$exists: false` and explicit nulls with `$exists: true, $eq: null`.
+- Added mutation regressions that return `matchedCount: 0` only when the observed name/period predicate is present; omission would incorrectly settle success.
+
+### Finding 4 — Front ambiguous retry idempotency
+
+Root cause: each click generated a fresh live request ID, including after a timeout where the backend may have accepted the request.
+
+Fix:
+
+- Retain the live request ID in a ref after ambiguous timeout/network errors (`ECONNABORTED`, `ETIMEDOUT`, `ERR_NETWORK`, or timeout/network messages without a response).
+- Reuse it on retry.
+- Clear it after a definitive response, a definitive execution failure, or a non-ambiguous error; a later explicit execution then gets a new ID.
+- Preview requests remain independent and never reuse the live ID.
+
+### Finding 5 — canonical dispatcher normalizer
+
+Root cause: an absent raw report normalized to `success: true`, and counters/plan state were only partially validated. Anomalous plans and over-cap values could therefore appear successful.
+
+Fix:
+
+- Require an object envelope with explicit boolean `success`, required bounded counters (`total`, `inserted`, `updated`, `errors`, `skipped`), valid optional counters, and a bounded `unknownNames` array.
+- Require a valid bounded plan for dry-run and reject plans on live results.
+- Require canonical plan state (`anomaly: false`, `truncated: false`, exact 20,000 limit, all counters <= cap, operation sum equal to `totalOperations`, and zero remaining when not truncated).
+- Invalid values normalize to a generic unsuccessful result with no provider/internal detail and bounded public stats.
+
+### Fresh RED evidence
+
+Before the fixes, the focused regressions were run and failed for the expected missing behavior:
+
+- Backend provider/dispatcher command: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts tests/services/cron/schedulerRenewalOfferDispatcher.test.ts` — `7 failed, 15 passed`; failures covered page 101, malformed `page_info`, missing product identity, contradictory aliases, repeated transaction, absent envelope, and anomalous/over-cap normalization.
+- Front retry command: `npm.cmd test -- --runInBand src/pages/gerirAlunos/renewalOffers/__tests__/RenewalOffersPage.test.tsx` — `1 failed, 8 passed`; the retry received a different request ID after a timeout.
+- Optimistic predicate command: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts -t "optimistic update predicate|optimistic deactivation predicate"` — `2 failed`; both tests resolved success because the observed field was absent from the predicate.
+
+### Fresh GREEN evidence and gates
+
+- Provider safety GREEN: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts` — `1/1` suite, `17/17` tests passed.
+- Dispatcher safety GREEN: `npm.cmd test -- --runInBand tests/services/cron/schedulerRenewalOfferDispatcher.test.ts` — `1/1` suite, `5/5` tests passed.
+- Combined provider/dispatcher GREEN: `2/2` suites, `25/25` tests passed.
+- Backend focused Task 7 gate: `8/8` suites, `125/125` tests passed.
+- Front focused gate: `4/4` suites, `20/20` tests passed.
+- Backend `npm.cmd run types:check`: exit `0`.
+- Backend `npm.cmd run lint`: exit `0`.
+- Backend `npm.cmd run build`: exit `0`.
+- Front `npm.cmd run lint`: exit `0`.
+- Front `npm.cmd run build`: exit `0`.
+- Backend route catalog: `409` runtime identities; passed.
+- Backend response catalog with the real Front root: `409` decisions, `212` Front calls, `187` consumers; passed.
+- Backend SCALE inventory: SCALE-01 `40 complete / 0 pending`; SCALE-02 `11 complete / 0 pending`; SCALE-03 `24 complete / 0 pending`; `384` Mongoose list sites; passed.
+- Backend and Front `git diff --check`: passed before commit. All touched hand-written files remain <=500 physical lines.
+
+### Round 1 commits
+
+- Backend: `93445408 fix(cron): harden renewal offer safety boundaries`
+- Front: `5bb65f9 fix(renewal): reuse ambiguous manual request ids`
+
+Round 1 remains offline-only. No provider/network/real DB/browser/live-user/deploy/push/merge/rebase/main operation was performed. Existing Mongoose, ts-jest, Front browser-data, Tailwind, and chunk-size warnings remain non-blocking and are not silently reclassified as operational evidence.
