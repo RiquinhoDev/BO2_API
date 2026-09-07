@@ -143,6 +143,21 @@ test('rejects a repeated Hotmart cursor before issuing a third request', async (
   expect(axios.get).toHaveBeenCalledTimes(2)
 })
 
+test('supports the explicit top-level Hotmart cursor alias', async () => {
+  jest.mocked(axios.get)
+    .mockResolvedValueOnce({ data: {
+      users: [{ id: 'u-1', email: 'a@x.test', name: 'A' }],
+      next_page_token: 'next',
+    } } as never)
+    .mockResolvedValueOnce({ data: {
+      users: [],
+      next_page_token: null,
+    } } as never)
+
+  await expect(fetchAllHotmartUsers('token')).resolves.toHaveLength(1)
+  expect(axios.get).toHaveBeenCalledTimes(2)
+})
+
 test('dispatcher forwards dry-run and ownership hooks through the Hotmart runner', async () => {
   const phaseHooks = {
     assertOwnership: jest.fn(),

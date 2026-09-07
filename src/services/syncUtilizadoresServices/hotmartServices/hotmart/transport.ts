@@ -211,22 +211,38 @@ const normalizePageUsers = (payload: Record<string, unknown>): HotmartUser[] => 
 
 const normalizePageInfo = (payload: Record<string, unknown>): { nextPageToken: string | null; hasMore: boolean } => {
   const containers = ['page_info', 'pageInfo', 'pagination'].filter(field => field in payload)
-  if (containers.length !== 1 || !isRecord(payload[containers[0]])) {
+  const sources: Record<string, unknown>[] = []
+  for (const container of containers) {
+    if (!isRecord(payload[container])) {
+      throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'paginação ausente ou inválida')
+    }
+    sources.push(payload[container] as Record<string, unknown>)
+  }
+  const topLevelKeys = ['next_page_token', 'nextPageToken', 'has_more', 'hasMore']
+  if (topLevelKeys.some(key => key in payload)) sources.push(payload)
+  if (sources.length === 0) {
     throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'paginação ausente ou inválida')
   }
-  const info = payload[containers[0]] as Record<string, unknown>
-  const tokens = [info.next_page_token, info.nextPageToken, payload.next_page_token, payload.nextPageToken]
-    .filter(value => value !== undefined)
+  const allowedKeys = new Set(topLevelKeys)
+  if (sources.slice(0, containers.length).some(source => Object.keys(source).some(key => !allowedKeys.has(key)))) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'campos de paginação desconhecidos')
+  }
+  const tokens = sources.flatMap(source => ['next_page_token', 'nextPageToken']
+    .filter(key => key in source)
+    .map(key => source[key]))
   if (tokens.some(value => value !== null && (typeof value !== 'string' || value.trim() === ''))) {
     throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'cursor inválido')
   }
-  const distinctTokens = [...new Set(tokens.map(value => value === null ? null : String(value)))]
-  if (distinctTokens.length > 1) {
+  const normalizedTokens = tokens.filter((value): value is string => typeof value === 'string')
+    .map(value => value.trim()).filter(Boolean)
+  const distinctTokens = [...new Set(normalizedTokens)]
+  if (distinctTokens.length > 1 || (tokens.includes(null) && distinctTokens.length > 0)) {
     throw providerError('HOTMART_PROVIDER_PAGINATION_CONFLICT', 'cursores contraditórios')
   }
   const nextPageToken = distinctTokens[0] ?? null
-  const moreValues = [info.has_more, info.hasMore, payload.has_more, payload.hasMore]
-    .filter(value => value !== undefined)
+  const moreValues = sources.flatMap(source => ['has_more', 'hasMore']
+    .filter(key => key in source)
+    .map(key => source[key]))
   if (moreValues.some(value => typeof value !== 'boolean') || new Set(moreValues).size > 1) {
     throw providerError('HOTMART_PROVIDER_PAGINATION_CONFLICT', 'has_more contraditório')
   }
