@@ -23,7 +23,10 @@ export interface CoreRaioxCompanionStore {
 
 export class MongooseCoreRaioxCompanionStore implements CoreRaioxCompanionStore {
   async read(generationId: string): Promise<CoreRaioxCompanionGeneration | null> {
-    const found = await ClarezaCoreRaioxCompanion.find({ generationId }).lean()
+    // ~310 documents per generation -- unbounded, this was the actual 15s+
+    // (up to 233s observed live) stall behind raiox/comparador, not the tiny
+    // publication pointer, which was already bounded and never the culprit.
+    const found = await ClarezaCoreRaioxCompanion.find({ generationId }).maxTimeMS(5_000).lean()
     const meta = found.find(item => item.ticker === META_TICKER)
     if (!meta) return null
     const companions = Object.fromEntries(found.flatMap(item => {

@@ -36,7 +36,7 @@ export interface CoreEarningsCompanionStore {
 
 export class MongooseCoreEarningsCompanionStore implements CoreEarningsCompanionStore {
   async read(generationId: string): Promise<CoreEarningsCompanionGeneration | null> {
-    const found = await ClarezaCoreEarningsCompanion.find({ generationId }).lean()
+    const found = await ClarezaCoreEarningsCompanion.find({ generationId }).maxTimeMS(5_000).lean()
     const meta = found.find(item => item.ticker === META_TICKER)
     if (!meta) return null
     return {

@@ -25,7 +25,7 @@ const decodePoints = (value: unknown): CoreTop10History['points'] => !Array.isAr
 
 export class MongooseCoreTop10CompanionStore implements CoreTop10CompanionStore {
   async read(generationId: string): Promise<CoreTop10CompanionGeneration | null> {
-    const found = await ClarezaCoreTop10Companion.find({ generationId }).lean()
+    const found = await ClarezaCoreTop10Companion.find({ generationId }).maxTimeMS(5_000).lean()
     const meta = found.find(item => item.ticker === META_TICKER)
     if (!meta) return null
     const errors = Array.isArray(meta.failures) ? meta.failures.flatMap(item => {
