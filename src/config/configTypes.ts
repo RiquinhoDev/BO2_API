@@ -22,6 +22,7 @@ export interface CoreConfig {
   readonly achievementEvaluationMutableExecutionEnabled?: boolean
   readonly weeklyTagSnapshotMutableExecutionEnabled?: boolean
   readonly guruTrialManualExecutionEnabled?: boolean
+  readonly hotmartSyncManualExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }

@@ -8,6 +8,7 @@ import { buildUserProductCreatePlan, buildUserProductUpdatePlan, planPrimaryReas
 import { debugLog } from './debugLog'
 import { errorMessage, toDateOrNull } from './fieldUtils'
 import { productsCache, type LeanProduct } from './productsCache'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 export type PersistUserProductResult =
   | { status: 'completed' }
@@ -19,6 +20,7 @@ interface PersistUserProductInput {
   syncType: UniversalSyncType
   user: IUser
   userId: string
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 async function determineProductId(
@@ -200,6 +202,8 @@ export async function persistUserProduct(
         logger.info(`   📚 [Classes] Adicionada turma ${plan.classAddedId} para ${user.email}`)
       }
       if (plan.needsUpdate) {
+        input.phaseHooks?.assertOwnership?.()
+        input.phaseHooks?.localMutationStarted()
         await UserProduct.findByIdAndUpdate(existing._id, { $set: plan.fields })
         debugLog(`   📦 UserProduct atualizado: ${user.email}`)
       }
@@ -233,6 +237,8 @@ export async function persistUserProduct(
 
         if (reassignment.demoteUpdate) {
           logger.info('      ✅ Novo produto mais recente → PRIMARY, antigo → INACTIVE')
+          input.phaseHooks?.assertOwnership?.()
+          input.phaseHooks?.localMutationStarted()
           await UserProduct.updateOne(
             { _id: existingPrimary._id },
             { $set: reassignment.demoteUpdate },
@@ -255,10 +261,13 @@ export async function persistUserProduct(
       clock: { now: () => new Date() },
     })
 
+    input.phaseHooks?.assertOwnership?.()
+    input.phaseHooks?.localMutationStarted()
     await UserProduct.create(newUserProduct)
     debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${syncType}`)
     return { status: 'completed' }
   } catch (error: unknown) {
+    if (input.phaseHooks) throw error
     logger.error(
       `❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}: ${errorMessage(error)}`,
     )

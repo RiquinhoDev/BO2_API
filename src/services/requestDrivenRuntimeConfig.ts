@@ -58,6 +58,11 @@ export function isGuruTrialManualExecutionEnabled(): boolean {
   return getRuntimeConfig().core.guruTrialManualExecutionEnabled === true
 }
 
+export function isHotmartSyncManualExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.hotmartSyncManualExecutionEnabled === true
+    && getRuntimeConfig().integrations.hotmart.configured === true
+}
+
 export function isRenewalOfferManualExecutionEnabled(): boolean {
   const config = getRuntimeConfig().renewal
   return config.offerManualExecutionEnabled === true

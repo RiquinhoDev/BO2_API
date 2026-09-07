@@ -4,6 +4,7 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isGuruTrialManualExecutionEnabled,
+  isHotmartSyncManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
@@ -87,6 +88,13 @@ export async function assertManualExecutionEnabled(capability: CronManualCapabil
       status: 503,
       code: 'GURU_TRIAL_MANUAL_EXECUTION_DISABLED',
       publicMessage: 'Execução manual dos trials Guru desativada',
+    })
+  }
+  if (capability.id === 'hotmart-sync' && !isHotmartSyncManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'HOTMART_SYNC_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual do sync Hotmart desativada',
     })
   }
 }

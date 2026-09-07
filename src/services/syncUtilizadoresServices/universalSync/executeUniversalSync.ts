@@ -15,6 +15,7 @@ import { getDocId } from './fieldUtils'
 import { productsCache } from './productsCache'
 import { processSyncItem } from './processSyncItem'
 import { debugLog } from './debugLog'
+import { prepareHotmartSync } from './hotmartSafety'
 
 // ═══════════════════════════════════════════════════════════
 // MAIN SYNC FUNCTION
@@ -49,6 +50,32 @@ export const executeUniversalSync = async (
   let hid: string
 
   try {
+    const prepared = config.syncType === 'hotmart'
+      ? await prepareHotmartSync(config.sourceData, config.dryRun === true)
+      : {
+        sourceData: Array.isArray(config.sourceData) ? config.sourceData : [config.sourceData],
+        plan: undefined,
+      }
+
+    if (config.dryRun === true) {
+      return {
+        success: true,
+        dryRun: true,
+        plan: prepared.plan as Record<string, unknown> | undefined,
+        stats: {
+          total: prepared.sourceData.length,
+          inserted: 0,
+          updated: 0,
+          errors: 0,
+          skipped: 0,
+          unchanged: 0,
+        },
+        duration: Math.floor((Date.now() - startTime) / 1000),
+        errors: [],
+        warnings: [],
+      }
+    }
+
     // ✅ OTIMIZAÇÃO FASE 1: Pre-load cache de produtos
     debugLog('📦 [ProductCache] Carregando produtos...')
     await productsCache.preload()
@@ -57,6 +84,8 @@ export const executeUniversalSync = async (
     // STEP 1: CRIAR SYNCREPORT
     // ═══════════════════════════════════════════════════════════
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     const report = await syncReportsService.createSyncReport({
       jobId: config.jobId,
       jobName: config.jobName,
@@ -76,6 +105,8 @@ export const executeUniversalSync = async (
 
     logger.info(`✅ [UniversalSync] Report criado: ${rid}`)
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     await syncReportsService.addReportLog(rid, 'info', `Iniciando sincronização ${config.syncType}`, {
       fullSync: config.fullSync,
       batchSize: config.batchSize,
@@ -86,6 +117,8 @@ export const executeUniversalSync = async (
     // STEP 2: CRIAR SYNCHISTORY
     // ═══════════════════════════════════════════════════════════
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     const syncHistory = await SyncHistory.create({
       type: config.syncType,
       status: 'running',
@@ -115,9 +148,11 @@ export const executeUniversalSync = async (
     // STEP 3: PROCESSAR DADOS
     // ═══════════════════════════════════════════════════════════
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     await syncReportsService.addReportLog(rid, 'info', 'Processando dados da fonte...')
 
-    const sourceArray = Array.isArray(config.sourceData) ? config.sourceData : [config.sourceData]
+    const sourceArray = prepared.sourceData
     stats.total = sourceArray.length
 
     for (let i = 0; i < sourceArray.length; i += config.batchSize) {
@@ -127,6 +162,8 @@ export const executeUniversalSync = async (
 
       logger.info(`📦 [UniversalSync] Processando batch ${batchNumber}/${totalBatches} (${batch.length} itens)`)
 
+      config.phaseHooks?.assertOwnership?.()
+      config.phaseHooks?.localMutationStarted()
       await syncReportsService.addReportLog(
         rid,
         'info',
@@ -155,6 +192,7 @@ export const executeUniversalSync = async (
             })
           }
         } catch (err: unknown) {
+          if (config.phaseHooks) throw err
           stats.errors++
 
           const e = err as { message?: unknown; stack?: unknown; code?: unknown }
@@ -197,6 +235,8 @@ export const executeUniversalSync = async (
     // STEP 4: ATUALIZAR STATS
     // ═══════════════════════════════════════════════════════════
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     await syncReportsService.updateReportStats(rid, stats)
 
     // ═══════════════════════════════════════════════════════════
@@ -206,6 +246,8 @@ export const executeUniversalSync = async (
     const finalStatus =
       stats.errors > 0 ? (stats.errors === stats.total ? 'failed' : 'partial') : 'success'
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     await syncReportsService.completeReport(rid, finalStatus)
 
     // ═══════════════════════════════════════════════════════════
@@ -215,6 +257,8 @@ export const executeUniversalSync = async (
     const completedAt = new Date()
     const durationSeconds = Math.floor((completedAt.getTime() - new Date(syncHistory.startedAt).getTime()) / 1000)
 
+    config.phaseHooks?.assertOwnership?.()
+    config.phaseHooks?.localMutationStarted()
     await SyncHistory.findByIdAndUpdate(syncHistoryId, {
       status: 'completed',
       completedAt,
@@ -257,6 +301,8 @@ export const executeUniversalSync = async (
     logger.error('❌ [UniversalSync] Erro fatal:', message)
 
     if (reportId) {
+      config.phaseHooks?.assertOwnership?.()
+      config.phaseHooks?.localMutationStarted()
       await syncReportsService.addReportError(
         reportId,
         `Erro fatal: ${message}`,
@@ -264,6 +310,8 @@ export const executeUniversalSync = async (
         undefined,
         stack
       )
+      config.phaseHooks?.assertOwnership?.()
+      config.phaseHooks?.localMutationStarted()
       await syncReportsService.completeReport(reportId, 'failed')
     }
 
@@ -271,6 +319,8 @@ export const executeUniversalSync = async (
       const errorTime = new Date()
       const durationSeconds = Math.floor((errorTime.getTime() - new Date().getTime()) / 1000)
 
+      config.phaseHooks?.assertOwnership?.()
+      config.phaseHooks?.localMutationStarted()
       await SyncHistory.findByIdAndUpdate(syncHistoryId, {
         status: 'failed',
         completedAt: errorTime,

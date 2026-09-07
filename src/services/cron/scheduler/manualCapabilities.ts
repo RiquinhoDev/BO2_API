@@ -159,6 +159,19 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'Job de Hotmart' && job.syncType === 'hotmart',
+    capability: implemented(
+      'hotmart-sync',
+      'cron-job',
+      {
+        status: 'verified',
+        reason: 'hotmart-sync-max-provider-pages-items-and-effective-mutations',
+        limit: MAX_PROVIDER_READ_ITEMS,
+      },
+      { status: 'verified', reason: 'HOTMART_SYNC_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.syncType === 'pipeline',
     capability: implemented(
       'daily-pipeline',

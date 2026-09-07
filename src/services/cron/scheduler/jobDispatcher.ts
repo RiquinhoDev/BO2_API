@@ -7,10 +7,12 @@ import type {
   WeeklyTagSnapshotPlan,
   RenewalAcSyncPlan,
   RenewalOfferSyncPlan,
+  HotmartSyncPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { normalizePlannedExecution } from './plannedExecutionNormalizer'
 import { normalizeGuruTrialDispatch } from './guruTrialDispatchNormalizer'
+import { normalizeHotmartSyncDispatch } from './hotmartSyncDispatchNormalizer'
 import { normalizeRenewalOfferDispatch } from './renewalOfferDispatchNormalizer'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
@@ -35,7 +37,7 @@ export interface CronDispatchResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan
 }
 
 export interface CronDispatchOptions {
@@ -60,8 +62,8 @@ export interface CronDispatchDependencies {
   runRenewalAcSync: UnknownRunner
   evaluateAchievements: UnknownRunner
   executeDailyPipeline: (options?: CronDispatchOptions) => Promise<unknown>
-  fetchHotmart(): Promise<UniversalSourceItem[]>
-  fetchCurseduca(): Promise<UniversalSourceItem[]>
+  fetchHotmart(options?: CronDispatchOptions): Promise<UniversalSourceItem[]>
+  fetchCurseduca(options?: CronDispatchOptions): Promise<UniversalSourceItem[]>
   executeUniversalSync(request: UniversalSyncRequest): Promise<unknown>
 }
 
@@ -180,11 +182,12 @@ const defaultDependencies: CronDispatchDependencies = {
     phaseHooks: options?.phaseHooks,
   }),
   executeDailyPipeline,
-  fetchHotmart: () =>
+  fetchHotmart: (options) =>
     hotmartAdapter.fetchHotmartDataForSync({
       includeProgress: true,
       includeLessons: true,
-      progressConcurrency: 5
+      progressConcurrency: 5,
+      phaseHooks: options?.phaseHooks,
     }),
   fetchCurseduca: () =>
     curseducaAdapter.fetchCurseducaDataForSync({
@@ -206,9 +209,9 @@ export class CronJobDispatcher {
 
     switch (job.syncType) {
       case 'hotmart':
-        return this.executePlatformSync(job, 'hotmart')
+        return this.executePlatformSync(job, 'hotmart', options)
       case 'curseduca':
-        return this.executePlatformSync(job, 'curseduca')
+        return this.executePlatformSync(job, 'curseduca', options)
       case 'discord':
         return this.executeDiscordSync()
       case 'all':
@@ -374,18 +377,21 @@ export class CronJobDispatcher {
 
   private async executePlatformSync(
     job: CronDispatchJob,
-    syncType: 'hotmart' | 'curseduca'
+    syncType: 'hotmart' | 'curseduca',
+    options: CronDispatchOptions = {},
   ): Promise<CronDispatchResult> {
     const sourceData =
       syncType === 'hotmart'
-        ? await this.dependencies.fetchHotmart()
-        : await this.dependencies.fetchCurseduca()
+        ? await this.dependencies.fetchHotmart(options)
+        : await this.dependencies.fetchCurseduca(options)
     const result = recordOf(
       await this.dependencies.executeUniversalSync({
         syncType,
         jobName: job.name,
         jobId: job._id.toString(),
-        triggeredBy: 'CRON',
+        triggeredBy: options.triggeredBy ?? 'CRON',
+        ...(options.dryRun === true ? { dryRun: true } : {}),
+        ...(options.phaseHooks ? { phaseHooks: options.phaseHooks } : {}),
         fullSync: true,
         includeProgress: true,
         includeTags: false,
@@ -393,10 +399,12 @@ export class CronJobDispatcher {
         sourceData
       })
     )
-    return {
-      success: booleanOf(result, 'success') === true,
-      stats: this.readStats(result)
-    }
+    return syncType === 'hotmart'
+      ? normalizeHotmartSyncDispatch(result)
+      : {
+        success: booleanOf(result, 'success') === true,
+        stats: this.readStats(result)
+      }
   }
 
   private executeDiscordSync(): CronDispatchResult {

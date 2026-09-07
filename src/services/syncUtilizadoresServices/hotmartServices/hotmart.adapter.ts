@@ -10,6 +10,7 @@ import { UniversalSourceItem } from '../../../types/universalSync.types'
 import { assertProviderReadBatchSize } from '../../../security/providerReadBatchPolicy'
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -23,6 +24,7 @@ export interface HotmartSyncOptions {
   includeProgress: boolean
   includeLessons: boolean
   progressConcurrency?: number
+  phaseHooks?: CronExecutionPhaseHooks
 }
 
 export type UniversalSyncUserData =
@@ -52,11 +54,14 @@ export const fetchHotmartDataForSync = async (
   try {
     // STEP 1: AUTENTICAÇÃO
     logger.info('🔐 [HotmartAdapter] Step 1/4: Autenticação...')
+    options.phaseHooks?.assertOwnership?.()
+    options.phaseHooks?.providerStarted()
     const accessToken = await hotmartHelpers.getHotmartAccessToken()
+    options.phaseHooks?.providerSucceeded()
 
     // STEP 2: BUSCAR UTILIZADORES
     logger.info('📡 [HotmartAdapter] Step 2/4: Buscando utilizadores...')
-    const rawUsers = await hotmartHelpers.fetchAllHotmartUsers(accessToken)
+    const rawUsers = await hotmartHelpers.fetchAllHotmartUsers(accessToken, { phaseHooks: options.phaseHooks })
     assertProviderReadBatchSize(rawUsers.length, 'hotmart')
 
     if (rawUsers.length === 0) {
@@ -204,6 +209,12 @@ if (!hotmartId) {
     return normalizedUsers
   } catch (error: unknown) {
     logger.error('❌ [HotmartAdapter] Erro fatal:', error)
+    if (error instanceof Error && (
+      typeof (error as { code?: unknown }).code === 'string' ||
+      (error as { status?: unknown }).status === 413
+    )) {
+      throw error
+    }
     throw new Error(`Adapter falhou: ${errorMessage(error)}`)
   }
 }

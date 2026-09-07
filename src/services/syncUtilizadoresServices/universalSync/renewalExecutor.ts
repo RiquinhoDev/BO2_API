@@ -8,6 +8,7 @@ import {
   type Clock,
 } from './hotmartExpiration'
 import type { ApprovedRenewalDecision } from './renewalPolicy'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 const systemClock: Clock = { now: () => new Date() }
 
@@ -16,6 +17,7 @@ export async function applyAutoReactivation(
   userEmail: string,
   decision: ApprovedRenewalDecision,
   clock: Clock = systemClock,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<void> {
   logger.info('🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!')
   logger.info(`   📧 User: ${userEmail}`)
@@ -36,6 +38,8 @@ export async function applyAutoReactivation(
 
   logger.info(`✅ [AutoReactivation] Reativando ${userEmail}...`)
 
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
   await User.findByIdAndUpdate(userId, {
     $set: {
       ...buildCanonicalActiveUserStatusUpdate(),
@@ -46,6 +50,8 @@ export async function applyAutoReactivation(
     },
   })
 
+  phaseHooks?.assertOwnership?.()
+  phaseHooks?.localMutationStarted()
   await UserProduct.updateMany({ userId }, { $set: { status: 'ACTIVE' } })
 
   // The removed legacy Discord call targeted an endpoint that never existed.

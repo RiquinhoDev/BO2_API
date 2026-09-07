@@ -69,7 +69,21 @@ export interface CronExecutionResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan
+}
+
+export interface HotmartSyncPlan {
+  operation: 'hotmart-sync'
+  dryRun: boolean
+  truncated: false
+  anomaly: false
+  limit: number
+  total: number
+  inserted: number
+  updated: number
+  errors: number
+  skipped: number
+  remaining: number
 }
 
 export interface DailyPipelinePlan {

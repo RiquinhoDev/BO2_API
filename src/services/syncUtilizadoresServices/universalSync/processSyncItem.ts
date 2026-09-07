@@ -23,8 +23,14 @@ import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './build
 import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
+import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
+
+const beforeMutation = (hooks?: CronExecutionPhaseHooks): void => {
+  hooks?.assertOwnership?.()
+  hooks?.localMutationStarted()
+}
 
 /**
  * Cria ou atualiza uma turma na tabela Class
@@ -36,7 +42,8 @@ async function ensureClassExists(
   className: string | undefined,
   source: 'hotmart' | 'curseduca',
   curseducaId?: string,
-  curseducaUuid?: string
+  curseducaUuid?: string,
+  phaseHooks?: CronExecutionPhaseHooks,
 ): Promise<string> {
   if (!classId) return className || `Turma ${classId}`
 
@@ -46,6 +53,7 @@ async function ensureClassExists(
     if (!existingClass) {
       const displayName = className || `Turma ${classId}`
 
+      beforeMutation(phaseHooks)
       await Class.create({
         classId,
         name: displayName,
@@ -80,11 +88,13 @@ async function ensureClassExists(
         if (curseducaUuid && !existingClass.curseducaUuid) updates.curseducaUuid = curseducaUuid
       }
 
+      beforeMutation(phaseHooks)
       await Class.findByIdAndUpdate(existingClass._id, updates)
       // Devolver o nome real da BD (que pode ter sido editado manualmente)
       return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
     }
   } catch (error: unknown) {
+    if (phaseHooks) throw error
     if (mongoErrorCode(error) !== 11000) {
       logger.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, errorMessage(error))
     }
@@ -115,6 +125,7 @@ export const processSyncItem = async (
   const isNew = !user
 
   if (!user) {
+    beforeMutation(config.phaseHooks)
     user = await User.create({
       email,
       name
@@ -142,7 +153,7 @@ export const processSyncItem = async (
   if (config.syncType === 'hotmart') {
     // PREPARE: resolve the real class (ensureClassExists stays out of the pure builder).
     const resolvedClass = item.classId
-      ? { classId: item.classId, className: await ensureClassExists(item.classId, item.className, 'hotmart') }
+      ? { classId: item.classId, className: await ensureClassExists(item.classId, item.className, 'hotmart', undefined, undefined, config.phaseHooks) }
       : undefined
 
     // PURE BUILDER: item + current user state + resolved class -> explicit plan (no I/O).
@@ -170,6 +181,7 @@ export const processSyncItem = async (
       try {
         const StudentClassHistory = (await import('../../../models/StudentClassHistory')).default
         if (ev.type === 'class-changed') {
+          beforeMutation(config.phaseHooks)
           await StudentClassHistory.create({
             studentId: user._id,
             classId: ev.classId,
@@ -182,6 +194,7 @@ export const processSyncItem = async (
           })
           logger.info(`   📝 [ClassChange] ${user.email}: "${ev.previousClassName}" → "${ev.className}"`)
         } else {
+          beforeMutation(config.phaseHooks)
           await StudentClassHistory.create({
             studentId: user._id,
             classId: ev.classId,
@@ -193,6 +206,7 @@ export const processSyncItem = async (
           logger.info(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${ev.className}"`)
         }
       } catch (error: unknown) {
+        if (config.phaseHooks) throw error
         logger.warn(`   ⚠️ Erro ao registrar histórico de turma para ${user.email}:`, errorMessage(error))
       }
     }
@@ -210,7 +224,7 @@ export const processSyncItem = async (
   if (config.syncType === 'curseduca') {
     // PREPARE: ensure the group's class exists (side effect only; groupId is the classId, never the student uuid).
     if (item.groupId) {
-      await ensureClassExists(String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined)
+      await ensureClassExists(String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined, config.phaseHooks)
     }
 
     // PURE BUILDER: item + current user state -> explicit plan (no I/O).
@@ -237,6 +251,7 @@ export const processSyncItem = async (
         })
 
         if (userProductToUpdate) {
+          beforeMutation(config.phaseHooks)
           await UserProduct.findByIdAndUpdate(userProductToUpdate._id, {
             $set: {
               status: 'INACTIVE',
@@ -252,6 +267,7 @@ export const processSyncItem = async (
           debugLog(`   ✅ [CursEduca Sync] Removido de PARA_INATIVAR (já INACTIVE): ${user.email}`)
         }
       } catch (err: unknown) {
+        if (config.phaseHooks) throw err
         logger.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, errorMessage(err))
       }
     }
@@ -271,7 +287,7 @@ export const processSyncItem = async (
 
   if (renewalResult.shouldReactivate) {
     // Utilizador renovou! Aplicar reativação automática
-    await applyAutoReactivation(userIdStr, user.email, renewalResult)
+    await applyAutoReactivation(userIdStr, user.email, renewalResult, undefined, config.phaseHooks)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -304,6 +320,7 @@ export const processSyncItem = async (
       needsUpdate = true
 
       // Também reativar UserProduct (apenas Hotmart - CursEduca é gerido pelo Guru)
+      beforeMutation(config.phaseHooks)
       await UserProduct.updateMany(
         { userId: userIdStr, platform: 'hotmart', status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } },
         { $set: { status: 'ACTIVE' } }
@@ -336,6 +353,7 @@ export const processSyncItem = async (
   // APLICAR UPDATES NO USER
   // ═══════════════════════════════════════════════════════════
   if (needsUpdate) {
+    beforeMutation(config.phaseHooks)
     await User.findByIdAndUpdate(userIdStr, { $set: updateFields })
     debugLog(`🔄 [UniversalSync] User atualizado: ${user.email}`)
   }
@@ -347,6 +365,7 @@ export const processSyncItem = async (
     syncType: config.syncType,
     user,
     userId: userIdStr,
+    phaseHooks: config.phaseHooks,
   })
 
   if (userProductResult.status === 'missing-product') {
@@ -366,6 +385,7 @@ export const processSyncItem = async (
       .populate('productId', 'name code platform')
 
     // Criar snapshot, comparar com anterior e registar histórico
+    beforeMutation(config.phaseHooks)
     const { comparison } = await snapshotAndCompare(
       user,
       userProducts,
@@ -380,6 +400,7 @@ export const processSyncItem = async (
       debugLog(`      - LOW: ${comparison.summary.lowPriorityChanges}`)
     }
   } catch (snapshotError: unknown) {
+    if (config.phaseHooks) throw snapshotError
     logger.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, errorMessage(snapshotError))
     // Não falhar o sync por erro no snapshot
   }

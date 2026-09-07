@@ -15,6 +15,7 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isGuruTrialManualExecutionEnabled,
+  isHotmartSyncManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
@@ -56,6 +57,10 @@ function manualMutableEnabled(
   if (capability.id === 'guru-trial-check') {
     const enabled = isGuruTrialManualExecutionEnabled()
     return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual dos trials Guru desativada' }) }
+  }
+  if (capability.id === 'hotmart-sync') {
+    const enabled = isHotmartSyncManualExecutionEnabled()
+    return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual do sync Hotmart desativada' }) }
   }
   return { enabled: false }
 }

@@ -1,5 +1,6 @@
 import { buildAllowedOrigins } from '../security/cors'
 import { freezeRecursively } from './runtimeConfig'
+import { parseHotmartSyncManualExecutionEnabled } from './hotmartSyncConfig'
 import type {
   ActiveCampaignIntegration,
   AppConfig,
@@ -437,7 +438,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   const nodeEnv = rawNodeEnv as NodeEnvironment
   const serverVersion = env.npm_package_version?.trim() || undefined
-
   const authEnforce = parseBooleanFlag(env.AUTH_ENFORCE, 'AUTH_ENFORCE', true)
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
   const syncMutableExecutionEnabled = parseBooleanFlag(
@@ -451,16 +451,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const achievementEvaluationMutableExecutionEnabled = parseBooleanFlag(env.ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED, 'ACHIEVEMENT_EVALUATION_MUTABLE_EXECUTION_ENABLED')
   const integrations = parseIntegrations(env, acWebhookSecret)
   const guruTrialManualExecutionEnabled = parseGuruTrialManualExecutionEnabled(env, integrations.guru)
+  const hotmartSyncManualExecutionEnabled = parseHotmartSyncManualExecutionEnabled(
+    env,
+    integrations.hotmart,
+  )
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
-
   const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS, nodeEnv)
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env, nodeEnv)
   const observability = parseObservability(env, nodeEnv)
   const renewal = parseRenewal(env, integrations)
-
   const core = {
     nodeEnv,
     ...(serverVersion !== undefined ? { serverVersion } : {}),
@@ -475,6 +477,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cronExecutionCleanupMutableExecutionEnabled,
     achievementEvaluationMutableExecutionEnabled,
     guruTrialManualExecutionEnabled,
+    hotmartSyncManualExecutionEnabled,
     weeklyTagSnapshotMutableExecutionEnabled: parseBooleanFlag(
       env.WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED,
       'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED',
@@ -482,7 +485,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     allowedOrigins,
     port,
   }
-
   const config: AppConfig = {
     ...core,
     core,

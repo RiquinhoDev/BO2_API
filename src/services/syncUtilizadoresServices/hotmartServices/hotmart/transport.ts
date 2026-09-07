@@ -1,8 +1,12 @@
 import logger from '../../../../utils/logger'
 import axios from 'axios'
-import { HotmartModule, HotmartModuleProgress } from '../../../../types/lesson.types'
 import { getHotmartCredentials, getHotmartSubdomain } from '../../../requestDrivenRuntimeConfig'
 import { calculateProgress } from './processing'
+import type { CronExecutionPhaseHooks } from '../../../cron/scheduler/executionPhases'
+
+export const HOTMART_PROVIDER_PAGE_SIZE = 100
+export const HOTMART_PROVIDER_MAX_PAGES = 200
+export const HOTMART_PROVIDER_MAX_ITEMS = 20_000
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -129,6 +133,8 @@ interface HotmartTokenResponse {
 interface HotmartPageInfo {
   next_page_token?: string
   nextPageToken?: string
+  has_more?: boolean
+  hasMore?: boolean
 }
 
 interface HotmartUsersResponse {
@@ -138,6 +144,10 @@ interface HotmartUsersResponse {
   page_info?: HotmartPageInfo
   pageInfo?: HotmartPageInfo
   pagination?: HotmartPageInfo
+  partial?: boolean
+  is_partial?: boolean
+  incomplete?: boolean
+  success?: boolean
 }
 
 interface HotmartLessonsResponse {
@@ -173,10 +183,80 @@ export const getHotmartAccessToken = async (): Promise<string> => {
   }
 }
 
-export const fetchAllHotmartUsers = async (accessToken: string): Promise<HotmartUser[]> => {
+interface HotmartFetchOptions {
+  phaseHooks?: CronExecutionPhaseHooks
+}
+
+const providerError = (code: string, detail: string): Error => {
+  const error = new Error(`${code}: ${detail}`)
+  const status = code.includes('LIMIT_EXCEEDED') || code === 'HOTMART_PROVIDER_PAGE_SIZE_EXCEEDED' ? 413 : 422
+  Object.assign(error, { code, status })
+  return error
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const normalizePageUsers = (payload: Record<string, unknown>): HotmartUser[] => {
+  const fields = ['users', 'items', 'data'].filter(field => field in payload)
+  if (fields.length !== 1) {
+    throw providerError('HOTMART_PROVIDER_ENVELOPE_INVALID', 'resposta deve conter exactamente um array de utilizadores')
+  }
+  const users = payload[fields[0]]
+  if (!Array.isArray(users)) {
+    throw providerError('HOTMART_PROVIDER_ENVELOPE_INVALID', 'array de utilizadores inválido')
+  }
+  return users as HotmartUser[]
+}
+
+const normalizePageInfo = (payload: Record<string, unknown>): { nextPageToken: string | null; hasMore: boolean } => {
+  const containers = ['page_info', 'pageInfo', 'pagination'].filter(field => field in payload)
+  if (containers.length !== 1 || !isRecord(payload[containers[0]])) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'paginação ausente ou inválida')
+  }
+  const info = payload[containers[0]] as Record<string, unknown>
+  const tokens = [info.next_page_token, info.nextPageToken, payload.next_page_token, payload.nextPageToken]
+    .filter(value => value !== undefined)
+  if (tokens.some(value => value !== null && (typeof value !== 'string' || value.trim() === ''))) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_INVALID', 'cursor inválido')
+  }
+  const distinctTokens = [...new Set(tokens.map(value => value === null ? null : String(value)))]
+  if (distinctTokens.length > 1) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_CONFLICT', 'cursores contraditórios')
+  }
+  const nextPageToken = distinctTokens[0] ?? null
+  const moreValues = [info.has_more, info.hasMore, payload.has_more, payload.hasMore]
+    .filter(value => value !== undefined)
+  if (moreValues.some(value => typeof value !== 'boolean') || new Set(moreValues).size > 1) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_CONFLICT', 'has_more contraditório')
+  }
+  const hasMore = moreValues.length > 0 ? moreValues[0] as boolean : nextPageToken !== null
+  if (hasMore !== (nextPageToken !== null)) {
+    throw providerError('HOTMART_PROVIDER_PAGINATION_CONFLICT', 'cursor e has_more não coincidem')
+  }
+  return { nextPageToken, hasMore }
+}
+
+const stableHotmartUserId = (user: HotmartUser): string => {
+  if (!isRecord(user)) throw providerError('HOTMART_PROVIDER_USER_INVALID', 'utilizador não é objecto')
+  const values = ['id', 'user_id', 'uid', 'code']
+    .map(key => user[key as keyof HotmartUser])
+    .filter(value => value !== undefined && value !== null && String(value).trim() !== '')
+    .map(String)
+  if (values.length === 0) throw providerError('HOTMART_PROVIDER_USER_IDENTITY_INVALID', 'utilizador sem identidade estável')
+  if (new Set(values).size > 1) throw providerError('HOTMART_PROVIDER_USER_IDENTITY_CONFLICT', 'identidades contraditórias')
+  return values[0]
+}
+
+export const fetchAllHotmartUsers = async (
+  accessToken: string,
+  options: HotmartFetchOptions = {},
+): Promise<HotmartUser[]> => {
   let allUsers: HotmartUser[] = []
   let nextPageToken: string | null = null
   let pageCount = 0
+  const seenUserIds = new Set<string>()
+  const seenPageTokens = new Set<string>()
   const subdomain = getHotmartSubdomain()
 
   logger.info('📡 [HotmartFetch] Iniciando busca de utilizadores...')
@@ -184,6 +264,9 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
   try {
     do {
       pageCount++
+      if (pageCount > HOTMART_PROVIDER_MAX_PAGES) {
+        throw providerError('HOTMART_PROVIDER_PAGE_LIMIT_EXCEEDED', `limite de ${HOTMART_PROVIDER_MAX_PAGES} páginas excedido`)
+      }
       let requestUrl = `https://developers.hotmart.com/club/api/v1/users?subdomain=${subdomain}`
       if (nextPageToken) {
         requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
@@ -191,6 +274,8 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
 
       logger.info(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
 
+      options.phaseHooks?.assertOwnership?.()
+      options.phaseHooks?.providerStarted()
       const response = await requestWithRetry(
         () => axios.get<HotmartUsersResponse>(requestUrl, {
           headers: {
@@ -201,21 +286,44 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
         }),
         { maxRetries: 5, baseDelayMs: 1000 }
       )
+      options.phaseHooks?.providerSucceeded()
 
-      const users = response.data.users || response.data.items || response.data.data || []
-      const pageInfo = response.data.page_info || response.data.pageInfo || response.data.pagination || {}
-
-      if (!Array.isArray(users)) {
-        throw new Error(`Resposta inválida: esperado array, recebido ${typeof users}`)
+      const payload = response.data as unknown
+      if (!isRecord(payload)) throw providerError('HOTMART_PROVIDER_ENVELOPE_INVALID', 'resposta não é objecto')
+      const hasProviderErrors = payload.error !== undefined
+        || (Array.isArray(payload.errors) && payload.errors.length > 0)
+        || payload.failure !== undefined
+      if (payload.success === false || hasProviderErrors || payload.partial === true || payload.is_partial === true || payload.incomplete === true) {
+        throw providerError('HOTMART_PROVIDER_PARTIAL_RESPONSE', 'resposta parcial ou falhada')
       }
+      const users = normalizePageUsers(payload)
+      if (users.length > HOTMART_PROVIDER_PAGE_SIZE) {
+        throw providerError('HOTMART_PROVIDER_PAGE_SIZE_EXCEEDED', `página excede ${HOTMART_PROVIDER_PAGE_SIZE} itens`)
+      }
+      for (const user of users) {
+        const userId = stableHotmartUserId(user)
+        if (seenUserIds.has(userId)) throw providerError('HOTMART_PROVIDER_USER_DUPLICATE', `identidade repetida: ${userId}`)
+        seenUserIds.add(userId)
+      }
+      if (allUsers.length + users.length > HOTMART_PROVIDER_MAX_ITEMS) {
+        throw providerError('HOTMART_PROVIDER_ITEM_LIMIT_EXCEEDED', `limite de ${HOTMART_PROVIDER_MAX_ITEMS} itens excedido`)
+      }
+      const pageInfo = normalizePageInfo(payload)
 
       allUsers = allUsers.concat(users)
-      nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
+      if (pageInfo.nextPageToken && seenPageTokens.has(pageInfo.nextPageToken)) {
+        throw providerError('HOTMART_PROVIDER_CURSOR_REPEATED', 'cursor repetido')
+      }
+      if (pageInfo.nextPageToken === nextPageToken && pageInfo.nextPageToken !== null) {
+        throw providerError('HOTMART_PROVIDER_CURSOR_REPEATED', 'cursor não avançou')
+      }
+      nextPageToken = pageInfo.nextPageToken
+      if (nextPageToken) seenPageTokens.add(nextPageToken)
 
       logger.info(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
       logger.info(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
 
-      if (nextPageToken) {
+      if (pageInfo.hasMore && nextPageToken) {
         await sleep(500)
       }
     } while (nextPageToken)
@@ -224,6 +332,9 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
     return allUsers
   } catch (error: unknown) {
     logger.error('❌ [HotmartFetch] Erro:', responseData(error) || errorMessage(error))
+    if (error instanceof Error && typeof (error as { code?: unknown }).code === 'string') {
+      throw error
+    }
     throw new Error(`Erro ao buscar utilizadores: ${errorMessage(error)}`)
   }
 }
