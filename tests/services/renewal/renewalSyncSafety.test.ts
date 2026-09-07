@@ -215,6 +215,57 @@ test('rejects malformed pagination metadata before local reads', async () => {
   expect(mockRenewalOffer.find).not.toHaveBeenCalled()
 })
 
+test('follows a supported top-level next_page_token alias', async () => {
+  jest.mocked(axios.get)
+    .mockResolvedValueOnce({ data: { items: [sale()], next_page_token: 'next' } })
+    .mockResolvedValueOnce({ data: { items: [], next_page_token: null } })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).resolves.toMatchObject({
+    success: true,
+    dryRun: true,
+  })
+  expect(axios.get).toHaveBeenCalledTimes(2)
+})
+
+test('rejects a top-level has_more continuation without a cursor before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], has_more: true } })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+  expect(mockRenewalOffer.create).not.toHaveBeenCalled()
+})
+
+test('rejects a top-level hasMore continuation without a cursor before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], hasMore: true } })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+})
+
+test('rejects contradictory top-level and container page tokens before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], page_info: { next_page_token: 'A' }, next_page_token: 'B' } })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+  expect(mockRenewalOffer.create).not.toHaveBeenCalled()
+})
+
+test('rejects contradictory top-level and container has-more flags before local reads', async () => {
+  jest.mocked(axios.get).mockResolvedValueOnce({ data: { items: [sale()], page_info: { has_more: false }, has_more: true } })
+
+  await expect(runSync({ dryRun: true, phaseHooks: phaseHooks() })).rejects.toMatchObject({
+    code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID',
+  })
+  expect(mockRenewalOffer.find).not.toHaveBeenCalled()
+  expect(mockRenewalOffer.create).not.toHaveBeenCalled()
+})
+
 test('rejects a sale without product identity before filtering non-OGI sales', async () => {
   const invalid = sale()
   delete (invalid.purchase.product as { id?: string }).id

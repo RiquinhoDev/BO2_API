@@ -98,17 +98,26 @@ function salesItems(data: Record<string, unknown>): unknown[] {
 
 function pagination(data: Record<string, unknown>): { next: string | null; more: boolean | undefined } {
   const containers = ['page_info', 'pageInfo', 'pagination'].filter(key => Object.prototype.hasOwnProperty.call(data, key))
-  if (containers.length !== 1 || !recordOf(data[containers[0]])) {
+  const sources: Record<string, unknown>[] = []
+  for (const key of containers) {
+    const container = recordOf(data[key])
+    if (!container) {
+      throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
+    }
+    sources.push(container)
+  }
+  const topLevelKeys = ['next_page_token', 'nextPageToken', 'has_more', 'hasMore']
+  if (topLevelKeys.some(key => Object.prototype.hasOwnProperty.call(data, key))) sources.push(data)
+  if (sources.length === 0) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
-  const container = data[containers[0]] as Record<string, unknown>
   const allowedKeys = new Set(['next_page_token', 'nextPageToken', 'has_more', 'hasMore'])
-  if (Object.keys(container).some(key => !allowedKeys.has(key))) {
+  if (sources.slice(0, containers.length).some(source => Object.keys(source).some(key => !allowedKeys.has(key)))) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
-  const tokenValues = ['next_page_token', 'nextPageToken']
-    .filter(key => Object.prototype.hasOwnProperty.call(container, key))
-    .map(key => container[key])
+  const tokenValues = sources.flatMap(source => ['next_page_token', 'nextPageToken']
+    .filter(key => Object.prototype.hasOwnProperty.call(source, key))
+    .map(key => source[key]))
   if (tokenValues.some(value => value !== null && (typeof value !== 'string' || !value.trim()))) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
@@ -116,9 +125,9 @@ function pagination(data: Record<string, unknown>): { next: string | null; more:
   if (tokens.length > 1 || (tokenValues.includes(null) && tokens.length > 0)) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
-  const moreValues = ['has_more', 'hasMore']
-    .filter(key => Object.prototype.hasOwnProperty.call(container, key))
-    .map(key => container[key])
+  const moreValues = sources.flatMap(source => ['has_more', 'hasMore']
+    .filter(key => Object.prototype.hasOwnProperty.call(source, key))
+    .map(key => source[key]))
   if (moreValues.some(value => typeof value !== 'boolean') || new Set(moreValues).size > 1) {
     throw new HttpError({ status: 502, code: 'RENEWAL_OFFER_PROVIDER_PAGINATION_INVALID', publicMessage: 'Paginação Hotmart inválida para ofertas de renovação' })
   }
