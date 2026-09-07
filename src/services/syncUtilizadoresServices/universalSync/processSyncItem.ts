@@ -11,6 +11,7 @@ import type { UpdateQuery } from 'mongoose'
 import User from '../../../models/user'
 import { UserProduct } from '../../../models'
 import { Class, type IClass } from '../../../models/Class'
+import UserSnapshot from '../../../models/UserSnapshot'
 import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import { snapshotAndCompare } from '../../snapshotServices/userSnapshot.service'
 import type { UniversalSnapshotContext } from '../universalSyncSnapshot'
@@ -24,12 +25,14 @@ import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
+import { assertHotmartUserMatchesPlan, hotmartUserOptimisticFilter, type HotmartExecutionPlan } from './hotmartSafety'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
-const beforeMutation = (hooks?: CronExecutionPhaseHooks): void => {
+const beforeMutation = (hooks?: CronExecutionPhaseHooks, count = 1): void => {
   hooks?.assertOwnership?.()
   hooks?.localMutationStarted()
+  hooks?.consumeMutation?.(count)
 }
 
 /**
@@ -44,11 +47,17 @@ async function ensureClassExists(
   curseducaId?: string,
   curseducaUuid?: string,
   phaseHooks?: CronExecutionPhaseHooks,
+  plannedClass?: IClass,
+  plannedClassLookupProvided = false,
 ): Promise<string> {
   if (!classId) return className || `Turma ${classId}`
 
   try {
-    const existingClass = await Class.findOne({ classId })
+    // A prepared execution plan is authoritative, including a deliberate
+    // null result. Never turn a planned miss into an unbounded live lookup.
+    const existingClass = plannedClassLookupProvided
+      ? plannedClass
+      : await Class.findOne({ classId })
 
     if (!existingClass) {
       const displayName = className || `Turma ${classId}`
@@ -89,7 +98,16 @@ async function ensureClassExists(
       }
 
       beforeMutation(phaseHooks)
-      await Class.findByIdAndUpdate(existingClass._id, updates)
+      const updatedClass = await Class.findOneAndUpdate(
+        {
+          _id: existingClass._id,
+          classId,
+          ...(existingClass.updatedAt ? { updatedAt: existingClass.updatedAt } : { name: existingClass.name }),
+        },
+        updates,
+        { new: true },
+      )
+      if (!updatedClass && phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
       // Devolver o nome real da BD (que pode ter sido editado manualmente)
       return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
     }
@@ -121,7 +139,10 @@ export const processSyncItem = async (
   // ═══════════════════════════════════════════════════════════
   // BUSCAR OU CRIAR USER
   // ═══════════════════════════════════════════════════════════
+  const executionPlan = config.hotmartExecutionPlan as HotmartExecutionPlan | undefined
+  const plannedUser = executionPlan?.usersByEmail[email]
   let user = await User.findOne({ email })
+  if (executionPlan) assertHotmartUserMatchesPlan(plannedUser ?? null, user)
   const isNew = !user
 
   if (!user) {
@@ -151,12 +172,22 @@ export const processSyncItem = async (
   // ✅ HOTMART - VERSÃO COMPLETA (MANTÉM TUDO!)
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart') {
-    // PREPARE: resolve the real class (ensureClassExists stays out of the pure builder).
     const resolvedClass = item.classId
-      ? { classId: item.classId, className: await ensureClassExists(item.classId, item.className, 'hotmart', undefined, undefined, config.phaseHooks) }
+      ? {
+        classId: item.classId,
+        className: await ensureClassExists(
+          item.classId,
+          item.className,
+          'hotmart',
+          undefined,
+          undefined,
+          config.phaseHooks,
+          executionPlan?.classes.find(classRow => String(classRow.classId ?? '') === item.classId) as unknown as IClass | undefined,
+          executionPlan !== undefined,
+        ),
+      }
       : undefined
 
-    // PURE BUILDER: item + current user state + resolved class -> explicit plan (no I/O).
     const plan = buildHotmartMutationPlan({
       item,
       user: {
@@ -169,13 +200,10 @@ export const processSyncItem = async (
       clock: { now: () => new Date() },
     })
 
-    // EXECUTOR: apply the plan's field changes onto updateFields.
     Object.assign(updateFields, hotmartPlanToUpdateFields(plan))
     if (plan.needsUpdate) needsUpdate = true
-    // Expose the pending classes to the post-branch expiration check (shared contract).
     pendingHotmartClasses = plan.hotmart.enrolledClasses
 
-    // EXECUTOR: class-history side effect (non-fatal), driven by the plan event.
     if (plan.classHistoryEvent) {
       const ev = plan.classHistoryEvent
       try {
@@ -211,7 +239,6 @@ export const processSyncItem = async (
       }
     }
 
-    // EXECUTOR: sync timestamps stamped AFTER the history effect (temporal order).
     const hotmartSyncAt = new Date()
     updateFields['hotmart.lastSyncAt'] = hotmartSyncAt
     updateFields['metadata.updatedAt'] = hotmartSyncAt
@@ -227,7 +254,6 @@ export const processSyncItem = async (
       await ensureClassExists(String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined, config.phaseHooks)
     }
 
-    // PURE BUILDER: item + current user state -> explicit plan (no I/O).
     const plan = buildCurseducaMutationPlan({
       item,
       user: {
@@ -236,12 +262,9 @@ export const processSyncItem = async (
       },
     })
 
-    // EXECUTOR: apply the plan's field changes onto updateFields.
     Object.assign(updateFields, curseducaPlanToUpdateFields(plan))
     if (plan.needsUpdate) needsUpdate = true
 
-    // EXECUTOR: reconcile a PARA_INATIVAR userproduct when the member is inactive
-    // (read + write kept together, non-fatal), matching the original flow.
     if (plan.reconcileParaInativar) {
       try {
         const userProductToUpdate = await UserProduct.findOne({
@@ -272,22 +295,41 @@ export const processSyncItem = async (
       }
     }
 
-    // EXECUTOR: sync timestamps stamped AFTER the reconcile effect (temporal order).
     const curseducaSyncAt = new Date()
     updateFields['curseduca.lastSyncAt'] = curseducaSyncAt
     updateFields['metadata.updatedAt'] = curseducaSyncAt
     updateFields['metadata.sources.curseduca.lastSync'] = curseducaSyncAt
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 🆕 DETETAR RENOVAÇÕES (antes de aplicar updates)
-  // ═══════════════════════════════════════════════════════════
   const purchaseDate = toDateOrNull(item.purchaseDate)
   const renewalResult = detectRenewal(user, purchaseDate, config.syncType, expirationPolicy)
 
   if (renewalResult.shouldReactivate) {
     // Utilizador renovou! Aplicar reativação automática
-    await applyAutoReactivation(userIdStr, user.email, renewalResult, undefined, config.phaseHooks)
+    Object.assign(updateFields, buildCanonicalActiveUserStatusUpdate())
+    updateFields['inactivation.isManuallyInactivated'] = false
+    updateFields['inactivation.reactivatedAt'] = new Date()
+    updateFields['inactivation.reactivatedBy'] = 'Sistema - Sync Automático'
+    updateFields['inactivation.reactivationReason'] = renewalResult.reactivationReason
+    needsUpdate = true
+    await applyAutoReactivation(
+      userIdStr,
+      user.email,
+      renewalResult,
+      undefined,
+      config.phaseHooks,
+      executionPlan?.renewalTargetsByUser[userIdStr] ?? 0,
+    )
+    if (executionPlan) {
+      for (const plannedProduct of executionPlan.userProducts) {
+        if (
+          String(plannedProduct.userId ?? '') === userIdStr
+          && (plannedProduct.status === 'INACTIVE' || plannedProduct.status === 'PARA_INATIVAR')
+        ) {
+          plannedProduct.status = 'ACTIVE'
+        }
+      }
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -320,17 +362,34 @@ export const processSyncItem = async (
       needsUpdate = true
 
       // Também reativar UserProduct (apenas Hotmart - CursEduca é gerido pelo Guru)
-      beforeMutation(config.phaseHooks)
-      await UserProduct.updateMany(
+      const reactivationExpected = executionPlan?.reactivationTargetsByUser[userIdStr] ?? 0
+      beforeMutation(config.phaseHooks, Math.max(1, reactivationExpected))
+      const reactivationResult = await UserProduct.updateMany(
         { userId: userIdStr, platform: 'hotmart', status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } },
         { $set: { status: 'ACTIVE' } }
       )
+      if (
+        config.phaseHooks
+        && reactivationExpected > 0
+        && typeof reactivationResult.matchedCount === 'number'
+        && reactivationResult.matchedCount !== reactivationExpected
+      ) {
+        throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+      }
+      if (executionPlan) {
+        for (const plannedProduct of executionPlan.userProducts) {
+          if (
+            String(plannedProduct.userId ?? '') === userIdStr
+            && plannedProduct.platform === 'hotmart'
+            && (plannedProduct.status === 'INACTIVE' || plannedProduct.status === 'PARA_INATIVAR')
+          ) {
+            plannedProduct.status = 'ACTIVE'
+          }
+        }
+      }
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 🆕 VERIFICAR EXPIRAÇÃO REAL DA TURMA - só para Hotmart
-  // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart' && !renewalResult.shouldReactivate) {
     const activeHotmartClass = getActiveHotmartClassForExpiration(
       user,
@@ -349,24 +408,32 @@ export const processSyncItem = async (
       )
     }
   }
-  // ═══════════════════════════════════════════════════════════
-  // APLICAR UPDATES NO USER
-  // ═══════════════════════════════════════════════════════════
   if (needsUpdate) {
     beforeMutation(config.phaseHooks)
-    await User.findByIdAndUpdate(userIdStr, { $set: updateFields })
+    const userFilter = executionPlan && plannedUser
+      ? hotmartUserOptimisticFilter(plannedUser)
+      : { _id: userIdStr }
+    const updatedUser = await User.findOneAndUpdate(userFilter, { $set: updateFields }, { new: true })
+    if (!updatedUser && config.phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
     debugLog(`🔄 [UniversalSync] User atualizado: ${user.email}`)
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ✅ CRIAR/ATUALIZAR USERPRODUCT AUTOMATICAMENTE
   const userProductResult = await persistUserProduct({
     item,
     syncType: config.syncType,
     user,
     userId: userIdStr,
     phaseHooks: config.phaseHooks,
+    plannedUserProducts: executionPlan?.userProducts,
   })
+
+  if (executionPlan && userProductResult.status === 'completed' && userProductResult.userProduct) {
+    const persisted = userProductResult.userProduct as unknown as Record<string, unknown>
+    const persistedId = String(persisted._id ?? '')
+    const persistedIndex = executionPlan.userProducts.findIndex(product => String(product._id ?? '') === persistedId)
+    if (persistedIndex >= 0) executionPlan.userProducts[persistedIndex] = persisted
+    else executionPlan.userProducts.push(persisted)
+  }
 
   if (userProductResult.status === 'missing-product') {
     return {
@@ -375,23 +442,35 @@ export const processSyncItem = async (
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 📸 SNAPSHOT E HISTÓRICO
-  // ═══════════════════════════════════════════════════════════
-
   try {
-    // Buscar todos os produtos do user APÓS atualização
-    const userProducts = await UserProduct.find({ userId: user._id })
-      .populate('productId', 'name code platform')
+    const plannedProducts = executionPlan?.userProducts.filter(product => String(product.userId ?? '') === userIdStr)
+    const userProducts = plannedProducts
+      ? plannedProducts as unknown as import('../../../models/UserProduct').IUserProduct[]
+      : await UserProduct.find({ userId: user._id }).populate('productId', 'name code platform')
+    const plannedSnapshot = executionPlan?.snapshots
+      .filter(snapshot => String(snapshot.userId ?? '') === userIdStr)
+      .sort((left, right) => String(right.snapshotDate ?? '').localeCompare(String(left.snapshotDate ?? '')))[0]
 
-    // Criar snapshot, comparar com anterior e registar histórico
-    beforeMutation(config.phaseHooks)
+    if (executionPlan) {
+      const latestSnapshot = await UserSnapshot.findOne({ userId: user._id, syncType: 'hotmart' })
+        .sort({ snapshotDate: -1 })
+        .lean()
+      const plannedSnapshotId = String(plannedSnapshot?._id ?? '')
+      const latestSnapshotId = String(latestSnapshot?._id ?? '')
+      const plannedSnapshotDate = String(plannedSnapshot?.snapshotDate ?? '')
+      const latestSnapshotDate = String(latestSnapshot?.snapshotDate ?? '')
+      if (plannedSnapshotId !== latestSnapshotId || plannedSnapshotDate !== latestSnapshotDate) {
+        throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+      }
+    }
+
     const { comparison } = await snapshotAndCompare(
       user,
       userProducts,
       snapshotContext.syncType,
       snapshotContext.syncId,
       config.phaseHooks,
+      plannedSnapshot as never,
     )
 
     if (comparison.hasChanges && comparison.summary.totalChanges > 1) {
@@ -405,10 +484,6 @@ export const processSyncItem = async (
     logger.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, errorMessage(snapshotError))
     // Não falhar o sync por erro no snapshot
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // RETORNAR RESULTADO
-  // ═══════════════════════════════════════════════════════════
 
   return {
     action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'),

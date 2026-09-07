@@ -1,5 +1,7 @@
 import type { Types } from 'mongoose'
 import type { IUser } from '../../../models/user'
+import type { IUserProduct } from '../../../models/UserProduct'
+import type { IProduct } from '../../../models/product/Product'
 import { Product, UserProduct } from '../../../models'
 import type { UniversalSourceItem, UniversalSyncType } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
@@ -11,7 +13,7 @@ import { productsCache, type LeanProduct } from './productsCache'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 
 export type PersistUserProductResult =
-  | { status: 'completed' }
+  | { status: 'completed'; userProduct?: IUserProduct }
   | { status: 'missing-product' }
   | { status: 'failed' }
 
@@ -21,6 +23,18 @@ interface PersistUserProductInput {
   user: IUser
   userId: string
   phaseHooks?: CronExecutionPhaseHooks
+  plannedUserProducts?: Record<string, unknown>[]
+}
+
+export const buildUserProductOptimisticFilter = (existing: Record<string, unknown>): Record<string, unknown> => {
+  const filter: Record<string, unknown> = {
+    _id: existing._id,
+    userId: existing.userId,
+    productId: existing.productId,
+  }
+  if (existing.updatedAt) filter.updatedAt = existing.updatedAt
+  else filter.status = existing.status
+  return filter
 }
 
 async function determineProductId(
@@ -38,6 +52,8 @@ async function determineProductId(
         debugLog(`✅ [ProductMapping] Produto Hotmart do cache: ${productCode}`)
         return cached._id
       }
+      logger.warn(`⚠️ [ProductMapping] Produto Hotmart fora do snapshot: ${productCode}`)
+      return null
     }
 
     const product = await Product.findOne({
@@ -159,10 +175,13 @@ async function determineProductId(
 async function calculateMetrics(
   user: IUser,
   productId: Types.ObjectId,
+  plannedProduct?: LeanProduct,
 ): Promise<EngagementMetricsResult | null> {
   try {
-    const product = await Product.findById(productId)
-    return product ? calculateEngagementMetricsForUserProduct(user, product) : null
+    const product = plannedProduct ?? await Product.findById(productId)
+    return product
+      ? calculateEngagementMetricsForUserProduct(user, product as unknown as IProduct)
+      : null
   } catch (error: unknown) {
     logger.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics: ${errorMessage(error)}`)
     return null
@@ -182,10 +201,14 @@ export async function persistUserProduct(
       return { status: 'missing-product' }
     }
 
-    const existing = await UserProduct.findOne({ userId, productId })
+    const existing = input.plannedUserProducts
+      ? input.plannedUserProducts.find((row) =>
+        String(row.userId ?? '') === userId && String(row.productId ?? '') === String(productId),
+      ) as unknown as IUserProduct | undefined
+      : await UserProduct.findOne({ userId, productId })
 
     if (existing) {
-      const metrics = await calculateMetrics(user, productId)
+      const metrics = await calculateMetrics(user, productId, productsCache.findById(productId))
       const plan = buildUserProductUpdatePlan({
         item,
         syncType,
@@ -204,8 +227,12 @@ export async function persistUserProduct(
       if (plan.needsUpdate) {
         input.phaseHooks?.assertOwnership?.()
         input.phaseHooks?.localMutationStarted()
-        await UserProduct.findByIdAndUpdate(existing._id, { $set: plan.fields })
+        input.phaseHooks?.consumeMutation?.()
+        const optimisticFilter = buildUserProductOptimisticFilter(existing as unknown as Record<string, unknown>)
+        const updated = await UserProduct.findOneAndUpdate(optimisticFilter, { $set: plan.fields }, { new: true })
+        if (!updated && input.phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
         debugLog(`   📦 UserProduct atualizado: ${user.email}`)
+        return { status: 'completed', userProduct: updated ?? existing }
       }
 
       return { status: 'completed' }
@@ -239,6 +266,7 @@ export async function persistUserProduct(
           logger.info('      ✅ Novo produto mais recente → PRIMARY, antigo → INACTIVE')
           input.phaseHooks?.assertOwnership?.()
           input.phaseHooks?.localMutationStarted()
+          input.phaseHooks?.consumeMutation?.()
           await UserProduct.updateOne(
             { _id: existingPrimary._id },
             { $set: reassignment.demoteUpdate },
@@ -249,7 +277,7 @@ export async function persistUserProduct(
       }
     }
 
-    const metrics = await calculateMetrics(user, productId)
+    const metrics = await calculateMetrics(user, productId, productsCache.findById(productId))
     const newUserProduct = buildUserProductCreatePlan({
       item,
       syncType,
@@ -263,9 +291,10 @@ export async function persistUserProduct(
 
     input.phaseHooks?.assertOwnership?.()
     input.phaseHooks?.localMutationStarted()
-    await UserProduct.create(newUserProduct)
+    input.phaseHooks?.consumeMutation?.()
+    const created = await UserProduct.create(newUserProduct)
     debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${syncType}`)
-    return { status: 'completed' }
+    return { status: 'completed', userProduct: created }
   } catch (error: unknown) {
     if (input.phaseHooks) throw error
     logger.error(

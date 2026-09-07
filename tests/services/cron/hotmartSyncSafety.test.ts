@@ -26,6 +26,9 @@ import { CronJobDispatcher, type CronDispatchDependencies } from '../../../src/s
 import { normalizeHotmartSyncDispatch } from '../../../src/services/cron/scheduler/hotmartSyncDispatchNormalizer'
 import { executeUniversalSync } from '../../../src/services/syncUtilizadoresServices/universalSync/executeUniversalSync'
 import User from '../../../src/models/user'
+import { Product, UserProduct } from '../../../src/models'
+import { Class } from '../../../src/models/Class'
+import UserSnapshot from '../../../src/models/UserSnapshot'
 
 const hotmartJob = (name = 'Job de Hotmart', syncType: 'hotmart' | 'curseduca' = 'hotmart') => ({
   _id: { toString: () => '507f1f77bcf86cd799439011' },
@@ -183,13 +186,17 @@ test('dispatcher forwards dry-run and ownership hooks through the Hotmart runner
 })
 
 test('UniversalSync preview performs bounded local preflight and no mutations', async () => {
-  const find = jest.spyOn(User.collection, 'find').mockReturnValue({
+  const collectionResult = {
     sort: () => ({
       limit: () => ({
         toArray: async () => [],
       }),
     }),
-  } as never)
+  }
+  const find = jest.spyOn(User.collection, 'find').mockReturnValue(collectionResult as never)
+  for (const model of [Product, Class, UserProduct, UserSnapshot]) {
+    jest.spyOn(model.collection, 'find').mockReturnValue(collectionResult as never)
+  }
   const hooks = {
     assertOwnership: jest.fn(),
     providerStarted: jest.fn(),
@@ -211,7 +218,7 @@ test('UniversalSync preview performs bounded local preflight and no mutations', 
 
   expect(find).toHaveBeenCalledWith(
     { email: { $in: ['a@x.test'] } },
-    { projection: { _id: 1, email: 1 } },
+    { projection: expect.objectContaining({ _id: 1, email: 1, metadata: 1 }) },
   )
   expect(result).toMatchObject({
     success: true,
@@ -248,7 +255,7 @@ test('Hotmart dispatch normalizer is strict and strips non-contract plan fields'
   expect(normalizeHotmartSyncDispatch({
     success: true,
     dryRun: true,
-    stats: { total: 1, inserted: 1, updated: 0, errors: 0, skipped: 0 },
+    stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 0 },
     plan: {
       operation: 'hotmart-sync', dryRun: true, truncated: false, anomaly: false,
       limit: 20_000, total: 1, inserted: 1, updated: 0, errors: 0, skipped: 0, remaining: 0,
@@ -257,7 +264,7 @@ test('Hotmart dispatch normalizer is strict and strips non-contract plan fields'
   })).toEqual({
     success: true,
     dryRun: true,
-    stats: { total: 1, inserted: 1, updated: 0, errors: 0, skipped: 0 },
+    stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 0 },
     plan: {
       operation: 'hotmart-sync', dryRun: true, truncated: false, anomaly: false,
       limit: 20_000, total: 1, inserted: 1, updated: 0, errors: 0, skipped: 0, remaining: 0,

@@ -1,7 +1,5 @@
-import User from '../../../models/user'
 import { UserProduct } from '../../../models'
 import logger from '../../../utils/logger'
-import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
 import {
   EXPIRATION_DAYS,
   formatDateOnly,
@@ -18,6 +16,7 @@ export async function applyAutoReactivation(
   decision: ApprovedRenewalDecision,
   clock: Clock = systemClock,
   phaseHooks?: CronExecutionPhaseHooks,
+  userProductEffectCount = 1,
 ): Promise<void> {
   logger.info('🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!')
   logger.info(`   📧 User: ${userEmail}`)
@@ -40,19 +39,16 @@ export async function applyAutoReactivation(
 
   phaseHooks?.assertOwnership?.()
   phaseHooks?.localMutationStarted()
-  await User.findByIdAndUpdate(userId, {
-    $set: {
-      ...buildCanonicalActiveUserStatusUpdate(),
-      'inactivation.isManuallyInactivated': false,
-      'inactivation.reactivatedAt': clock.now(),
-      'inactivation.reactivatedBy': 'Sistema - Sync Automático',
-      'inactivation.reactivationReason': decision.reactivationReason,
-    },
-  })
-
-  phaseHooks?.assertOwnership?.()
-  phaseHooks?.localMutationStarted()
-  await UserProduct.updateMany({ userId }, { $set: { status: 'ACTIVE' } })
+  phaseHooks?.consumeMutation?.(Math.max(1, userProductEffectCount))
+  const result = await UserProduct.updateMany({ userId }, { $set: { status: 'ACTIVE' } })
+  if (
+    phaseHooks
+    && userProductEffectCount > 0
+    && typeof result.matchedCount === 'number'
+    && result.matchedCount !== userProductEffectCount
+  ) {
+    throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+  }
 
   // The removed legacy Discord call targeted an endpoint that never existed.
   // Renewal roles are reconciled nightly by DiscordRolesSync.

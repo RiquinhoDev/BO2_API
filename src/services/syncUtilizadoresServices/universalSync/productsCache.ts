@@ -62,9 +62,27 @@ export class ProductsCache {
     return this.map ? Array.from(this.map.values()) : []
   }
 
+  findById(id: unknown): LeanProduct | undefined {
+    const key = String(id ?? '')
+    return this.values().find((product) => String(product._id) === key)
+  }
+
   clear(): void {
     this.map = null
     this.timestampMs = 0
+  }
+
+  loadSnapshot(products: LeanProduct[], now = this.clock.now()): void {
+    const map = new Map<string, LeanProduct>()
+    for (const product of products) {
+      map.set(product.code, product)
+      map.set(`${product.platform}:${product.code}`, product)
+      if (product.platform === 'curseduca' && product.curseducaGroupId) {
+        map.set(`group_${product.curseducaGroupId}`, product)
+      }
+    }
+    this.map = map
+    this.timestampMs = now.getTime()
   }
 }
 

@@ -20,6 +20,7 @@ import type { CronExecutionPhaseHooks } from '../cron/scheduler/executionPhases'
 const beforeReportWrite = (phaseHooks?: CronExecutionPhaseHooks): void => {
   phaseHooks?.assertOwnership?.()
   phaseHooks?.localMutationStarted()
+  phaseHooks?.consumeMutation?.()
 }
 
 export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {

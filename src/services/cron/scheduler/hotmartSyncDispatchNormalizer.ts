@@ -24,6 +24,7 @@ const sanitizePlan = (value: unknown): HotmartSyncPlan | undefined => {
     safe[key] = plan[key]
   }
   const total = safe.total as number
+  if (total > LIMIT || safe.errors !== 0) return undefined
   const counted = (safe.inserted as number) + (safe.updated as number) + (safe.errors as number) + (safe.skipped as number)
   if (counted !== total || (safe.remaining as number) !== 0) {
     return undefined
@@ -55,14 +56,21 @@ export function normalizeHotmartSyncDispatch(
   const hasDryRun = Object.prototype.hasOwnProperty.call(result, 'dryRun')
   const dryRunValue = result.dryRun
   const validDryRunField = !hasDryRun || typeof dryRunValue === 'boolean'
+  const validResultFlags = ['truncated', 'anomaly'].every((key) =>
+    !Object.prototype.hasOwnProperty.call(result, key) || result[key] === false,
+  )
   const dryRun = dryRunValue === true
+  const dryRunStatsAreEmpty = !dryRun || keys.every(key => statsSource[key] === 0)
   const validRequestedMode = options.requestedDryRun === undefined
     ? validDryRunField
     : options.requestedDryRun === dryRun && validDryRunField
   const plan = dryRun ? sanitizePlan(result.plan) : undefined
+  const planModeValid = dryRun
+    ? plan !== undefined
+    : !Object.prototype.hasOwnProperty.call(result, 'plan')
   const validSuccess = typeof result.success === 'boolean' && result.success === true
   const success = validSuccess && validStats && statsSource.errors === 0
-    && validRequestedMode && (!dryRun || plan !== undefined)
+    && dryRunStatsAreEmpty && validRequestedMode && validResultFlags && planModeValid
   const stats: ILastRunStats = validStats
     ? {
       total: statsSource.total as number,

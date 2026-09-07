@@ -5,6 +5,7 @@
 
 import { TriggerType } from "../models/SyncModels/SyncReport"
 import type { CronExecutionPhaseHooks } from '../services/cron/scheduler/executionPhases'
+import type { HotmartExecutionPlan } from '../services/syncUtilizadoresServices/universalSync/hotmartSafety'
 
 // Only hotmart and curseduca reach executeUniversalSync. The discord branch
 // was proven unreachable (no production call site passes syncType: 'discord';
@@ -155,6 +156,7 @@ export interface UniversalSyncConfig {
   triggeredByUser?: string
   dryRun?: boolean
   phaseHooks?: CronExecutionPhaseHooks
+  hotmartExecutionPlan?: HotmartExecutionPlan
 
   // Configurações
   fullSync: boolean

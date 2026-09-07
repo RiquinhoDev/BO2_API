@@ -7,6 +7,7 @@ import type { CronExecutionPhaseHooks } from '../../../cron/scheduler/executionP
 export const HOTMART_PROVIDER_PAGE_SIZE = 100
 export const HOTMART_PROVIDER_MAX_PAGES = 200
 export const HOTMART_PROVIDER_MAX_ITEMS = 20_000
+export const HOTMART_PROVIDER_MAX_LESSONS = 10_000
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -156,6 +157,13 @@ interface HotmartUsersResponse {
 
 interface HotmartLessonsResponse {
   lessons?: HotmartLesson[]
+  success?: boolean
+  partial?: boolean
+  is_partial?: boolean
+  incomplete?: boolean
+  error?: unknown
+  errors?: unknown
+  failure?: unknown
 }
 
 export const getHotmartAccessToken = async (): Promise<string> => {
@@ -380,10 +388,41 @@ export const fetchUserLessons = async (
       { maxRetries: 3, baseDelayMs: 500, phaseHooks: options.phaseHooks }
     )
 
-    if (!Array.isArray(response.data.lessons)) {
+    const payload = response.data as unknown
+    if (!isRecord(payload)) {
+      throw providerError('HOTMART_PROVIDER_LESSONS_INVALID', 'envelope de lições inválido')
+    }
+    if (
+      payload.success === false ||
+      payload.partial === true ||
+      payload.is_partial === true ||
+      payload.incomplete === true ||
+      payload.failure !== undefined ||
+      payload.error !== undefined ||
+      payload.errors !== undefined
+    ) {
+      throw providerError('HOTMART_PROVIDER_LESSONS_FAILED', 'resposta de lições falhada ou parcial')
+    }
+    if (!Array.isArray(payload.lessons) || payload.lessons.length > HOTMART_PROVIDER_MAX_LESSONS) {
       throw providerError('HOTMART_PROVIDER_LESSONS_INVALID', 'lista de lições inválida')
     }
-    return response.data.lessons
+    return payload.lessons.map((lesson, index) => {
+      if (!isRecord(lesson)) {
+        throw providerError('HOTMART_PROVIDER_LESSON_INVALID', `lição ${index} inválida`)
+      }
+      const stringFields = ['page_id', 'page_name', 'module_name']
+      if (stringFields.some(field => typeof lesson[field] !== 'string' || String(lesson[field]).trim() === '')) {
+        throw providerError('HOTMART_PROVIDER_LESSON_INVALID', `lição ${index} sem identidade/conteúdo`)
+      }
+      if (typeof lesson.is_module_extra !== 'boolean' || typeof lesson.is_completed !== 'boolean') {
+        throw providerError('HOTMART_PROVIDER_LESSON_INVALID', `lição ${index} com flags inválidas`)
+      }
+      if (lesson.completed_date !== undefined &&
+        (typeof lesson.completed_date !== 'number' || !Number.isFinite(lesson.completed_date) || lesson.completed_date < 0)) {
+        throw providerError('HOTMART_PROVIDER_LESSON_INVALID', `lição ${index} com data inválida`)
+      }
+      return lesson as unknown as HotmartLesson
+    })
   } catch (error: unknown) {
     logger.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, errorMessage(error))
     throw error

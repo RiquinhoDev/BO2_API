@@ -40,6 +40,7 @@ export async function createUserSnapshot(
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
   syncId?: mongoose.Types.ObjectId,
   phaseHooks?: CronExecutionPhaseHooks,
+  preloadedLastSnapshot?: IUserSnapshot | null,
 ): Promise<IUserSnapshot> {
   // Construir array de produtos
   const productSnapshots: IProductSnapshot[] = products.map((product) => {
@@ -127,6 +128,7 @@ export async function createUserSnapshot(
 
   phaseHooks?.assertOwnership?.()
   phaseHooks?.localMutationStarted()
+  phaseHooks?.consumeMutation?.()
   await snapshot.save()
   return snapshot
 }
@@ -168,9 +170,12 @@ export async function compareAndRecordChanges(
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
   syncId?: mongoose.Types.ObjectId,
   phaseHooks?: CronExecutionPhaseHooks,
+  preloadedLastSnapshot?: IUserSnapshot | null,
 ): Promise<ComparisonResult> {
   // Buscar último snapshot
-  const lastSnapshot = await getLastUserSnapshot(user._id, syncType)
+  const lastSnapshot = preloadedLastSnapshot === undefined
+    ? await getLastUserSnapshot(user._id, syncType)
+    : preloadedLastSnapshot
 
   // Comparar
   const comparison = compareSnapshots(lastSnapshot, { user, products })
@@ -233,6 +238,7 @@ export async function compareAndRecordChanges(
   if (historyRecords.length > 0) {
     phaseHooks?.assertOwnership?.()
     phaseHooks?.localMutationStarted()
+    phaseHooks?.consumeMutation?.(historyRecords.length)
     await UserHistory.insertMany(historyRecords)
     logger.info(`✅ [Snapshot] ${historyRecords.length} alterações registadas para ${user.email}`)
   }
@@ -256,12 +262,13 @@ export async function snapshotAndCompare(
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
   syncId?: mongoose.Types.ObjectId,
   phaseHooks?: CronExecutionPhaseHooks,
+  preloadedLastSnapshot?: IUserSnapshot | null,
 ): Promise<{
   snapshot: IUserSnapshot
   comparison: ComparisonResult
 }> {
   // 1. Comparar e registar ANTES de criar novo snapshot
-  const comparison = await compareAndRecordChanges(user, products, syncType, syncId, phaseHooks)
+  const comparison = await compareAndRecordChanges(user, products, syncType, syncId, phaseHooks, preloadedLastSnapshot)
 
   // 2. Criar novo snapshot
   const snapshot = await createUserSnapshot(user, products, syncType, syncId, phaseHooks)
