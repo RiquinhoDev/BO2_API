@@ -48,12 +48,12 @@ Backend:
 - `3f50becf feat(cron): harden Hotmart manual sync`
 - `e878e053 chore(lint): prune Hotmart suppressions`
 - `7ec34f77 fix(cron): accept Hotmart pagination aliases`
+- `9d956679 fix(cron): close Hotmart review findings`
 
 Front:
 
 - `e7d60e2 test(cron): cover Hotmart backend policy`
-- `[round-1 backend commit to be recorded after local commit]`
-- `[round-1 front commit to be recorded after local commit]`
+- `1c11d58 fix(cron): align Hotmart manual controls`
 
 ## TDD evidence
 
