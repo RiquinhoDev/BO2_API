@@ -251,3 +251,26 @@ Fix:
 - Front: `17c73f2 fix(renewal): retain pending execution identity`
 
 Round 2 remains offline-only. No provider/network/real DB/browser/live-user/deploy/push/merge/rebase/main operation was performed. Existing unrelated Front `.claude/settings.local.json` and `scripts/git-hooks/` remain untouched.
+
+## Round 3/5 full-suite compatibility fix — 2026-09-07
+
+The full-suite review found one remaining failure in the legacy `schedulerJobDispatcher.test.ts` case `normalizes renewal offers`. The production normalizer was intentionally not relaxed: the test fixture still supplied the removed implicit `{ upserted, deactivated, unknownNames }` envelope.
+
+Fix was limited to `tests/services/cron/schedulerJobDispatcher.test.ts`: the shared RenewalOffer runner fixture now supplies the explicit valid contract (`success`, `total`, `inserted`, `updated`, `errors`, `skipped`, plus the existing counters). The original expected canonical stats remain unchanged (`total: 3`, `updated: 2`, `skipped: 1`). No production behavior or unrelated test was changed.
+
+### Round 3 evidence
+
+- RED: `npm.cmd test -- --runInBand tests/services/cron/schedulerJobDispatcher.test.ts -t "normalizes renewal offers"` — `1 failed, 26 skipped`; hardened normalizer returned the fixed failure because the fixture lacked explicit envelope fields.
+- GREEN: `npm.cmd test -- --runInBand tests/services/cron/schedulerJobDispatcher.test.ts tests/services/cron/schedulerRenewalOfferDispatcher.test.ts` — `2/2` suites, `32/32` tests passed.
+- `npm.cmd run types:check` — exit `0`.
+- `npm.cmd run lint` — exit `0`.
+- `git diff --check` — exit `0`.
+- Touched hand-written backend files remain <=500 physical lines.
+- Front was not touched; existing Front dirt remains preserved.
+
+### Round 3 commit
+
+- Backend: `cd95b95e fix(cron): align renewal dispatcher fixture contract`
+- Report: pending documentation commit.
+
+Round 3 remains offline-only: no provider/network/real DB/push/merge/rebase/main mutation was performed.
