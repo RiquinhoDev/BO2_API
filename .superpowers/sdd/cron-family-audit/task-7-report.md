@@ -201,3 +201,53 @@ Before the fixes, the focused regressions were run and failed for the expected m
 - Front: `5bb65f9 fix(renewal): reuse ambiguous manual request ids`
 
 Round 1 remains offline-only. No provider/network/real DB/browser/live-user/deploy/push/merge/rebase/main operation was performed. Existing Mongoose, ts-jest, Front browser-data, Tailwind, and chunk-size warnings remain non-blocking and are not silently reclassified as operational evidence.
+
+## Round 2/5 scoped re-review fixes — 2026-09-07
+
+Review disposition: both remaining Important findings fixed. Scope stayed limited to Front pending-request identity and provider pagination alias reconciliation.
+
+### Finding A — Front retry identity across pending outcomes
+
+Root cause: the previous classifier retained a live request ID only for transport-like errors without a response. A `409 COMPOSITE_EXECUTION_IN_PROGRESS` or `504` response therefore cleared the ID; a later retry could create a second composite execution while the original was still pending.
+
+Fix:
+
+- Retain the live request ID for `409 COMPOSITE_EXECUTION_IN_PROGRESS` and `COMPOSITE_EXECUTION_INDETERMINATE` responses.
+- Retain it for HTTP `504` gateway-timeout responses, including responses carrying a structured error payload.
+- Keep the existing narrow transport timeout/network classification.
+- Continue clearing only after a resolved definitive result, a resolved unsuccessful execution, or a non-ambiguous error such as a different 409 conflict. Preview IDs remain independent.
+
+### Finding B — provider pagination aliases and contradictions
+
+Root cause: the strict parser required one nested pagination container and ignored previously supported top-level `next_page_token`, `has_more`, and `hasMore` aliases. Contradictions between root and nested values could be missed.
+
+Fix:
+
+- Reconcile `page_info`, `pageInfo`, `pagination`, top-level `next_page_token`, top-level `nextPageToken`, `has_more`, and `hasMore`.
+- Allow multiple aliases only when their normalized values agree; reject malformed values, null/non-null token conflicts, contradictory cursors, contradictory flags, and invalid containers.
+- Preserve strict page-size/item/page-count caps, repeated cursor checks, identity checks, and the no-local-read/no-mutation rejection boundary.
+- A top-level cursor is now followed; top-level `has_more`/`hasMore: true` without a cursor is rejected rather than treated as terminal.
+
+### Fresh Round 2 RED evidence
+
+- Front sequence regression command: `npm.cmd test -- --runInBand src/pages/gerirAlunos/renewalOffers/__tests__/RenewalOffersPage.test.tsx -t "retains one live request id"` — `1 failed, 9 skipped`; timeout → 409 in-progress → 504 produced `3` request IDs instead of `1`.
+- Backend pagination regression command: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts -t "top-level|contradictory top-level"` — `3 failed, 2 passed`; top-level cursor was rejected, contradictory tokens were allowed into an undefined second response, and contradictory flags were accepted as success.
+
+### Fresh Round 2 GREEN evidence
+
+- Front full focused command: `npm.cmd test -- --runInBand src/features/cron/components/__tests__/CronJobList.test.tsx src/features/renewalOffers/components/__tests__/RenewalOffersHeader.test.tsx src/services/__tests__/renewalOffersCanonical.test.ts src/pages/gerirAlunos/renewalOffers/__tests__/RenewalOffersPage.test.tsx` — `4/4` suites, `21/21` tests passed.
+- Front page command after fix: `1/1` suite, `10/10` tests passed, including timeout → 409 in-progress → 504 → replay/success → new execution.
+- Backend provider/dispatcher focused command: `npm.cmd test -- --runInBand tests/services/renewal/renewalSyncSafety.test.ts tests/services/cron/schedulerRenewalOfferDispatcher.test.ts` — `2/2` suites, `30/30` tests passed.
+- Backend type gate: `npm.cmd run types:check` exit `0`.
+- Backend lint gate: `npm.cmd run lint` exit `0`.
+- Front lint gate: `npm.cmd run lint` exit `0`.
+- Backend and Front `git diff --check`: exit `0` before staging; staged diff checks also passed.
+- All touched hand-written source/test files remain <=500 physical lines.
+- No route/response/SCALE catalog source changed in Round 2; those catalogs remain covered by the previous green Round 1 gates and were not regenerated.
+
+### Round 2 commits
+
+- Backend: `c4791353 fix(cron): reconcile renewal offer pagination aliases`
+- Front: `17c73f2 fix(renewal): retain pending execution identity`
+
+Round 2 remains offline-only. No provider/network/real DB/browser/live-user/deploy/push/merge/rebase/main operation was performed. Existing unrelated Front `.claude/settings.local.json` and `scripts/git-hooks/` remain untouched.
