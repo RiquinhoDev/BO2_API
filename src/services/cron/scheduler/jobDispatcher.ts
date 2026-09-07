@@ -6,10 +6,12 @@ import type {
   DiscordRolesSyncPlan,
   WeeklyTagSnapshotPlan,
   RenewalAcSyncPlan,
+  RenewalOfferSyncPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { normalizePlannedExecution } from './plannedExecutionNormalizer'
 import { normalizeGuruTrialDispatch } from './guruTrialDispatchNormalizer'
+import { normalizeRenewalOfferDispatch } from './renewalOfferDispatchNormalizer'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
 import { executeDailyPipeline } from '../dailyPipeline.service'
@@ -33,7 +35,7 @@ export interface CronDispatchResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan
 }
 
 export interface CronDispatchOptions {
@@ -80,7 +82,7 @@ const SPECIFIC_JOB_NAMES = [
 ] as const
 
 function matchesSpecificJob(jobName: string, specificName: string): boolean {
-  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync' || specificName === 'GuruTrialCheck'
+  return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalOfferSync' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync' || specificName === 'GuruTrialCheck'
     ? jobName === specificName
     : jobName.includes(specificName)
 }
@@ -220,19 +222,8 @@ export class CronJobDispatcher {
 
   private async executeSpecific(job: CronDispatchJob, options: CronDispatchOptions): Promise<CronDispatchResult> {
     try {
-      if (job.name.includes('RenewalOfferSync')) {
-        const report = recordOf(await this.dependencies.syncRenewalOffers(options))
-        return {
-          success: true,
-          stats: {
-            total: numberOf(report, 'upserted') + numberOf(report, 'deactivated'),
-            inserted: 0,
-            updated: numberOf(report, 'upserted'),
-            errors: 0,
-            skipped: arrayOf(report, 'unknownNames').length
-          },
-          errorMessage: undefined
-        }
+      if (job.name === 'RenewalOfferSync') {
+        return normalizeRenewalOfferDispatch(await this.dependencies.syncRenewalOffers(options))
       }
 
       if (job.name.includes('DiscordScheduledMessages')) {
@@ -316,6 +307,8 @@ export class CronJobDispatcher {
           ? 'Execução Renewal AC falhou'
           : job.name === 'DiscordRolesSync'
             ? 'Execução Discord falhou'
+            : job.name === 'RenewalOfferSync'
+              ? 'Execução RenewalOfferSync falhou'
             : errorMessageOf(error),
       }
     }

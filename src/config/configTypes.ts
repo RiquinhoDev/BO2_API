@@ -113,6 +113,7 @@ export interface IntegrationConfigs {
 export interface RenewalConfig {
   readonly acSyncEnabled: boolean
   readonly manualExecutionEnabled: boolean
+  readonly offerManualExecutionEnabled: boolean
   readonly writeDatesEnabled: boolean
   readonly writeTagsEnabled: boolean
   readonly processRefundsEnabled: boolean

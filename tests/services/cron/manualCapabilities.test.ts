@@ -22,6 +22,7 @@ describe('manual cron capabilities', () => {
     ['AchievementEvaluation', 'hotmart', 'achievement-evaluation', 'implemented'],
     ['WeeklyTagSnapshot', 'hotmart', 'weekly-tag-snapshot', 'implemented'],
     ['RenewalAcSync', 'hotmart', 'renewal-ac-sync', 'implemented'],
+    ['RenewalOfferSync', 'hotmart', 'renewal-offer-sync', 'implemented'],
     ['GuruTrialCheck', 'guru', 'guru-trial-check', 'implemented'],
     ['StandardSync', 'hotmart', 'unsupported', 'blocked'],
   ] as const)('%s/%s resolves to %s', (name, syncType, capability, status) => {
@@ -40,6 +41,33 @@ describe('manual cron capabilities', () => {
     const result = getCronManualCapability(job('BackupRenewalAcSync'))
     expect(result.id).toBe('unsupported')
     expect(result.status).toBe('blocked')
+  })
+
+  test('does not grant Renewal Offer capability to a name containing the canonical name', () => {
+    const result = getCronManualCapability(job('BackupRenewalOfferSync'))
+    expect(result.id).toBe('unsupported')
+    expect(result.status).toBe('blocked')
+  })
+
+  test('exposes exact bounded Renewal Offer capability metadata', () => {
+    const result = getCronManualCapability(job('RenewalOfferSync'))
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'renewal-offer-sync',
+      status: 'implemented',
+      operation: 'cron-job',
+      cap: {
+        status: 'verified',
+        reason: 'renewal-offer-sync-max-provider-sales-and-mutations',
+        limit: 20_000,
+      },
+      idempotency: expect.objectContaining({ status: 'verified' }),
+      killSwitch: {
+        status: 'verified',
+        reason: 'RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED',
+      },
+      dryRun: expect.objectContaining({ status: 'verified' }),
+    }))
   })
 
   test('does not grant Guru capability to a name containing the canonical name', () => {

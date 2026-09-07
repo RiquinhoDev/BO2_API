@@ -2,11 +2,14 @@ import type { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import RenewalOffer from '../models/RenewalOffer'
-import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
+import mongoose from 'mongoose'
+import syncSchedulerService from '../services/cron/scheduler'
+import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
+import { HttpError } from '../security/errorHandling'
 
 // GET /api/renewal/offers
 // Lista todas as ofertas de renovação com os dados da Hotmart + turma sugerida.
@@ -157,11 +160,35 @@ export async function performance(req: Request, res: Response, next: NextFunctio
 
 // POST /api/renewal/sync
 // Dispara a sincronização das ofertas a partir da Hotmart.
-export async function runSync(_req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function runSync(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const report = await syncRenewalOffers()
-    res.json(successResponse({ report }))
+    const actorId = req.user?.id ?? 'system'
+    const triggeredBy = mongoose.Types.ObjectId.isValid(actorId)
+      ? new mongoose.Types.ObjectId(actorId)
+      : new mongoose.Types.ObjectId('000000000000000000000001')
+    const result = await syncSchedulerService.executeNamedJobManually(
+      'RenewalOfferSync',
+      triggeredBy,
+      {
+        actorId,
+        dryRun: req.body?.dryRun === true,
+        requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),
+      },
+    )
+    res.json(successResponse({
+      executionSucceeded: result.success,
+      duration: result.duration,
+      stats: result.stats,
+      errorMessage: result.errorMessage,
+      ...(result.dryRun === true ? { dryRun: true, plan: result.plan } : {}),
+    }, { message: result.dryRun === true
+      ? 'Plano do job calculado sem efeitos'
+      : result.success ? 'Job executado com sucesso' : 'Job executado com erros' }))
   } catch (error: unknown) {
+    if (error instanceof HttpError) {
+      next(error)
+      return
+    }
     next(internalError('Erro ao sincronizar ofertas', 'RENEWAL_SYNC_FAILED', error))
   }
 }

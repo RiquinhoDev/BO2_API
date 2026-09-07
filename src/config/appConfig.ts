@@ -258,6 +258,10 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     env.RENEWAL_AC_MANUAL_EXECUTION_ENABLED,
     'RENEWAL_AC_MANUAL_EXECUTION_ENABLED',
   )
+  const offerManualExecutionEnabled = parseBooleanFlag(
+    env.RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED,
+    'RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED',
+  )
   const writeDatesEnabled = parseBooleanFlag(env.RENEWAL_AC_WRITE_DATES, 'RENEWAL_AC_WRITE_DATES')
   const writeTagsEnabled = parseBooleanFlag(env.RENEWAL_AC_WRITE_TAGS, 'RENEWAL_AC_WRITE_TAGS')
   const processRefundsEnabled = parseBooleanFlag(
@@ -312,6 +316,12 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     )
   }
 
+  if (offerManualExecutionEnabled && !integrations.hotmart.configured) {
+    throw new Error(
+      'CONFIG_INVALIDA: RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED requer credenciais Hotmart completas',
+    )
+  }
+
   if (
     (discordRolesSyncEnabled ||
       discordRolesManualExecutionEnabled ||
@@ -334,6 +344,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
   return {
     acSyncEnabled,
     manualExecutionEnabled,
+    offerManualExecutionEnabled,
     writeDatesEnabled,
     writeTagsEnabled,
     processRefundsEnabled,

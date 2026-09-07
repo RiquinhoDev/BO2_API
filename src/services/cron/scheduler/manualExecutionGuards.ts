@@ -4,6 +4,7 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isGuruTrialManualExecutionEnabled,
+  isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../requestDrivenRuntimeConfig'
@@ -65,6 +66,13 @@ export async function assertManualExecutionEnabled(capability: CronManualCapabil
       status: 503,
       code: 'RENEWAL_AC_MANUAL_EXECUTION_DISABLED',
       publicMessage: 'Execução manual do sync AC de renovação desativada',
+    })
+  }
+  if (capability.id === 'renewal-offer-sync' && !isRenewalOfferManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'RENEWAL_OFFER_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual das ofertas de renovação desativada',
     })
   }
   if (capability.id === 'discord-roles-sync' && !isRolesManualExecutionEnabled()) {

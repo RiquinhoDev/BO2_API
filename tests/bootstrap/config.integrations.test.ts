@@ -240,6 +240,7 @@ test('renewal settings are parsed once into the typed startup boundary', () => {
   expect(config.renewal).toEqual({
     acSyncEnabled: true,
     manualExecutionEnabled: false,
+    offerManualExecutionEnabled: false,
     writeDatesEnabled: true,
     writeTagsEnabled: true,
     processRefundsEnabled: true,

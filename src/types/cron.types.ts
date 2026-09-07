@@ -69,7 +69,7 @@ export interface CronExecutionResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan
 }
 
 export interface DailyPipelinePlan {
@@ -168,6 +168,21 @@ export interface DiscordRolesSyncPlan {
   truncated: boolean
   /** Lower bound of source rows beyond the bounded sample. */
   remaining: number
+}
+
+export interface RenewalOfferSyncPlan {
+  operation: 'renewal-offer-sync'
+  dryRun: true
+  create: number
+  update: number
+  reactivate: number
+  deactivate: number
+  unchanged: number
+  totalOperations: number
+  limit: number
+  remaining: number
+  truncated: boolean
+  anomaly: boolean
 }
 
 export interface DailyPipelineOptions {

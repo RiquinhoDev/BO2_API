@@ -58,6 +58,12 @@ export function isGuruTrialManualExecutionEnabled(): boolean {
   return getRuntimeConfig().core.guruTrialManualExecutionEnabled === true
 }
 
+export function isRenewalOfferManualExecutionEnabled(): boolean {
+  const config = getRuntimeConfig().renewal
+  return config.offerManualExecutionEnabled === true
+    && getRuntimeConfig().integrations.hotmart.configured === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

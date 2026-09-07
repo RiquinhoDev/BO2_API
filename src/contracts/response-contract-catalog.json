@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:132",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:137",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:182",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:187",
     "frontConsumer": null
   },
   {
@@ -2295,7 +2295,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:28",
+    "evidence": "src/controllers/renewal.controller.ts:31",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2306,7 +2306,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:152",
+    "evidence": "src/controllers/renewal.controller.ts:155",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2317,7 +2317,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:139",
+    "evidence": "src/controllers/renewal.controller.ts:142",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -3163,7 +3163,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:125",
+    "evidence": "src/controllers/renewal.controller.ts:128",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4319,7 +4319,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:83",
+    "evidence": "src/controllers/renewal.controller.ts:86",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4328,9 +4328,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:163",
+    "evidence": "src/controllers/renewal.controller.ts:178",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {

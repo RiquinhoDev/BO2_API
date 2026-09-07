@@ -15,6 +15,7 @@ import {
   isAchievementEvaluationMutableExecutionEnabled,
   isCronExecutionCleanupMutableExecutionEnabled,
   isGuruTrialManualExecutionEnabled,
+  isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
 } from '../../../services/requestDrivenRuntimeConfig'
@@ -47,6 +48,10 @@ function manualMutableEnabled(
     return { enabled: isScheduledMessagesEnabled() && isMessagesEnabled() }
   }
   if (capability.id === 'renewal-ac-sync') return { enabled: isManualExecutionEnabled() }
+  if (capability.id === 'renewal-offer-sync') {
+    const enabled = isRenewalOfferManualExecutionEnabled()
+    return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual das ofertas de renovação desativada' }) }
+  }
   if (capability.id === 'discord-roles-sync') return { enabled: isRolesManualExecutionEnabled() }
   if (capability.id === 'guru-trial-check') {
     const enabled = isGuruTrialManualExecutionEnabled()

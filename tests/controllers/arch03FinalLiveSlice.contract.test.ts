@@ -4,7 +4,8 @@ const source = (path: string) => fs.readFileSync(path, 'utf8')
 
 test('canonicalizes the seven final live mutation success branches', () => {
   const renewal = source('src/controllers/renewal.controller.ts')
-  expect(renewal).toContain('res.json(successResponse({ report }))')
+  expect(renewal).toContain('res.json(successResponse({')
+  expect(renewal).toContain('executionSucceeded: result.success')
 
   const discord = source('src/routes/discordRenewal.routes.ts')
   expect(discord).toContain('res.json(successResponse({ report }))')

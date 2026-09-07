@@ -128,6 +128,19 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'RenewalOfferSync',
+    capability: implemented(
+      'renewal-offer-sync',
+      'cron-job',
+      {
+        status: 'verified',
+        reason: 'renewal-offer-sync-max-provider-sales-and-mutations',
+        limit: MAX_PROVIDER_READ_ITEMS,
+      },
+      { status: 'verified', reason: 'RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.name === 'RenewalAcSync',
     capability: implemented(
       'renewal-ac-sync',

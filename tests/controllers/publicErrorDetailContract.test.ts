@@ -8,6 +8,7 @@ const mockRenewalFindOne = jest.fn()
 const mockRenewalFindByIdAndUpdate = jest.fn()
 const mockRenewalCreate = jest.fn()
 const mockRenewalSync = jest.fn()
+const mockExecuteNamedJobManually = jest.fn()
 const mockRenewalCoverage = jest.fn()
 const mockRenewalPerformance = jest.fn()
 const mockTrialList = jest.fn()
@@ -54,6 +55,12 @@ jest.mock('../../src/models/RenewalOffer', () => ({
 
 jest.mock('../../src/services/renewal/renewalSync.service', () => ({
   syncRenewalOffers: mockRenewalSync,
+}))
+jest.mock('../../src/services/cron/scheduler', () => ({
+  __esModule: true,
+  default: {
+    executeNamedJobManually: mockExecuteNamedJobManually,
+  },
 }))
 jest.mock('../../src/services/renewal/renewalCoverage.service', () => ({
   getTurmasWithCoverage: mockRenewalCoverage,
@@ -135,7 +142,7 @@ describe('public technical-error boundary', () => {
     ['update', renewalController.updateOffer, mockRenewalFindByIdAndUpdate, 'RENEWAL_UPDATE_FAILED', 'Erro ao actualizar oferta', 'patch'],
     ['classes', renewalController.listTurmas, mockRenewalCoverage, 'RENEWAL_CLASSES_FAILED', 'Erro ao listar turmas', 'get'],
     ['performance', renewalController.performance, mockRenewalPerformance, 'RENEWAL_PERFORMANCE_FAILED', 'Erro ao calcular desempenho', 'get'],
-    ['sync', renewalController.runSync, mockRenewalSync, 'RENEWAL_SYNC_FAILED', 'Erro ao sincronizar ofertas', 'post'],
+    ['sync', renewalController.runSync, mockExecuteNamedJobManually, 'RENEWAL_SYNC_FAILED', 'Erro ao sincronizar ofertas', 'post'],
   ] as const
 
   it.each(renewalCases)('centralizes renewal %s failures', async (_name, handler, dependency, code, message, method) => {

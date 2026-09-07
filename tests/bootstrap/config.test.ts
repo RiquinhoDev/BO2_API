@@ -229,6 +229,26 @@ test('execução mutável manual de Renewal AC fica desligada por omissão e exi
     .toBe(true)
 })
 
+test('execução manual de RenewalOffer fica desligada por omissão e exige Hotmart completa', () => {
+  expect(loadConfig(VALID_ENV).renewal.offerManualExecutionEnabled).toBe(false)
+  expect(loadConfig({
+    ...VALID_ENV,
+    RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED: 'true',
+    HOTMART_CLIENT_ID: 'hotmart-client',
+    HOTMART_CLIENT_SECRET: 'hotmart-secret',
+  }).renewal.offerManualExecutionEnabled).toBe(true)
+
+  expect(() => loadConfig({
+    ...VALID_ENV,
+    RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED: 'true',
+  })).toThrow('RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED requer credenciais Hotmart completas')
+
+  expect(() => loadConfig({
+    ...VALID_ENV,
+    RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED: 'yes',
+  })).toThrow('RENEWAL_OFFER_MANUAL_EXECUTION_ENABLED deve ser true ou false')
+})
+
 test('execução mutável manual de DiscordRoles fica desligada por omissão e exige flag tipada', () => {
   expect(loadConfig(VALID_ENV).renewal.discordRolesManualExecutionEnabled).toBe(false)
   expect(loadConfig({
