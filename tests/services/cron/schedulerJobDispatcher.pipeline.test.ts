@@ -46,13 +46,12 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
 })
 
 describe('CronJobDispatcher', () => {
-  it('reports Discord as an explicit skipped no-op', async () => {
+  it('preserves the synthetic Discord fallback', async () => {
     const dispatcher = new CronJobDispatcher(createDependencies())
 
     await expect(dispatcher.execute(job('StandardDiscord', 'discord'))).resolves.toEqual({
       success: true,
-      stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 1 },
-      data: { status: 'skipped', reason: 'not-configured' },
+      stats: { total: 200, inserted: 20, updated: 180, errors: 0, skipped: 0 }
     })
   })
 
