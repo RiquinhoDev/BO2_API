@@ -225,3 +225,26 @@ pass
 ```
 
 No provider/network call, real or production database, dependency installation, deployment, promotion, push, merge, rebase, or `main` mutation was performed. Full-suite and catalog evidence remains parent-owned; Task 8 completion is not claimed by this implementation report.
+
+## Parent full-suite repair — 2026-09-08
+
+The first parent-owned complete suite correctly rejected the round-3 checkpoint: `9` suites failed, `452` passed; `16` tests failed, `3079` passed. No completion was claimed. The failures exposed stale response-count/config/lint ratchets, a 503-line source file, fail-fast Hotmart expectations that still described partial processing, and a real Mongoose hydration defect in the planned User concurrency guard.
+
+The repair keeps the strict boundary and restores real Mongo behavior:
+
+- Planned User comparison now accepts Mongoose-added defaults while comparing every field present in the bounded native snapshot. The final optimistic predicate represents arrays by exact size plus every planned element field, avoiding false conflicts from Mongoose casting without dropping concurrency protection.
+- Existing UserProduct updates, class-change history, renewal/autofix, and repeat sync behavior were reproduced against offline MongoMemoryServer.
+- Malformed Hotmart mixed snapshots now have explicit characterization for preflight rejection with zero User or SyncHistory writes; callbacks do not run because item processing never begins.
+- Response catalog expectations now match the verified current Front (`211` calls / `187` consumers), both runtime-config fixtures carry the default-off offer switch, the file-size ratchet is green, and unused suppression totals were pruned and re-ratcheted (`56` global / `13` sync).
+
+Fresh repair gates:
+
+```text
+Focused Hotmart/runtime/tooling repair: 11 suites passed; 71 tests passed.
+npm.cmd run types:check: pass
+npm.cmd run lint -- --max-warnings=0: pass
+npm.cmd run build: pass
+git diff --check: pass
+```
+
+The complete backend suite must be rerun after this repair before Task 8 can be approved.

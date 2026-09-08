@@ -49,6 +49,7 @@ const runtimeConfig = (): AppConfig =>
       legacyApi: { configured: false },
     },
     renewal: {
+      offerManualExecutionEnabled: false,
       acSyncEnabled: false,
       manualExecutionEnabled: false,
       writeDatesEnabled: false,

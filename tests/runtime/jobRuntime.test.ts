@@ -47,6 +47,7 @@ const config = (nodeEnv: AppConfig['nodeEnv']): AppConfig => ({
     legacyApi: { configured: false },
   },
   renewal: {
+    offerManualExecutionEnabled: false,
     acSyncEnabled: false,
     manualExecutionEnabled: false,
     writeDatesEnabled: false,

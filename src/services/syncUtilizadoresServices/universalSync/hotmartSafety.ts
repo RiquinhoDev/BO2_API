@@ -67,6 +67,22 @@ const stableValue = (value: unknown): unknown => {
   )
 }
 
+const matchesPlannedValue = (expected: unknown, actual: unknown): boolean => {
+  if (expected instanceof Date) return actual instanceof Date && expected.getTime() === actual.getTime()
+  if (expected && typeof expected === 'object' && '_bsontype' in expected) return String(expected) === String(actual)
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual)
+      && expected.length === actual.length
+      && expected.every((value, index) => matchesPlannedValue(value, actual[index]))
+  }
+  if (expected && typeof expected === 'object') {
+    return Boolean(actual && typeof actual === 'object')
+      && Object.entries(expected as Record<string, unknown>)
+        .every(([key, value]) => matchesPlannedValue(value, (actual as Record<string, unknown>)[key]))
+  }
+  return Object.is(expected, actual)
+}
+
 export const hotmartUserFingerprint = (value: unknown): string => {
   const source = typeof value === 'object' && value !== null && 'toObject' in value
     && typeof (value as { toObject?: unknown }).toObject === 'function'
@@ -100,30 +116,60 @@ export const assertHotmartUserMatchesPlan = (
   if (String(plannedUser._id ?? '') !== String((currentUser as { _id?: unknown })._id ?? '')) {
     throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
   }
-  if (hotmartUserFingerprint(plannedUser) !== hotmartUserFingerprint(currentUser)) {
-    throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+  const comparableCurrent = currentUser && typeof currentUser === 'object' && 'toObject' in currentUser
+    && typeof (currentUser as { toObject?: unknown }).toObject === 'function'
+    ? (currentUser as { toObject: () => unknown }).toObject()
+    : currentUser
+  for (const [path, expectedValue] of hotmartUserObservedFields(plannedUser)) {
+    const actualValue = path.split('.').reduce<unknown>((value, key) => (
+      value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+    ), comparableCurrent)
+    if (!matchesPlannedValue(expectedValue, actualValue)) {
+      throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+    }
   }
 }
 
-export const hotmartUserOptimisticFilter = (plannedUser: Record<string, unknown> | null): Record<string, unknown> => {
-  if (!plannedUser) return {}
-  const filter: Record<string, unknown> = { _id: plannedUser._id }
-  const assignIfPresent = (key: string, value: unknown) => {
-    if (value !== undefined) filter[key] = value
-  }
+const hotmartUserObservedFields = (plannedUser: Record<string, unknown>): [string, unknown][] => {
   const hotmart = (plannedUser.hotmart && typeof plannedUser.hotmart === 'object' ? plannedUser.hotmart : {}) as Record<string, unknown>
   const curseduca = (plannedUser.curseduca && typeof plannedUser.curseduca === 'object' ? plannedUser.curseduca : {}) as Record<string, unknown>
   const combined = (plannedUser.combined && typeof plannedUser.combined === 'object' ? plannedUser.combined : {}) as Record<string, unknown>
   const inactivation = (plannedUser.inactivation && typeof plannedUser.inactivation === 'object' ? plannedUser.inactivation : {}) as Record<string, unknown>
   const metadata = (plannedUser.metadata && typeof plannedUser.metadata === 'object' ? plannedUser.metadata : {}) as Record<string, unknown>
-  assignIfPresent('email', plannedUser.email)
-  assignIfPresent('name', plannedUser.name)
-  assignIfPresent('classId', plannedUser.classId)
-  assignIfPresent('hotmart.enrolledClasses', hotmart.enrolledClasses)
-  assignIfPresent('curseduca.enrolledClasses', curseduca.enrolledClasses)
-  assignIfPresent('combined.status', combined.status)
-  assignIfPresent('inactivation.isManuallyInactivated', inactivation.isManuallyInactivated)
-  assignIfPresent('metadata.updatedAt', metadata.updatedAt)
+  return [
+    ['_id', plannedUser._id],
+    ['email', plannedUser.email],
+    ['name', plannedUser.name],
+    ['classId', plannedUser.classId],
+    ['hotmart.enrolledClasses', hotmart.enrolledClasses],
+    ['curseduca.enrolledClasses', curseduca.enrolledClasses],
+    ['combined.status', combined.status],
+    ['inactivation.isManuallyInactivated', inactivation.isManuallyInactivated],
+    ['metadata.updatedAt', metadata.updatedAt],
+  ].filter((entry): entry is [string, unknown] => entry[1] !== undefined)
+}
+
+export const hotmartUserOptimisticFilter = (plannedUser: Record<string, unknown> | null): Record<string, unknown> => {
+  if (!plannedUser) return {}
+  const filter: Record<string, unknown> = {}
+  const clauses: Record<string, unknown>[] = []
+  for (const [path, value] of hotmartUserObservedFields(plannedUser)) {
+    if (!Array.isArray(value)) {
+      filter[path] = value
+      continue
+    }
+    clauses.push({ [path]: { $size: value.length } })
+    value.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        clauses.push({ [`${path}.${index}`]: item })
+        return
+      }
+      for (const [key, nested] of Object.entries(item as Record<string, unknown>)) {
+        if (nested !== undefined) clauses.push({ [`${path}.${index}.${key}`]: nested })
+      }
+    })
+  }
+  if (clauses.length > 0) filter.$and = clauses
   return filter
 }
 

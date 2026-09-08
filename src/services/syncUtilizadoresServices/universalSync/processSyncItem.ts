@@ -25,12 +25,7 @@ import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
-import {
-  assertHotmartUserMatchesPlan,
-  hotmartUserOptimisticFilter,
-  mergeHotmartClassPlan,
-  type HotmartExecutionPlan,
-} from './hotmartSafety'
+import { assertHotmartUserMatchesPlan, hotmartUserOptimisticFilter, mergeHotmartClassPlan, type HotmartExecutionPlan } from './hotmartSafety'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 

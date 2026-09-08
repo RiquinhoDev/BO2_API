@@ -63,18 +63,18 @@ const valid = (email: string): UniversalSourceItem => ({
 })
 
 describe('universalSync shared — item outcomes', () => {
-  it('counts an item with no email as an error and still finishes', async () => {
-    const result = await run([{ name: 'no-email' } as UniversalSourceItem])
-    expect(result.stats.total).toBe(1)
-    expect(result.stats.errors).toBe(1)
-    expect(result.stats.inserted).toBe(0)
+  it('rejects an item with no stable identity before any Hotmart write', async () => {
+    await expect(run([{ name: 'no-email' } as UniversalSourceItem]))
+      .rejects.toThrow('HOTMART_SYNC_IDENTITY_INVALID')
+    expect(await User.countDocuments({})).toBe(0)
+    expect(await SyncHistory.countDocuments({})).toBe(0)
   })
 
-  it('processes valid items and isolates a failing one (partial error)', async () => {
-    const result = await run([valid('a@x.test'), { name: 'bad' } as UniversalSourceItem, valid('b@x.test')])
-    expect(result.stats.total).toBe(3)
-    expect(result.stats.errors).toBe(1)
-    expect(await User.countDocuments({})).toBe(2) // the two valid items were inserted
+  it('rejects a malformed mixed provider snapshot before valid-item writes', async () => {
+    await expect(run([valid('a@x.test'), { name: 'bad' } as UniversalSourceItem, valid('b@x.test')]))
+      .rejects.toThrow('HOTMART_SYNC_IDENTITY_INVALID')
+    expect(await User.countDocuments({})).toBe(0)
+    expect(await SyncHistory.countDocuments({})).toBe(0)
   })
 
   it('reports a final status and preserves aggregate stats', async () => {
@@ -85,12 +85,13 @@ describe('universalSync shared — item outcomes', () => {
 })
 
 describe('universalSync shared — callbacks', () => {
-  it('invokes onProgress during processing and onError on a failing item', async () => {
+  it('does not invoke item callbacks when Hotmart preflight rejects the snapshot', async () => {
     const onProgress = jest.fn()
     const onError = jest.fn()
-    await run([valid('a@x.test'), { name: 'bad' } as UniversalSourceItem], { onProgress, onError })
-    expect(onProgress).toHaveBeenCalled()
-    expect(onError).toHaveBeenCalled()
+    await expect(run([valid('a@x.test'), { name: 'bad' } as UniversalSourceItem], { onProgress, onError }))
+      .rejects.toThrow('HOTMART_SYNC_IDENTITY_INVALID')
+    expect(onProgress).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
   })
 })
 

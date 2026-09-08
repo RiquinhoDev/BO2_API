@@ -113,9 +113,11 @@ describe('universalSync hotmart — class history', () => {
       hotmart: { enrolledClasses: [{ classId: 'OLD', className: 'Turma Antiga', source: 'hotmart', isActive: true }] },
     })
 
-    await runHotmart(baseItem({ classId: 'C1', className: 'Turma C1' }))
+    const result = await runHotmart(baseItem({ classId: 'C1', className: 'Turma C1' }))
 
     const history = await StudentClassHistory.findOne({ studentId: oid(2).toString(), classId: 'C1' }).lean()
+    expect(result.errors).toEqual([])
+    expect(history).toMatchObject({ previousClassId: 'OLD', previousClassName: 'Turma Antiga' })
     expect(history?.previousClassId).toBe('OLD')
     expect(history?.previousClassName).toBe('Turma Antiga')
   })
@@ -247,6 +249,7 @@ describe('universalSync hotmart — repeated sync', () => {
   it('reports unchanged on a second identical sync', async () => {
     await runHotmart(baseItem())
     const second = await runHotmart(baseItem())
+    expect(second.errors).toEqual([])
     expect(second.stats.inserted).toBe(0)
     expect(second.stats.unchanged + second.stats.updated).toBe(1)
   })

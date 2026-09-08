@@ -168,7 +168,7 @@ describe('response contract catalog', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('212 Front calls; 187 consumers')
+    expect(result.stdout).toContain('211 Front calls; 187 consumers')
     expect(after).toBe(before)
   })
 
