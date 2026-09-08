@@ -66,7 +66,12 @@ export const executeUniversalSync = async (
       return {
         success: true,
         dryRun: true,
-        plan: prepared.plan as unknown as Record<string, unknown> | undefined,
+        plan: prepared.plan
+          ? {
+            ...(prepared.plan as unknown as Record<string, unknown>),
+            projectedMutations: prepared.executionPlan.projectedEffects,
+          }
+          : undefined,
         stats: {
           total: 0,
           inserted: 0,

@@ -9,6 +9,7 @@ import type {
   RenewalOfferSyncPlan,
   HotmartSyncPlan,
   CurseducaSyncPlan,
+  AllSyncPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { normalizePlannedExecution } from './plannedExecutionNormalizer'
@@ -26,6 +27,7 @@ import curseducaAdapter from '../../syncUtilizadoresServices/curseducaServices/c
 import universalSyncService from '../../syncUtilizadoresServices/universalSync'
 import { HttpError } from '../../../security/errorHandling'
 import { CurseducaProviderSafetyError } from '../../syncUtilizadoresServices/curseducaServices/curseducaPagination'
+import { runAllSyncs } from './allSyncComposite'
 
 export type UniversalSyncRequest = UniversalSyncConfig
 
@@ -41,7 +43,7 @@ export interface CronDispatchResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan | CurseducaSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan | CurseducaSyncPlan | AllSyncPlan
 }
 
 export interface CronDispatchOptions {
@@ -271,7 +273,7 @@ export class CronJobDispatcher {
       case 'discord':
         return this.executeDiscordSync()
       case 'all':
-        return this.executeAllSyncs(job)
+        return runAllSyncs(job, { ...options, ...this.dependencies })
       case 'pipeline':
         return this.executePipeline(options)
       default:
@@ -484,36 +486,8 @@ export class CronJobDispatcher {
   private executeDiscordSync(): CronDispatchResult {
     return {
       success: true,
-      stats: { total: 200, inserted: 20, updated: 180, errors: 0, skipped: 0 }
-    }
-  }
-
-  private async executeAllSyncs(job: CronDispatchJob): Promise<CronDispatchResult> {
-    const results = await Promise.allSettled([
-      this.executePlatformSync(job, 'hotmart'),
-      this.executePlatformSync(job, 'curseduca'),
-      Promise.resolve(this.executeDiscordSync())
-    ])
-    const stats = { ...EMPTY_STATS }
-    const errorMessages: string[] = []
-    for (const result of results) {
-      if (result.status !== 'fulfilled') {
-        stats.errors += 1
-        errorMessages.push(errorMessageOf(result.reason))
-        continue
-      }
-      stats.total += result.value.stats.total
-      stats.inserted += result.value.stats.inserted
-      stats.updated += result.value.stats.updated
-      stats.errors += result.value.stats.errors
-      stats.skipped += result.value.stats.skipped
-      if (!result.value.success && result.value.stats.errors === 0) stats.errors += 1
-      if (result.value.errorMessage) errorMessages.push(result.value.errorMessage)
-    }
-    return {
-      success: results.every(result => result.status === 'fulfilled' && result.value.success),
-      stats,
-      errorMessage: errorMessages.length > 0 ? errorMessages.join('; ') : undefined,
+      stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 1 },
+      data: { status: 'skipped', reason: 'not-configured' },
     }
   }
 

@@ -68,6 +68,12 @@ export function isCurseducaSyncManualExecutionEnabled(): boolean {
     && getRuntimeConfig().integrations.curseduca.configured === true
 }
 
+export function isAllSyncManualExecutionEnabled(): boolean {
+  return getRuntimeConfig().core.allSyncManualExecutionEnabled === true
+    && getRuntimeConfig().integrations.hotmart.configured === true
+    && getRuntimeConfig().integrations.curseduca.configured === true
+}
+
 export function isRenewalOfferManualExecutionEnabled(): boolean {
   const config = getRuntimeConfig().renewal
   return config.offerManualExecutionEnabled === true

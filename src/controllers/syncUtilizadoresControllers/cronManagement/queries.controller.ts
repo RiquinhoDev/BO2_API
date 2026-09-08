@@ -17,6 +17,7 @@ import {
   isGuruTrialManualExecutionEnabled,
   isHotmartSyncManualExecutionEnabled,
   isCurseducaSyncManualExecutionEnabled,
+  isAllSyncManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
@@ -66,6 +67,10 @@ function manualMutableEnabled(
   if (capability.id === 'curseduca-sync') {
     const enabled = isCurseducaSyncManualExecutionEnabled()
     return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual do sync CursEduca desativada' }) }
+  }
+  if (capability.id === 'all-sync') {
+    const enabled = isAllSyncManualExecutionEnabled()
+    return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual do sync agregado desativada' }) }
   }
   return { enabled: false }
 }

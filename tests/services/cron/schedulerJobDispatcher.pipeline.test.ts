@@ -46,30 +46,41 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
 })
 
 describe('CronJobDispatcher', () => {
-  it('preserves the synthetic Discord fallback', async () => {
+  it('reports Discord as an explicit skipped no-op', async () => {
     const dispatcher = new CronJobDispatcher(createDependencies())
 
     await expect(dispatcher.execute(job('StandardDiscord', 'discord'))).resolves.toEqual({
       success: true,
-      stats: { total: 200, inserted: 20, updated: 180, errors: 0, skipped: 0 }
+      stats: { total: 0, inserted: 0, updated: 0, errors: 0, skipped: 1 },
+      data: { status: 'skipped', reason: 'not-configured' },
     })
   })
 
-  it('aggregates fulfilled and rejected all-sync results with failure stats', async () => {
+  it('fails closed when an all-sync child preflight rejects', async () => {
     const dependencies = createDependencies()
     dependencies.executeUniversalSync
-      .mockResolvedValueOnce({ success: true, stats: { total: 3, inserted: 1, updated: 2, errors: 0, skipped: 0 } })
+      .mockResolvedValueOnce({
+        success: true,
+        dryRun: true,
+        stats: { ...emptyStats },
+        plan: {
+          operation: 'hotmart-sync', dryRun: true, truncated: false, anomaly: false,
+          limit: 20_000, total: 0, inserted: 0, updated: 0, errors: 0, skipped: 0, remaining: 0,
+          projectedMutations: 1,
+        },
+      })
       .mockRejectedValueOnce(new Error('curseduca failed'))
     const dispatcher = new CronJobDispatcher(dependencies)
 
     await expect(dispatcher.execute(job('AllSync', 'all'))).resolves.toEqual({
       success: false,
-      stats: { total: 203, inserted: 21, updated: 182, errors: 1, skipped: 0 },
-      errorMessage: 'curseduca failed'
+      stats: { ...emptyStats, errors: 1 },
+      errorMessage: 'Execução All sync falhou'
     })
+    expect(dependencies.executeUniversalSync).toHaveBeenCalledTimes(2)
   })
 
-  it('passes the complete provider result set because the composed runner has no aggregate cap', async () => {
+  it('passes a bounded provider snapshot into the all-sync preflight', async () => {
     const dependencies = createDependencies()
     const sourceData = Array.from({ length: 201 }, (_value, index) => ({ email: `user-${index}@example.test` }))
     dependencies.fetchHotmart.mockResolvedValue(sourceData)
@@ -81,6 +92,7 @@ describe('CronJobDispatcher', () => {
       syncType: 'hotmart',
       sourceData,
     }))
+    expect(dependencies.executeUniversalSync).toHaveBeenCalledTimes(2)
   })
 
   it('allows concurrent composed executions to enter the same pipeline runner', async () => {

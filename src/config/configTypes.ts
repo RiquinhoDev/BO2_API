@@ -24,6 +24,7 @@ export interface CoreConfig {
   readonly guruTrialManualExecutionEnabled?: boolean
   readonly hotmartSyncManualExecutionEnabled?: boolean
   readonly curseducaSyncManualExecutionEnabled?: boolean
+  readonly allSyncManualExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }

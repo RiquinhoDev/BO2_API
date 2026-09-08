@@ -339,7 +339,16 @@ test('CursEduca UniversalSync preview reads a bounded plan and performs no write
     fullSync: true, includeProgress: true, includeTags: false, batchSize: 50,
     sourceData: [{ email: 'preview-curs@example.test', name: 'Preview', curseducaUserId: 'c-1', groupId: 'g-1' }],
   })
-  expect(result).toMatchObject({ success: true, dryRun: true, plan: { operation: 'curseduca-sync', total: 1, inserted: 1 } })
+  expect(result).toMatchObject({
+    success: true,
+    dryRun: true,
+    plan: {
+      operation: 'curseduca-sync',
+      total: 1,
+      inserted: 1,
+      projectedMutations: expect.any(Number),
+    },
+  })
   expect(result.reportId).toBeUndefined()
 })
 

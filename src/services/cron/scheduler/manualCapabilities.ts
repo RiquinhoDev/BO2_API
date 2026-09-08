@@ -40,8 +40,8 @@ export interface CronManualCapabilityJob {
   __v?: unknown
 }
 
-// Exact catalog identities used by the CursEduca cron jobs. Keep this allowlist
-// closed: syncType alone must never grant manual access to `all` or another job.
+// Exact catalog identities used by the named CursEduca cron jobs. Keep this
+// allowlist closed; the aggregate capability uses the persisted `all` type.
 export const CURSEDUCA_MANUAL_JOB_NAMES = [
   'Job de CursEduca',
   'Sync CursEduca',
@@ -195,6 +195,21 @@ const capabilityEntries: readonly {
         limit: MAX_PROVIDER_READ_ITEMS,
       },
       { status: 'verified', reason: 'CURSEDUCA_SYNC_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
+    // `syncType: all` is the persisted identity already used by the cron
+    // routes/dispatcher. Do not infer this capability from a display name.
+    matches: job => job.syncType === 'all',
+    capability: implemented(
+      'all-sync',
+      'cron-job',
+      {
+        status: 'verified',
+        reason: 'all-sync-max-provider-source-and-effective-mutations',
+        limit: MAX_PROVIDER_READ_ITEMS,
+      },
+      { status: 'verified', reason: 'ALL_SYNC_MANUAL_EXECUTION_ENABLED' },
     ),
   },
   {

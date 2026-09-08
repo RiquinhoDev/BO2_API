@@ -69,7 +69,7 @@ export interface CronExecutionResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan | CurseducaSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan | CurseducaSyncPlan | AllSyncPlan
 }
 
 export interface HotmartSyncPlan {
@@ -98,6 +98,19 @@ export interface CurseducaSyncPlan {
   errors: number
   skipped: number
   remaining: number
+}
+
+export interface AllSyncPlan {
+  operation: 'all-sync'
+  dryRun: true
+  sourceLimit: number
+  effectiveMutationLimit: number
+  sourceTotal: number
+  projectedMutations: number
+  withinLimit: boolean
+  hotmart: Record<string, unknown>
+  curseduca: Record<string, unknown>
+  discord: { status: 'skipped'; reason: 'not-configured' }
 }
 
 export interface DailyPipelinePlan {

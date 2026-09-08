@@ -6,6 +6,7 @@ import {
   isGuruTrialManualExecutionEnabled,
   isHotmartSyncManualExecutionEnabled,
   isCurseducaSyncManualExecutionEnabled,
+  isAllSyncManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
@@ -103,6 +104,13 @@ export async function assertManualExecutionEnabled(capability: CronManualCapabil
       status: 503,
       code: 'CURSEDUCA_SYNC_MANUAL_EXECUTION_DISABLED',
       publicMessage: 'Execução manual do sync CursEduca desativada',
+    })
+  }
+  if (capability.id === 'all-sync' && !isAllSyncManualExecutionEnabled()) {
+    throw new HttpError({
+      status: 503,
+      code: 'ALL_SYNC_MANUAL_EXECUTION_DISABLED',
+      publicMessage: 'Execução manual do sync agregado desativada',
     })
   }
 }

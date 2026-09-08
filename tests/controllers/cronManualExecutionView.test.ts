@@ -7,6 +7,7 @@ const mockIsWeeklyTagSnapshotMutableExecutionEnabled = jest.fn()
 const mockIsGuruTrialManualExecutionEnabled = jest.fn()
 const mockIsRenewalOfferManualExecutionEnabled = jest.fn()
 const mockIsCurseducaSyncManualExecutionEnabled = jest.fn()
+const mockIsAllSyncManualExecutionEnabled = jest.fn()
 const mockWeeklyConfig = jest.fn()
 
 jest.mock('../../src/services/cron/scheduler', () => ({
@@ -24,6 +25,7 @@ jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
   isGuruTrialManualExecutionEnabled: mockIsGuruTrialManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled: mockIsRenewalOfferManualExecutionEnabled,
   isCurseducaSyncManualExecutionEnabled: mockIsCurseducaSyncManualExecutionEnabled,
+  isAllSyncManualExecutionEnabled: mockIsAllSyncManualExecutionEnabled,
 }))
 jest.mock('../../src/models/tagMonitoring/WeeklyTagMonitoringConfig', () => ({
   __esModule: true,
@@ -57,6 +59,11 @@ const curseducaJob = {
   name: 'Job de CursEduca',
   syncType: 'curseduca',
 }
+const allJob = {
+  ...job,
+  name: 'Nightly aggregate',
+  syncType: 'all',
+}
 
 function response() {
   return {
@@ -74,6 +81,7 @@ beforeEach(() => {
   mockIsGuruTrialManualExecutionEnabled.mockReturnValue(true)
   mockIsRenewalOfferManualExecutionEnabled.mockReturnValue(false)
   mockIsCurseducaSyncManualExecutionEnabled.mockReturnValue(false)
+  mockIsAllSyncManualExecutionEnabled.mockReturnValue(false)
   mockWeeklyConfig.mockResolvedValue({ enabled: true, scope: 'ALL_CONTACTS' })
 })
 
@@ -232,6 +240,30 @@ test('list view exposes the exact CursEduca manual switch and block reason', asy
           dryRunSupported: true,
           mutableEnabled: false,
           blockedReason: 'Execução manual do sync CursEduca desativada',
+        }),
+      })],
+    }),
+  }))
+})
+
+test('list view exposes the aggregate all switch and truthful ON state', async () => {
+  mockGetJobsByType.mockResolvedValue([allJob])
+  mockIsAllSyncManualExecutionEnabled.mockReturnValue(true)
+  const res = response()
+
+  await getAllJobs(
+    { query: { syncType: 'all' } } as unknown as Request,
+    res as unknown as Response,
+    jest.fn() as NextFunction,
+  )
+
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      jobs: [expect.objectContaining({
+        manualExecution: expect.objectContaining({
+          capability: 'all-sync',
+          dryRunSupported: true,
+          mutableEnabled: true,
         }),
       })],
     }),

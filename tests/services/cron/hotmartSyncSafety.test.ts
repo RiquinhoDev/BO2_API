@@ -223,7 +223,10 @@ test('UniversalSync preview performs bounded local preflight and no mutations', 
   expect(result).toMatchObject({
     success: true,
     dryRun: true,
-    plan: expect.objectContaining({ operation: 'hotmart-sync', dryRun: true, limit: 20_000, inserted: 1 }),
+    plan: expect.objectContaining({
+      operation: 'hotmart-sync', dryRun: true, limit: 20_000, inserted: 1,
+      projectedMutations: expect.any(Number),
+    }),
   })
   expect(result.reportId).toBeUndefined()
   expect(hooks.localMutationStarted).not.toHaveBeenCalled()
