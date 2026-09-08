@@ -113,7 +113,7 @@ export class CronJobExecutor {
         data: result.data,
       }
     } catch (error) {
-      if (error instanceof HttpError && error.status === 413
+      if (error instanceof HttpError && (error.status === 413 || error.code.startsWith('CURSEDUCA_PROVIDER_'))
         || error instanceof Error && error.name === 'ActiveCampaignExecutionOwnershipError') {
         throw error
       }

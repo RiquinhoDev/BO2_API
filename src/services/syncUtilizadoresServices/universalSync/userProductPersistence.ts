@@ -289,12 +289,19 @@ export async function persistUserProduct(
               ...(existingPrimary.updatedAt ? { updatedAt: existingPrimary.updatedAt } : {}),
             }
             : { _id: existingPrimary._id }
-          const demoted = await UserProduct.updateOne(
+          const demoted = await UserProduct.findOneAndUpdate(
             primaryFilter,
             { $set: reassignment.demoteUpdate },
+            { new: true },
           )
-          if (input.plannedUserProducts && typeof demoted.matchedCount === 'number' && demoted.matchedCount !== 1) {
+          if (input.plannedUserProducts && !demoted) {
             throw new Error('CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT')
+          }
+          if (input.plannedUserProducts && demoted) {
+            const refreshed = typeof (demoted as unknown as { toObject?: () => unknown }).toObject === 'function'
+              ? (demoted as unknown as { toObject: () => unknown }).toObject()
+              : demoted
+            Object.assign(existingPrimary as unknown as Record<string, unknown>, refreshed)
           }
         } else {
           logger.info('      🔻 Novo produto mais antigo → SECONDARY (antigo mantém-se PRIMARY)')

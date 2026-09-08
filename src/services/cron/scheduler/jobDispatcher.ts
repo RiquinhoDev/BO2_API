@@ -25,6 +25,7 @@ import hotmartAdapter from '../../syncUtilizadoresServices/hotmartServices/hotma
 import curseducaAdapter from '../../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import universalSyncService from '../../syncUtilizadoresServices/universalSync'
 import { HttpError } from '../../../security/errorHandling'
+import { CurseducaProviderSafetyError } from '../../syncUtilizadoresServices/curseducaServices/curseducaPagination'
 
 export type UniversalSyncRequest = UniversalSyncConfig
 
@@ -142,6 +143,32 @@ const asHotmartControlError = (error: unknown): HttpError => {
     status: 413,
     code,
     publicMessage: 'Limite de segurança do sync Hotmart excedido',
+    cause: error,
+  })
+}
+
+const CURSEDUCA_PROVIDER_PUBLIC_CODES = new Set([
+  'CURSEDUCA_PROVIDER_DATA_INVALID',
+  'CURSEDUCA_PROVIDER_CURSOR_REPEATED',
+  'CURSEDUCA_PROVIDER_ENVELOPE_INVALID',
+  'CURSEDUCA_PROVIDER_IDENTITY_INVALID',
+  'CURSEDUCA_PROVIDER_IDENTITY_REPEATED',
+  'CURSEDUCA_PROVIDER_ITEM_LIMIT_EXCEEDED',
+  'CURSEDUCA_PROVIDER_PAGE_LIMIT_EXCEEDED',
+  'CURSEDUCA_PROVIDER_PAGE_SIZE_EXCEEDED',
+  'CURSEDUCA_PROVIDER_PAGINATION_CONFLICT',
+  'CURSEDUCA_PROVIDER_PAGINATION_INVALID',
+  'CURSEDUCA_PROVIDER_READ_FAILED',
+])
+
+const asCurseducaProviderError = (error: CurseducaProviderSafetyError): HttpError => {
+  const code = CURSEDUCA_PROVIDER_PUBLIC_CODES.has(error.code)
+    ? error.code
+    : 'CURSEDUCA_PROVIDER_READ_FAILED'
+  return new HttpError({
+    status: error.status === 413 ? 413 : 502,
+    code,
+    publicMessage: 'Limite de segurança do sync CursEduca excedido',
     cause: error,
   })
 }
@@ -434,6 +461,7 @@ export class CronJobDispatcher {
         : normalizeCurseducaSyncDispatch(result, { requestedDryRun: options.dryRun === true })
     } catch (error: unknown) {
       if (syncType === 'curseduca') {
+        if (error instanceof CurseducaProviderSafetyError) throw asCurseducaProviderError(error)
         if (shouldPropagateHotmartControlError(error)) throw error
         logger.error('Erro interno no sync CursEduca', error)
         return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: 'Execução CursEduca sync falhou' }

@@ -13,6 +13,7 @@ import {
 } from '../../../src/services/syncUtilizadoresServices/curseducaServices/curseducaReports.client'
 import {
   CurseducaProviderReadBudget,
+  CurseducaProviderSafetyError,
   fetchCurseducaPages,
 } from '../../../src/services/syncUtilizadoresServices/curseducaServices/curseducaPagination'
 import {
@@ -20,6 +21,8 @@ import {
   resetRuntimeConfigForTests,
 } from '../../../src/config/runtimeConfig'
 import { CronJobDispatcher, type CronDispatchDependencies } from '../../../src/services/cron/scheduler/jobDispatcher'
+import { CronJobExecutor, type CronExecutionDependencies } from '../../../src/services/cron/scheduler/jobExecution'
+import { HttpError } from '../../../src/security/errorHandling'
 import { normalizeCurseducaSyncDispatch } from '../../../src/services/cron/scheduler/curseducaSyncDispatchNormalizer'
 import { governCurseducaExecution, prepareCurseducaSync } from '../../../src/services/syncUtilizadoresServices/universalSync/curseducaSafety'
 import { executeUniversalSync } from '../../../src/services/syncUtilizadoresServices/universalSync/executeUniversalSync'
@@ -63,13 +66,23 @@ const credentialsEnv = {
 }
 
 test('registers only the exact CursEduca job and exposes backend-owned state', () => {
-  expect(getCronManualCapability(curseducaJob())).toEqual(expect.objectContaining({
-    id: 'curseduca-sync',
-    status: 'implemented',
-    cap: expect.objectContaining({ status: 'verified', limit: 20_000 }),
-    killSwitch: expect.objectContaining({ reason: 'CURSEDUCA_SYNC_MANUAL_EXECUTION_ENABLED' }),
-  }))
+  for (const name of [
+    'Job de CursEduca',
+    'Sync CursEduca',
+    'TESTE - Sync CursEduca em 4 minutos',
+    'TEST_CURSEDUCA_4MIN',
+  ]) {
+    expect(getCronManualCapability(curseducaJob(name))).toEqual(expect.objectContaining({
+      id: 'curseduca-sync',
+      status: 'implemented',
+      cap: expect.objectContaining({ status: 'verified', limit: 20_000 }),
+      killSwitch: expect.objectContaining({ reason: 'CURSEDUCA_SYNC_MANUAL_EXECUTION_ENABLED' }),
+    }))
+  }
   expect(getCronManualCapability(curseducaJob('Nightly Job de CursEduca')).status).toBe('blocked')
+  expect(getCronManualCapability(curseducaJob('Sync CursEduca (teste)')).status).toBe('blocked')
+  expect(getCronManualCapability(curseducaJob('TEST_CURSEDUCA_4MIN', 'hotmart')).status).toBe('blocked')
+  expect(getCronManualCapability(curseducaJob('All CursEduca', 'curseduca')).status).toBe('blocked')
   expect(getCronManualCapability(curseducaJob('Job de CursEduca', 'hotmart')).status).toBe('blocked')
   expect(cronManualExecutionView(curseducaJob(), false, {
     blockedReason: 'Execução manual do sync CursEduca desativada',
@@ -266,6 +279,58 @@ test('dispatcher keeps CursEduca dry-run bounded and forwards phase hooks', asyn
   expect(executeUniversalSync).toHaveBeenCalledWith(expect.objectContaining({ syncType: 'curseduca', dryRun: true, phaseHooks: hooks }))
 })
 
+test('dispatcher sanitizes CursEduca provider safety failures at the public boundary', async () => {
+  const dependencies = {
+    evaluateRules: jest.fn(), resetCounters: jest.fn(), rebuildDashboardStats: jest.fn(), cleanupExecutions: jest.fn(), weeklyTagSnapshot: jest.fn(), clarezaRefresh: jest.fn(), guruTrialCheck: jest.fn(), syncRenewalOffers: jest.fn(), runScheduledMessages: jest.fn(), runDiscordRolesSync: jest.fn(), runRenewalAcSync: jest.fn(), evaluateAchievements: jest.fn(), executeDailyPipeline: jest.fn(), fetchHotmart: jest.fn(),
+    fetchCurseduca: jest.fn().mockRejectedValue(new CurseducaProviderSafetyError(
+      'CURSEDUCA_PROVIDER_ITEM_LIMIT_EXCEEDED',
+      'groups/provider-secret/members excede 20000 itens',
+      413,
+    )),
+    executeUniversalSync: jest.fn(),
+  } as unknown as CronDispatchDependencies
+
+  let caught: unknown
+  try {
+    await new CronJobDispatcher(dependencies).execute(curseducaJob(), { triggeredBy: 'MANUAL' })
+  } catch (error) {
+    caught = error
+  }
+  expect(caught).toMatchObject({
+    status: 413,
+    code: 'CURSEDUCA_PROVIDER_ITEM_LIMIT_EXCEEDED',
+    publicMessage: 'Limite de segurança do sync CursEduca excedido',
+  })
+  expect(caught).toBeInstanceOf(Error)
+  expect((caught as Error).message).not.toContain('provider-secret')
+  expect((caught as Error).message).not.toContain('groups/')
+})
+
+test('job execution preserves the sanitized CursEduca HttpError instead of recording its cause', async () => {
+  const safeError = new HttpError({
+    status: 413,
+    code: 'CURSEDUCA_PROVIDER_ITEM_LIMIT_EXCEEDED',
+    publicMessage: 'Limite de segurança do sync CursEduca excedido',
+    cause: new CurseducaProviderSafetyError('CURSEDUCA_PROVIDER_ITEM_LIMIT_EXCEEDED', 'groups/provider-secret/members', 413),
+  })
+  const dependencies = {
+    dispatch: jest.fn().mockRejectedValue(safeError),
+    saveHistory: jest.fn(),
+    notify: jest.fn(),
+    now: jest.fn().mockReturnValue(1_000),
+    reportError: jest.fn(),
+  } as unknown as CronExecutionDependencies
+  const job = {
+    _id: { toString: () => 'job-1' }, name: 'Sync CursEduca', syncType: 'curseduca' as const,
+    notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: false, recipients: [] }, recordExecution: jest.fn(),
+  }
+
+  await expect(new CronJobExecutor(dependencies).execute(job, {
+    triggeredBy: 'MANUAL', isolateRecordFailure: false,
+  })).rejects.toBe(safeError)
+  expect(dependencies.saveHistory).not.toHaveBeenCalled()
+})
+
 test('CursEduca UniversalSync preview reads a bounded plan and performs no writes', async () => {
   const rows = { sort: () => ({ limit: () => ({ toArray: async () => [] }) }) }
   for (const model of [User, Product, Class, UserProduct, UserSnapshot]) jest.spyOn(model.collection, 'find').mockReturnValue(rows as never)
@@ -279,7 +344,7 @@ test('CursEduca UniversalSync preview reads a bounded plan and performs no write
 })
 
 test('CursEduca plan preloads every user product and budgets history fan-out', async () => {
-  const source = [{ email: 'fanout@example.test', name: 'Fanout', curseducaUserId: 'c-1', groupId: 'g-1' }]
+  const source = [{ email: 'fanout@example.test', name: 'Fanout', curseducaUserId: 'c-1', groupId: 123 }]
   const query = (rows: unknown[]) => ({ sort: () => ({ limit: () => ({ toArray: async () => rows }) }) })
   jest.spyOn(User.collection, 'find').mockReturnValue(query([{ _id: 'u-1', email: source[0].email, name: 'Fanout' }]) as never)
   jest.spyOn(Product.collection, 'find').mockReturnValue(query([]) as never)
@@ -321,16 +386,38 @@ test('renewal mutation scopes planned user products and statuses', async () => {
 
 test('primary demotion fails closed when the planned incumbent changed', async () => {
   productsCache.loadSnapshot([{ _id: 'new-product', code: 'NEW', platform: 'curseduca', curseducaGroupId: 'g-new' } as never])
-  const updateOne = jest.spyOn(UserProduct, 'updateOne').mockResolvedValue({ matchedCount: 0 } as never)
+  const findOneAndUpdate = jest.spyOn(UserProduct, 'findOneAndUpdate').mockResolvedValue(null)
   const hooks = { assertOwnership: jest.fn(), providerStarted: jest.fn(), providerSucceeded: jest.fn(), localMutationStarted: jest.fn(), consumeMutation: jest.fn() }
   await expect(persistUserProduct({
     item: { email: 'primary@example.test', name: 'Primary', groupId: 'g-new', enrolledAt: '2026-09-01', platformData: { isPrimary: true } },
     syncType: 'curseduca', user: { email: 'primary@example.test' } as never, userId: 'u-1', phaseHooks: hooks,
     plannedUserProducts: [{ _id: 'old-up', userId: 'u-1', platform: 'curseduca', productId: 'old-product', status: 'ACTIVE', isPrimary: true, enrolledAt: '2025-01-01', updatedAt: 't0', classes: [] }],
   })).rejects.toThrow('CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT')
-  expect(updateOne).toHaveBeenCalledWith(expect.objectContaining({
+  expect(findOneAndUpdate).toHaveBeenCalledWith(expect.objectContaining({
     _id: 'old-up', userId: 'u-1', platform: 'curseduca', productId: 'old-product', isPrimary: true, status: 'ACTIVE', updatedAt: 't0',
-  }), expect.anything())
+  }), expect.anything(), { new: true })
+})
+
+test('primary demotion merges the returned row into the execution plan snapshot', async () => {
+  productsCache.loadSnapshot([{ _id: 'new-product', code: 'NEW', platform: 'curseduca', curseducaGroupId: 'g-new' } as never])
+  const planned = [{ _id: 'old-up', userId: 'u-1', platform: 'curseduca', productId: 'old-product', status: 'ACTIVE', isPrimary: true, enrolledAt: new Date('2025-01-01'), updatedAt: new Date('2026-01-01'), classes: [] }]
+  const initialUpdatedAt = planned[0].updatedAt
+  const findOneAndUpdate = jest.spyOn(UserProduct, 'findOneAndUpdate').mockResolvedValue({
+    ...planned[0], status: 'INACTIVE', isPrimary: false, updatedAt: new Date('2026-01-02'),
+  } as never)
+  jest.spyOn(UserProduct, 'updateOne').mockResolvedValue({ matchedCount: 1 } as never)
+  jest.spyOn(UserProduct, 'create').mockResolvedValue({ _id: 'new-up', userId: 'u-1', productId: 'new-product' } as never)
+  const hooks = { assertOwnership: jest.fn(), providerStarted: jest.fn(), providerSucceeded: jest.fn(), localMutationStarted: jest.fn(), consumeMutation: jest.fn() }
+
+  await expect(persistUserProduct({
+    item: { email: 'primary@example.test', name: 'Primary', groupId: 'g-new', enrolledAt: '2026-09-01', platformData: { isPrimary: true } },
+    syncType: 'curseduca', user: { email: 'primary@example.test' } as never, userId: 'u-1', phaseHooks: hooks,
+    plannedUserProducts: planned,
+  })).resolves.toMatchObject({ status: 'completed' })
+  expect(findOneAndUpdate).toHaveBeenCalledWith(expect.objectContaining({
+    _id: 'old-up', userId: 'u-1', platform: 'curseduca', productId: 'old-product', isPrimary: true, status: 'ACTIVE', updatedAt: initialUpdatedAt,
+  }), expect.anything(), { new: true })
+  expect(planned[0]).toEqual(expect.objectContaining({ status: 'INACTIVE', isPrimary: false, updatedAt: new Date('2026-01-02') }))
 })
 
 test('CursEduca effective overflow rejects before any local read', async () => {

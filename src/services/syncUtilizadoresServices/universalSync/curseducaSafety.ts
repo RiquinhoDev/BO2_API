@@ -184,7 +184,10 @@ export async function prepareCurseducaSync(sourceData: UniversalSourceItem | Uni
   const renewalTargets = Object.values(renewalTargetsByUser).reduce((sum, count) => sum + count, 0)
   const reportEffects = 8 + batchCount
   const baseItemEffects = source.length * 4
-  const classEffects = source.filter(item => typeof item.groupId === 'string' && item.groupId.trim() !== '').length
+  const classEffects = source.filter(item => (
+    typeof item.groupId === 'string' && item.groupId.trim() !== ''
+    || typeof item.groupId === 'number' && Number.isSafeInteger(item.groupId)
+  )).length
   const projected = reportEffects + baseItemEffects + historyUpperBound + classEffects + reactivationTargets + renewalTargets
   if (projected > CURSEDUCA_SYNC_LIMIT) throw safetyError('CURSEDUCA_SYNC_EFFECTIVE_MUTATION_LIMIT_EXCEEDED', `efeitos projectados excedem ${CURSEDUCA_SYNC_LIMIT}`, 413)
   let consumedEffects = 0

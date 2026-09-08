@@ -40,6 +40,19 @@ export interface CronManualCapabilityJob {
   __v?: unknown
 }
 
+// Exact catalog identities used by the CursEduca cron jobs. Keep this allowlist
+// closed: syncType alone must never grant manual access to `all` or another job.
+export const CURSEDUCA_MANUAL_JOB_NAMES = [
+  'Job de CursEduca',
+  'Sync CursEduca',
+  'TESTE - Sync CursEduca em 4 minutos',
+  'TEST_CURSEDUCA_4MIN',
+] as const
+
+const isCurseducaManualJobName = (name: string): boolean => (
+  (CURSEDUCA_MANUAL_JOB_NAMES as readonly string[]).includes(name)
+)
+
 const jobIdentity = (job: CronManualCapabilityJob): string => `cron-job:${job._id.toString()}`
 
 const implemented = (
@@ -172,7 +185,7 @@ const capabilityEntries: readonly {
     ),
   },
   {
-    matches: job => job.name === 'Job de CursEduca' && job.syncType === 'curseduca',
+    matches: job => isCurseducaManualJobName(job.name) && job.syncType === 'curseduca',
     capability: implemented(
       'curseduca-sync',
       'cron-job',
