@@ -118,7 +118,7 @@ describe('all cron composite', () => {
         ...(request.dryRun ? { plan: {
           operation: `${request.syncType}-sync`, dryRun: true, truncated: false, anomaly: false,
           limit: 20_000, total: 2, inserted: 1, updated: 1, errors: 0, skipped: 0, remaining: 0,
-          projectedMutations: 4,
+          projectedMutations: request.syncType === 'hotmart' ? 4 : 7,
         } } : {}),
       }
     })
@@ -139,8 +139,14 @@ describe('all cron composite', () => {
     expect(executeUniversalSync).toHaveBeenNthCalledWith(2, expect.objectContaining({ syncType: 'curseduca', dryRun: true, triggeredBy: 'MANUAL' }))
     expect(executeUniversalSync.mock.calls[0][0].phaseHooks).toEqual(expect.objectContaining({ assertOwnership: phaseHooks.assertOwnership }))
     expect(executeUniversalSync.mock.calls[0][0].phaseHooks).not.toBe(phaseHooks)
-    expect(executeUniversalSync.mock.calls[2][0]).toEqual(expect.objectContaining({ syncType: 'hotmart', dryRun: false, triggeredBy: 'MANUAL', phaseHooks }))
-    expect(executeUniversalSync.mock.calls[3][0]).toEqual(expect.objectContaining({ syncType: 'curseduca', dryRun: false, triggeredBy: 'MANUAL', phaseHooks }))
+    expect(executeUniversalSync.mock.calls[2][0]).toEqual(expect.objectContaining({
+      syncType: 'hotmart', dryRun: false, triggeredBy: 'MANUAL', phaseHooks,
+      projectedMutationLimit: 4,
+    }))
+    expect(executeUniversalSync.mock.calls[3][0]).toEqual(expect.objectContaining({
+      syncType: 'curseduca', dryRun: false, triggeredBy: 'MANUAL', phaseHooks,
+      projectedMutationLimit: 7,
+    }))
     expect(order.indexOf('curseduca-preflight')).toBeLessThan(order.indexOf('hotmart-live'))
     expect(order.indexOf('hotmart-preflight')).toBeLessThan(order.indexOf('hotmart-live'))
     expect(result).toMatchObject({

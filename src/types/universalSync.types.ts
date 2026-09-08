@@ -158,6 +158,8 @@ export interface UniversalSyncConfig {
   dryRun?: boolean
   phaseHooks?: CronExecutionPhaseHooks
   hotmartExecutionPlan?: HotmartExecutionPlan | CurseducaExecutionPlan
+  /** Internal composite allocation; live execution must not exceed this plan. */
+  projectedMutationLimit?: number
 
   // Configurações
   fullSync: boolean

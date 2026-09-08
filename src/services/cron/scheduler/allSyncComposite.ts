@@ -73,6 +73,7 @@ const childRequest = (
   sourceData: UniversalSourceItem[],
   options: AllSyncOptions,
   dryRun: boolean,
+  projectedMutationLimit?: number,
 ): UniversalSyncConfig => ({
   syncType,
   jobName: job.name,
@@ -85,6 +86,7 @@ const childRequest = (
   includeTags: false,
   batchSize: 50,
   sourceData,
+  ...(projectedMutationLimit !== undefined ? { projectedMutationLimit } : {}),
 })
 
 const normaliseChild = (
@@ -281,7 +283,7 @@ export async function runAllSyncs(
   try {
     hotmart = normaliseChild(
       'hotmart',
-      await executeUniversalSync(childRequest(job, 'hotmart', hotmartSource, options, false)),
+      await executeUniversalSync(childRequest(job, 'hotmart', hotmartSource, options, false, hotmartProjected)),
       false,
     )
   } catch (error: unknown) {
@@ -299,7 +301,7 @@ export async function runAllSyncs(
     try {
       curseduca = normaliseChild(
         'curseduca',
-        await executeUniversalSync(childRequest(job, 'curseduca', curseducaSource, options, false)),
+        await executeUniversalSync(childRequest(job, 'curseduca', curseducaSource, options, false, curseducaProjected)),
         false,
       )
     } catch (error: unknown) {

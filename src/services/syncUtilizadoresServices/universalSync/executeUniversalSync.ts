@@ -56,6 +56,19 @@ export const executeUniversalSync = async (
       ? await prepareHotmartSync(config.sourceData, config.dryRun === true, config.batchSize)
       : await prepareCurseducaSync(config.sourceData, config.dryRun === true, config.batchSize)
 
+    if (config.projectedMutationLimit !== undefined) {
+      if (!Number.isSafeInteger(config.projectedMutationLimit) || config.projectedMutationLimit < 0) {
+        throw new Error('UNIVERSAL_SYNC_PROJECTED_MUTATION_LIMIT_INVALID')
+      }
+      const projectedEffects = prepared.executionPlan?.projectedEffects
+      if (!Number.isSafeInteger(projectedEffects) || projectedEffects < 0) {
+        throw new Error('UNIVERSAL_SYNC_PROJECTED_MUTATIONS_INVALID')
+      }
+      if (projectedEffects > config.projectedMutationLimit) {
+        throw new Error('UNIVERSAL_SYNC_PROJECTED_MUTATION_LIMIT_EXCEEDED')
+      }
+    }
+
     phaseHooks = prepared.executionPlan
       ? config.syncType === 'hotmart'
         ? governHotmartExecution(prepared.executionPlan, config.phaseHooks)

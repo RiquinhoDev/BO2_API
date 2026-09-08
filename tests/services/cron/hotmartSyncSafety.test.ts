@@ -25,6 +25,8 @@ import {
 import { CronJobDispatcher, type CronDispatchDependencies } from '../../../src/services/cron/scheduler/jobDispatcher'
 import { normalizeHotmartSyncDispatch } from '../../../src/services/cron/scheduler/hotmartSyncDispatchNormalizer'
 import { executeUniversalSync } from '../../../src/services/syncUtilizadoresServices/universalSync/executeUniversalSync'
+import syncReportsService from '../../../src/services/syncUtilizadoresServices/syncReports.service'
+import SyncHistory from '../../../src/models/SyncModels/SyncHistory'
 import User from '../../../src/models/user'
 import { Product, UserProduct } from '../../../src/models'
 import { Class } from '../../../src/models/Class'
@@ -278,4 +280,44 @@ test('Hotmart dispatch normalizer is strict and strips non-contract plan fields'
     stats: { errors: 1 },
     errorMessage: 'Execução Hotmart sync falhou',
   })
+})
+
+test('UniversalSync rejects a live allocation overrun before any mutation', async () => {
+  const collectionResult = {
+    sort: () => ({
+      limit: () => ({
+        toArray: async () => [],
+      }),
+    }),
+  }
+  for (const model of [User, Product, Class, UserProduct, UserSnapshot]) {
+    jest.spyOn(model.collection, 'find').mockReturnValue(collectionResult as never)
+  }
+  const createSyncReport = jest.spyOn(syncReportsService, 'createSyncReport')
+  const historyCreate = jest.spyOn(SyncHistory, 'create')
+  const phaseHooks = {
+    assertOwnership: jest.fn(),
+    providerStarted: jest.fn(),
+    providerSucceeded: jest.fn(),
+    localMutationStarted: jest.fn(),
+    consumeMutation: jest.fn(),
+  }
+
+  await expect(executeUniversalSync({
+    syncType: 'hotmart',
+    jobName: 'Job de Hotmart',
+    triggeredBy: 'MANUAL',
+    phaseHooks,
+    fullSync: true,
+    includeProgress: false,
+    includeTags: false,
+    batchSize: 50,
+    sourceData: [{ email: 'allocation-overrun@x.test', name: 'A', hotmartUserId: 'h-1' }],
+    projectedMutationLimit: 0,
+  })).rejects.toThrow('UNIVERSAL_SYNC_PROJECTED_MUTATION_LIMIT_EXCEEDED')
+
+  expect(createSyncReport).not.toHaveBeenCalled()
+  expect(historyCreate).not.toHaveBeenCalled()
+  expect(phaseHooks.localMutationStarted).not.toHaveBeenCalled()
+  expect(phaseHooks.consumeMutation).not.toHaveBeenCalled()
 })
