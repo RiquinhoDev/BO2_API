@@ -56,6 +56,16 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
 })
 
 describe('CronJobDispatcher', () => {
+  it('dispatches exact AcTagWatch with dry-run and ownership hooks, normalizing partial errors', async () => {
+    const runAcTagWatch = jest.fn(async () => ({ dryRun: true, alunosLidos: 42, eventosGravados: 0, errors: [{ error: 'partial' }] }))
+    const dependencies = { ...createDependencies(), runAcTagWatch }
+    const phaseHooks = { assertOwnership: jest.fn(), providerStarted: jest.fn(), providerSucceeded: jest.fn(), localMutationStarted: jest.fn() }
+    const result = await new CronJobDispatcher(dependencies).execute(job('AcTagWatch'), { dryRun: true, phaseHooks })
+    expect(runAcTagWatch).toHaveBeenCalledWith({ dryRun: true, phaseHooks })
+    expect(dependencies.fetchHotmart).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ success: false, dryRun: true, stats: { total: 42, errors: 1 } })
+  })
+
   it.each([
     ['EvaluateRules', 'evaluateRules'],
     ['ResetCounters', 'resetCounters'],

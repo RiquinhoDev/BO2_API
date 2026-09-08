@@ -83,6 +83,10 @@ function errorStatus(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
 }
 
+export function contaInalcancavel(error?: string | null): boolean {
+  return typeof error === 'string' && /\bunknown (?:user|member)\b|\bDiscordAPIError\[(?:10013|10007)\]/i.test(error)
+}
+
 function beforeLocalMutation(phaseHooks?: CronExecutionPhaseHooks): void {
   phaseHooks?.assertOwnership?.()
   phaseHooks?.localMutationStarted()
@@ -125,8 +129,9 @@ function validateProviderResults(
     }
     const hasError = 'error' in result
     const errorText = typeof result.error === 'string' ? result.error : ''
-    const notInGuild = result.notInGuild === true
-    if (hasError || result.ok && notInGuild || !result.ok && !notInGuild) {
+    const unreachable = result.ok === false && contaInalcancavel(errorText)
+    const notInGuild = result.notInGuild === true || unreachable
+    if (hasError && !unreachable || result.ok && notInGuild || !result.ok && !notInGuild) {
       throw new Error(hasError && errorText ? errorText : 'resultado do bot inconclusivo')
     }
     resultByAccount.set(result.discordUserId, {

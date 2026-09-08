@@ -1,70 +1,149 @@
-// ─────────────────────────────────────────────────────────────
-// LIMITADOR GLOBAL DE CHAMADAS À FMP
-//
-// Partilhado por TODAS as ferramentas Clareza (tremómetro, top10, raio-x —
-// refresh e on-demand). Garante que a SOMA das chamadas à FMP nunca passa do
-// limite do plano, evitando rejeições "Over Limit".
-//
-// Plano Ultimate: 3.000 chamadas/min. Fica-se pelos ~80% (2.400/min) para
-// deixar margem a outras integrações que partilhem a mesma chave/conta e a
-// picos de pesquisas on-demand em simultâneo com o cron.
-//
-// Token bucket:
-//  • refill 2.400/min (40/s) → ritmo sustentado, com margem vs 3.000/min;
-//  • capacidade 150          → cobre o burst de uma pesquisa on-demand
-//                               (~15-20 chamadas/empresa) quase instantâneo,
-//                               mesmo com o universo (mais tickers) a
-//                               refrescar em paralelo no cron.
-//
-// Pior caso em qualquer janela de 60s ≈ capacidade + refill = 150 + 2400
-// = 2550 chamadas → sempre < 3000. Assume 1 instância do processo (sem
-// réplicas). Se subires de plano outra vez, sobe REFILL_PER_MIN/CAPACITY
-// na mesma proporção (~80% do limite/min do plano).
-// ─────────────────────────────────────────────────────────────
+// Limitador local partilhado pelas ferramentas Clareza nesta instância Node.
+// A taxa preserva o comportamento existente. Não coordena réplicas/processos.
 
 const CAPACITY = 150
-const REFILL_PER_MIN = 2400
-const REFILL_PER_MS = REFILL_PER_MIN / 60000
+const REFILL_PER_MINUTE = 2400
+const MAX_QUEUE_LENGTH = 500
 
-let tokens = CAPACITY
-let last = Date.now()
-const waiters: Array<() => void> = []
-let timer: NodeJS.Timeout | null = null
+export interface FmpTokenBucketConfig {
+  readonly capacity: number
+  readonly refillPerMinute: number
+  readonly maxQueueLength: number
+}
 
-function refill(): void {
-  const now = Date.now()
-  if (now > last) {
-    tokens = Math.min(CAPACITY, tokens + (now - last) * REFILL_PER_MS)
-    last = now
+interface Waiter {
+  readonly resolve: () => void
+  readonly reject: (error: Error) => void
+  readonly signal?: AbortSignal
+  abortListener?: () => void
+}
+
+export class FmpThrottleAbortedError extends Error {
+  constructor() {
+    super('FMP throttle wait aborted')
+    this.name = 'FmpThrottleAbortedError'
   }
 }
 
-function drain(): void {
-  refill()
-  while (tokens >= 1 && waiters.length) {
-    tokens -= 1
-    waiters.shift()!()
-  }
-  if (waiters.length && !timer) {
-    const waitMs = Math.max(10, Math.ceil((1 - tokens) / REFILL_PER_MS))
-    timer = setTimeout(() => { timer = null; drain() }, waitMs)
+export class FmpThrottleQueueFullError extends Error {
+  constructor(maxQueueLength: number) {
+    super(`FMP throttle queue is full (${maxQueueLength})`)
+    this.name = 'FmpThrottleQueueFullError'
   }
 }
 
-/**
- * Aguarda autorização para fazer UMA chamada à FMP. Resolve de imediato quando
- * há tokens (e ninguém à espera); caso contrário entra em fila FIFO e é servido
- * ao ritmo do refill. Chamar uma vez por cada request à FMP.
- */
-export function fmpThrottle(): Promise<void> {
-  return new Promise<void>((resolve) => {
-    refill()
-    if (tokens >= 1 && waiters.length === 0) {
-      tokens -= 1
-      resolve()
-      return
+export class FmpTokenBucket {
+  private readonly refillPerMillisecond: number
+  private tokens: number
+  private lastRefillAt = Date.now()
+  private readonly waiters: Waiter[] = []
+  private timer: NodeJS.Timeout | null = null
+
+  constructor(private readonly config: FmpTokenBucketConfig) {
+    if (!Number.isFinite(config.capacity) || config.capacity < 1) {
+      throw new RangeError('capacity must be a positive number')
     }
-    waiters.push(resolve)
-    drain()
-  })
+    if (!Number.isFinite(config.refillPerMinute) || config.refillPerMinute <= 0) {
+      throw new RangeError('refillPerMinute must be a positive number')
+    }
+    if (!Number.isInteger(config.maxQueueLength) || config.maxQueueLength < 0) {
+      throw new RangeError('maxQueueLength must be a non-negative integer')
+    }
+
+    this.tokens = config.capacity
+    this.refillPerMillisecond = config.refillPerMinute / 60000
+  }
+
+  get pendingCount(): number {
+    return this.waiters.length
+  }
+
+  acquire(signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return Promise.reject(new FmpThrottleAbortedError())
+
+    this.refill()
+    if (this.tokens >= 1 && this.waiters.length === 0) {
+      this.tokens -= 1
+      return Promise.resolve()
+    }
+    if (this.waiters.length >= this.config.maxQueueLength) {
+      return Promise.reject(new FmpThrottleQueueFullError(this.config.maxQueueLength))
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const waiter: Waiter = { resolve, reject, signal }
+      if (signal) {
+        waiter.abortListener = () => this.abortWaiter(waiter)
+        signal.addEventListener('abort', waiter.abortListener, { once: true })
+      }
+      this.waiters.push(waiter)
+      this.drain()
+    })
+  }
+
+  private refill(): void {
+    const now = Date.now()
+    if (now <= this.lastRefillAt) return
+    this.tokens = Math.min(
+      this.config.capacity,
+      this.tokens + (now - this.lastRefillAt) * this.refillPerMillisecond,
+    )
+    this.lastRefillAt = now
+  }
+
+  private abortWaiter(waiter: Waiter): void {
+    const index = this.waiters.indexOf(waiter)
+    if (index < 0) return
+    this.waiters.splice(index, 1)
+    this.removeAbortListener(waiter)
+    waiter.reject(new FmpThrottleAbortedError())
+
+    if (this.waiters.length === 0 && this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+  }
+
+  private removeAbortListener(waiter: Waiter): void {
+    if (waiter.signal && waiter.abortListener) {
+      waiter.signal.removeEventListener('abort', waiter.abortListener)
+    }
+  }
+
+  private drain(): void {
+    this.refill()
+    while (this.tokens >= 1 && this.waiters.length > 0) {
+      const waiter = this.waiters.shift()
+      if (!waiter) break
+      this.removeAbortListener(waiter)
+      if (waiter.signal?.aborted) {
+        waiter.reject(new FmpThrottleAbortedError())
+        continue
+      }
+      this.tokens -= 1
+      waiter.resolve()
+    }
+
+    if (this.waiters.length > 0 && !this.timer) {
+      const waitMilliseconds = Math.max(
+        10,
+        Math.ceil((1 - this.tokens) / this.refillPerMillisecond),
+      )
+      this.timer = setTimeout(() => {
+        this.timer = null
+        this.drain()
+      }, waitMilliseconds)
+    }
+  }
+}
+
+const sharedFmpTokenBucket = new FmpTokenBucket({
+  capacity: CAPACITY,
+  refillPerMinute: REFILL_PER_MINUTE,
+  maxQueueLength: MAX_QUEUE_LENGTH,
+})
+
+/** Aguarda autorização local para uma chamada à FMP. */
+export function fmpThrottle(signal?: AbortSignal): Promise<void> {
+  return sharedFmpTokenBucket.acquire(signal)
 }

@@ -6,6 +6,11 @@
   },
   {
     "method": "DELETE",
+    "path": "/api/classes/inactivationLists/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
     "path": "/api/courses/:id",
     "policy": "I"
   },
@@ -176,6 +181,21 @@
   },
   {
     "method": "POST",
+    "path": "/api/ac-tag-watch/correr",
+    "policy": "MB:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/eventos/:id/aceitar",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/lotes/:lote/aceitar",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
     "path": "/api/ac/contact/:email/sync",
     "policy": "M:activecampaign"
   },
@@ -258,6 +278,11 @@
     "method": "POST",
     "path": "/api/clareza/earnings/refresh",
     "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/operations",
+    "policy": "MB:fmp"
   },
   {
     "method": "POST",
@@ -362,6 +387,11 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/messages/send",
+    "policy": "P:discord"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/send-now",
     "policy": "P:discord"
   },
   {
@@ -526,6 +556,16 @@
   },
   {
     "method": "POST",
+    "path": "/api/products-sales-performance/sync",
+    "policy": "MB:hotmart+guru"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac-data/sync",
+    "policy": "MB:activecampaign"
+  },
+  {
+    "method": "POST",
     "path": "/api/renewal-ac/approve",
     "policy": "I"
   },
@@ -548,6 +588,26 @@
     "method": "POST",
     "path": "/api/renewal-ac/refunds/detect",
     "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/handle",
+    "policy": "PB:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/turma-tags/sync",
+    "policy": "PB:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-hotmart-sales/sync",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-timeline/generate",
+    "policy": "SB"
   },
   {
     "method": "POST",

@@ -16,6 +16,14 @@
     "status": "complete"
   },
   {
+    "identity": "DELETE /api/classes/inactivationLists/:id",
+    "owner": "src/controllers/classes/classInactivation.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "DELETE /api/courses/:id",
     "owner": "src/controllers/course.controller.ts",
     "currentFamily": "success-data",
@@ -146,6 +154,22 @@
   {
     "identity": "DELETE /api/users/unmatchedUsers/:id",
     "owner": "src/controllers/userIdentityReconciliation.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ac-tag-watch/eventos",
+    "owner": "src/routes/acTagWatch.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ac-tag-watch/status",
+    "owner": "src/routes/acTagWatch.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -408,8 +432,24 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/carteira/analysis",
+    "owner": "src/controllers/clarezaCore.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/carteira/data",
     "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/carteira/search",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -434,6 +474,14 @@
   {
     "identity": "GET /api/clareza/earnings/data",
     "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/radar",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -492,6 +540,22 @@
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/suggestions/admin",
+    "owner": "src/controllers/clarezaSuggestionAdmin.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/suggestions/admin/export",
+    "owner": "src/controllers/clarezaSuggestionAdmin.controller.ts",
+    "currentFamily": "stream-or-file",
+    "targetFamily": "stream-or-file",
     "frontConsumer": null,
     "status": "complete"
   },
@@ -557,6 +621,14 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/classes/inactivationLists/:id/students",
+    "owner": "src/controllers/classes/classInactivation.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
     "status": "complete"
   },
   {
@@ -1376,6 +1448,22 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/products-sales-performance/performance",
+    "owner": "src/routes/productSalesPerformance.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/products-sales-performance/status",
+    "owner": "src/routes/productSalesPerformance.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/products/:id",
     "owner": "src/controllers/products/product.controller.ts",
     "currentFamily": "success-data",
@@ -1416,6 +1504,22 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/renewal-ac-data",
+    "owner": "src/routes/acRenewalData.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/renewal-ac-data/status",
+    "owner": "src/routes/acRenewalData.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/renewal-ac/changes",
     "owner": "src/routes/renewalAc.routes.ts",
     "currentFamily": "success-data",
@@ -1429,6 +1533,38 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalAcSync.service.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/renewal-hotmart-sales/history",
+    "owner": "src/routes/hotmartSalesHistory.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/renewal-hotmart-sales/status",
+    "owner": "src/routes/hotmartSalesHistory.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/renewal-timeline",
+    "owner": "src/routes/renewalTimeline.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/renewal-timeline/status",
+    "owner": "src/routes/renewalTimeline.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
     "status": "complete"
   },
   {
@@ -2096,6 +2232,30 @@
     "status": "complete"
   },
   {
+    "identity": "POST /api/ac-tag-watch/correr",
+    "owner": "src/routes/acTagWatch.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/ac-tag-watch/eventos/:id/aceitar",
+    "owner": "src/routes/acTagWatch.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/ac-tag-watch/lotes/:lote/aceitar",
+    "owner": "src/routes/acTagWatch.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "POST /api/ac/contact/:email/sync",
     "owner": "src/controllers/acTags/acReader.controller.ts",
     "currentFamily": "success-data",
@@ -2272,6 +2432,14 @@
     "status": "complete"
   },
   {
+    "identity": "POST /api/clareza/operations",
+    "owner": "src/controllers/clarezaOperations.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "POST /api/clareza/raiox/refresh",
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "success-data",
@@ -2282,6 +2450,14 @@
   {
     "identity": "POST /api/clareza/refresh",
     "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/clareza/suggestions",
+    "owner": "src/controllers/clarezaSuggestion.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -2501,6 +2677,14 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/discordRenewal.service.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/discord-renewal/scheduled/:key/send-now",
+    "owner": "src/routes/discordRenewal.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
     "status": "complete"
   },
   {
@@ -2792,6 +2976,22 @@
     "status": "complete"
   },
   {
+    "identity": "POST /api/products-sales-performance/sync",
+    "owner": "src/routes/productSalesPerformance.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/renewal-ac-data/sync",
+    "owner": "src/routes/acRenewalData.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "POST /api/renewal-ac/approve",
     "owner": "src/routes/renewalAc.routes.ts",
     "currentFamily": "success-data",
@@ -2829,6 +3029,38 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalAcSync.service.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/renewal-ac/refunds/handle",
+    "owner": "src/routes/renewalAc.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/renewal-ac/turma-tags/sync",
+    "owner": "src/routes/renewalAc.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/renewal-hotmart-sales/sync",
+    "owner": "src/routes/hotmartSalesHistory.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/renewal-timeline/generate",
+    "owner": "src/routes/renewalTimeline.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
     "status": "complete"
   },
   {

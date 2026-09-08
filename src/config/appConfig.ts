@@ -249,7 +249,7 @@ function parseObservability(
     metricsEnabled,
     logDirectory,
     fileLoggingEnabled: nodeEnv !== 'test',
-    consoleLoggingEnabled: nodeEnv === 'development',
+    consoleLoggingEnabled: nodeEnv !== 'test',
   }
 }
 
@@ -363,6 +363,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port,
   }
   const config: AppConfig = {
+    operationalControls: {
+      clarezaCanonicalEnabled: parseBooleanFlag(env.CLAREZA_CANONICAL_ENABLED, 'CLAREZA_CANONICAL_ENABLED'),
+      clarezaRefreshEnabled: parseBooleanFlag(env.CLAREZA_REFRESH_ENABLED, 'CLAREZA_REFRESH_ENABLED'),
+      clarezaFmpEgressEnabled: parseBooleanFlag(env.CLAREZA_FMP_EGRESS_ENABLED, 'CLAREZA_FMP_EGRESS_ENABLED'),
+    },
     ...core,
     core,
     ...(redis ? { redis } : {}),

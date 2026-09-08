@@ -80,6 +80,14 @@ class ActiveCampaignService {
     return this.contacts.getContactFieldValue(email, fieldId)
   }
 
+  async getContactFieldValues(
+    email: string,
+    userId: string | undefined,
+    fieldIds: number[],
+  ): Promise<{ contactId: string; values: Record<number, string | null> } | null> {
+    return this.contacts.getContactFieldValues(email, userId, fieldIds)
+  }
+
   async updateContactField(email: string, fieldId: number, value: string): Promise<boolean> {
     return this.contacts.updateContactField(email, fieldId, value)
   }
@@ -114,6 +122,10 @@ class ActiveCampaignService {
 
   async getOrCreateTag(tagName: string): Promise<string> {
     return this.tags.getOrCreateTag(tagName)
+  }
+
+  async findExistingTagByName(tagName: string): Promise<string | null> {
+    return this.tags.findExistingTagByName(tagName)
   }
 
   async getContactTags(contactId: string): Promise<ActiveCampaignContactTag[]> {

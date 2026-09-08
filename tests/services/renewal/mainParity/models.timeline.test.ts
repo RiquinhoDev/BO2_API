@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict'
+import StudentRenewalTimeline from '../../../../src/models/StudentRenewalTimeline'
+import TurmaTagMap from '../../../../src/models/TurmaTagMap'
+import ACRenewalData from '../../../../src/models/ACRenewalData'
+
+test('o espelho AC declara um único índice de userId, sempre unique', () => {
+  const indexes = ACRenewalData.schema.indexes().filter(([keys]) => Object.keys(keys).length === 1 && keys.userId === 1)
+  expect(indexes).toHaveLength(1)
+  expect(indexes[0][1].unique).toBe(true)
+})
+
+test('a timeline guarda na coleccao studentrenewaltimelines', () => {
+  assert.equal(StudentRenewalTimeline.collection.name, 'studentrenewaltimelines')
+})
+
+test('userId da timeline e unico', () => {
+  const caminho: any = StudentRenewalTimeline.schema.path('userId')
+  assert.equal(caminho.options.unique, true)
+})
+
+test('a timeline tem os campos do desenho', () => {
+  const s = StudentRenewalTimeline.schema
+  for (const campo of ['email', 'ciclos', 'tagsOrfas', 'tagsDuplicadas', 'tagsEstado', 'cadeia', 'turmasPorMapear', 'geradoEm', 'fontes']) {
+    assert.ok(s.path(campo) || (s as any).nested[campo], `falta o campo ${campo}`)
+  }
+})
+
+test('o ciclo guarda compras, anos, acessoAte, coortes, turma e alertas', () => {
+  const ciclo: any = StudentRenewalTimeline.schema.path('ciclos')
+  const sub = ciclo.schema
+  for (const campo of ['periodo', 'compras', 'anos', 'acessoAte', 'coortes', 'turma', 'tagEsperada', 'alertas']) {
+    assert.ok(sub.path(campo), `falta o campo ${campo} no ciclo`)
+  }
+})
+
+test('a coorte guarda periodo, ano e a sua tag', () => {
+  const ciclo: any = StudentRenewalTimeline.schema.path('ciclos')
+  const coorte: any = ciclo.schema.path('coortes')
+  for (const campo of ['periodo', 'ano', 'tag']) {
+    assert.ok(coorte.schema.path(campo), `falta o campo ${campo} na coorte`)
+  }
+})
+
+test('o mapa de turmas guarda na coleccao turmatagmap com chave unica', () => {
+  assert.equal(TurmaTagMap.collection.name, 'turmatagmap')
+  const caminho: any = TurmaTagMap.schema.path('classNameNormalizado')
+  assert.equal(caminho.options.unique, true)
+})

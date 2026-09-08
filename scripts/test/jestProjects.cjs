@@ -6,6 +6,12 @@ const path = require('path')
  * fail the topology contract instead of silently running in the unit project.
  */
 const INTEGRATION_TEST_FILES = Object.freeze([
+  'tests/services/clareza/coreAliasStore.test.ts',
+  'tests/services/clareza/coreCollectionRun.test.ts',
+  'tests/services/clareza/coreGenerationStore.test.ts',
+  'tests/services/clareza/coreRefreshExecution.test.ts',
+  'tests/services/clareza/coreSuggestionStore.test.ts',
+  'tests/controllers/clarezaCore.productionMount.test.ts',
   'tests/controllers/classDetails.characterization.test.ts',
   'tests/controllers/classDirectory.characterization.test.ts',
   'tests/controllers/classInactivation.characterization.test.ts',

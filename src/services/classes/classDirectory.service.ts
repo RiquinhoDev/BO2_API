@@ -33,6 +33,7 @@ export interface DirectoryClass {
   description?: string
   source?: string
   curseducaUuid?: string
+  curseducaId?: string
   [key: string]: unknown
 }
 

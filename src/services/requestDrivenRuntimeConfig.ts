@@ -1,5 +1,21 @@
 import { getRuntimeConfig } from '../config/runtimeConfig'
+export { assertClarezaRefreshEnabled } from './clareza/canonicalSettings'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
+
+export interface ActiveCampaignCredentials {
+  readonly apiUrl: string
+  readonly apiKey: string
+}
+
+export function getOptionalActiveCampaignCredentials(): ActiveCampaignCredentials | undefined {
+  const integration = getRuntimeConfig().integrations.activeCampaign
+  return integration.configured ? { apiUrl: integration.value.apiUrl, apiKey: integration.value.apiKey } : undefined
+}
+
+export function getOptionalGuruUserToken(): string | undefined {
+  const integration = getRuntimeConfig().integrations.guru
+  return integration.configured ? integration.value.userToken : undefined
+}
 
 export interface CurseducaRuntimeSettings {
   readonly apiUrl: string

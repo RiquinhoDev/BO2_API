@@ -113,7 +113,7 @@ export interface IntegrationConfigs {
   readonly legacyApi: IntegrationConfig<LegacyApiIntegration>
 }
 
-export interface RenewalConfig {
+export interface RenewalConfig extends Partial<import('./renewalParityConfig').RenewalParityConfig> {
   readonly acSyncEnabled: boolean
   readonly manualExecutionEnabled: boolean
   readonly offerManualExecutionEnabled: boolean
@@ -140,6 +140,11 @@ export interface RenewalConfig {
  * for consumers migrated in later waves.
  */
 export interface AppConfig extends CoreConfig {
+  readonly operationalControls?: {
+    readonly clarezaCanonicalEnabled: boolean
+    readonly clarezaRefreshEnabled: boolean
+    readonly clarezaFmpEgressEnabled: boolean
+  }
   readonly core: Readonly<CoreConfig>
   readonly redis?: Readonly<RedisConfig>
   readonly observability: Readonly<ObservabilityConfig>

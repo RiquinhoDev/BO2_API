@@ -14,6 +14,9 @@ export function createTestRuntimeConfig(options: {
   cronExecutionCleanupMutableExecutionEnabled?: boolean
   achievementEvaluationMutableExecutionEnabled?: boolean
   weeklyTagSnapshotMutableExecutionEnabled?: boolean
+  clarezaCanonicalEnabled?: boolean
+  clarezaRefreshEnabled?: boolean
+  clarezaFmpEgressEnabled?: boolean
 } = {}): AppConfig {
   const nodeEnv = options.nodeEnv ?? 'test'
   const core = {
@@ -35,6 +38,11 @@ export function createTestRuntimeConfig(options: {
   }
 
   return {
+    operationalControls: {
+      clarezaCanonicalEnabled: options.clarezaCanonicalEnabled ?? false,
+      clarezaRefreshEnabled: options.clarezaRefreshEnabled ?? false,
+      clarezaFmpEgressEnabled: options.clarezaFmpEgressEnabled ?? false,
+    },
     ...core,
     core,
     observability: {
@@ -42,7 +50,7 @@ export function createTestRuntimeConfig(options: {
       metricsEnabled: options.metricsEnabled ?? false,
       logDirectory: 'logs',
       fileLoggingEnabled: nodeEnv !== 'test',
-      consoleLoggingEnabled: nodeEnv === 'development',
+      consoleLoggingEnabled: nodeEnv !== 'test',
     },
     integrations: {
       activeCampaign: options.activeCampaignProductTagsEnabled === true

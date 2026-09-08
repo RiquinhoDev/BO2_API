@@ -1,5 +1,7 @@
 import logger from '../../../../utils/logger'
 import axios from 'axios'
+import { requestWithRetry } from './retryPolicy'
+export { requestWithRetry } from './retryPolicy'
 import { getHotmartCredentials, getHotmartSubdomain } from '../../../requestDrivenRuntimeConfig'
 import { calculateProgress } from './processing'
 import type { CronExecutionPhaseHooks } from '../../../cron/scheduler/executionPhases'
@@ -25,48 +27,6 @@ function errorDescription(error: unknown): string | undefined {
   if (typeof data !== 'object' || data === null || !('error_description' in data)) return undefined
   const description = data.error_description
   return typeof description === 'string' ? description : undefined
-}
-
-const getRetryDelayMs = (error: unknown, attempt: number, baseDelayMs: number) => {
-  const retryAfterHeader = axios.isAxiosError(error)
-    ? error.response?.headers?.['retry-after']
-    : undefined
-  const retryAfter = retryAfterHeader ? parseInt(String(retryAfterHeader), 10) : NaN
-  if (!Number.isNaN(retryAfter) && retryAfter > 0) {
-    return retryAfter * 1000
-  }
-
-  const jitter = Math.floor(Math.random() * 250)
-  return Math.min(baseDelayMs * Math.pow(2, attempt) + jitter, 10000)
-}
-
-export async function requestWithRetry<T>(
-  fn: () => Promise<T>,
-  options: { maxRetries: number; baseDelayMs: number; phaseHooks?: CronExecutionPhaseHooks }
-): Promise<T> {
-  let attempt = 0
-
-  while (true) {
-    options.phaseHooks?.assertOwnership?.()
-    options.phaseHooks?.providerStarted()
-    try {
-      const result = await fn()
-      options.phaseHooks?.providerSucceeded()
-      return result
-    } catch (error: unknown) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined
-      if (status !== 429 || attempt >= options.maxRetries) {
-        throw error
-      }
-
-      const delay = getRetryDelayMs(error, attempt, options.baseDelayMs)
-      logger.warn(
-        `[HotmartFetch] Rate limited (429). Retry in ${delay}ms (attempt ${attempt + 1}/${options.maxRetries})`
-      )
-      await sleep(delay)
-      attempt += 1
-    }
-  }
 }
 
 export interface HotmartLesson {

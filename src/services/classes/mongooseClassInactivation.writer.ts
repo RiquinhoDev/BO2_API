@@ -3,15 +3,22 @@
 // inactivation handlers, migrated verbatim from the controller. Discord
 // delegation and the canonical class upsert are injected ports, not here.
 import type { FilterQuery, UpdateQuery } from 'mongoose'
+import mongoose from 'mongoose'
 import { Class } from '../../models/Class'
+import InactivationList, { type IInactivationList } from '../../models/InactivationList'
 import StudentClassHistory from '../../models/StudentClassHistory'
 import { User, UserProduct } from '../../models'
 import type { IUser } from '../../models/user'
-import UserHistory, { type IUserHistory } from '../../models/UserHistory'
+import UserHistory from '../../models/UserHistory'
 import logger from '../../utils/logger'
 import { buildClassUserStatusUpdate } from './classUserStatus'
 import type {
   ClassInactivationWriter,
+  DeletedListView,
+  InactivationListSummary,
+  InactivationStudentView,
+  ListStudentsFilters,
+  RevertOutcome,
   ClassStatusOutcome,
   ClassSummaryForUpsert,
   InactivationListView,
@@ -19,6 +26,28 @@ import type {
   InactivationResult,
   ListFilters,
 } from './classInactivation.service'
+
+interface InactivationListAggregate {
+  _id: unknown
+  name: string
+  status: string
+  classIds?: string[]
+  classNames?: string[]
+  createdAt: Date
+  studentCount?: number
+  execution?: IInactivationList['execution']
+  reversal?: IInactivationList['reversal']
+}
+
+const MAX_REVERSAL_STUDENTS = 5_000
+
+function productPlatforms(platforms: string[]): string[] {
+  return platforms.includes('all') ? ['hotmart', 'curseduca', 'discord'] : platforms
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -77,7 +106,10 @@ export class MongooseClassInactivationWriter implements ClassInactivationWriter 
 
           await User.findByIdAndUpdate(student._id, { $set: updates })
 
-          await UserProduct.updateMany({ userId: student._id }, { $set: { status: 'INACTIVE' } })
+          await UserProduct.updateMany(
+            { userId: student._id, platform: { $in: productPlatforms(platforms) }, status: { $ne: 'INACTIVE' } },
+            { $set: { status: 'INACTIVE' } },
+          )
 
           try {
             await UserHistory.createInactivationHistory(
@@ -122,84 +154,184 @@ export class MongooseClassInactivationWriter implements ClassInactivationWriter 
     return { name: existingClass.name, description: existingClass.description, source: existingClass.source }
   }
 
-  async listInactivations(filters: ListFilters): Promise<{ lists: InactivationListView[]; total: number }> {
-    const { status, limit, offset } = filters
-
-    const query: FilterQuery<IUserHistory> = { changeType: 'INACTIVATION' }
-    if (status) {
-      query['metadata.status'] = status
-    }
-
-    const total = await UserHistory.countDocuments(query)
-
-    const inactivations = await UserHistory.find(query)
-      .sort({ changeDate: -1 })
-      .limit(limit)
-      .skip(offset)
-      .lean()
-
-    const lists: InactivationListView[] = []
-    for (const inact of inactivations) {
-      const user = await User.findById(inact.userId).select('classId').lean()
-      if (user) {
-        const classData = await Class.findOne({ classId: user.classId }).lean()
-        lists.push({
-          _id: inact._id,
-          name: `Inativação ${new Date(inact.changeDate).toLocaleDateString('pt-PT')}`,
-          classNames: classData ? [classData.name] : [],
-          createdAt: inact.changeDate,
-          status: 'COMPLETED',
-          studentCount: 1,
-          executedDate: inact.changeDate,
-          performedBy: inact.changedBy,
-          platforms: inact.metadata?.platforms || [],
-        })
-      }
-    }
-
-    return { lists, total }
+  async createInactivationRecord(input: {
+    name: string
+    description?: string
+    classIds: string[]
+    results: InactivationResult[]
+    executedBy?: string
+    createdAt: Date
+  }): Promise<{ _id: string }> {
+    const studentResults = input.results.filter((result) => result.studentId && result.email)
+    const successCount = studentResults.filter((result) => result.status === 'success').length
+    const errorResults = studentResults.filter((result) => result.status === 'error')
+    const record = await InactivationList.create({
+      name: input.name,
+      description: input.description,
+      status: errorResults.length === 0 ? 'COMPLETED' : 'FAILED',
+      classIds: input.classIds,
+      classNames: [...new Set(input.results.flatMap((result) => result.className ? [result.className] : []))],
+      students: studentResults.map((result) => ({
+        studentId: result.studentId,
+        email: result.email,
+        discordIds: [],
+        classId: result.classId,
+        previousState: 'ativo',
+        processed: result.status === 'success',
+        error: result.error,
+      })),
+      execution: {
+        startedAt: input.createdAt,
+        completedAt: input.createdAt,
+        executedBy: input.executedBy ?? 'Sistema',
+        totalProcessed: studentResults.length,
+        successCount,
+        errorCount: errorResults.length,
+        errors: errorResults.map((result) => ({
+          studentId: result.studentId,
+          error: result.error ?? 'Erro desconhecido',
+          timestamp: input.createdAt,
+        })),
+      },
+      createdAt: input.createdAt,
+      updatedAt: input.createdAt,
+    })
+    return { _id: String(record._id) }
   }
 
-  async revertInactivationRecord(
-    id: string,
-    options: { reason?: string; userId?: string },
-  ): Promise<'not_found' | 'ok'> {
-    const { reason, userId } = options
+  async listInactivations(filters: ListFilters): Promise<{ lists: InactivationListView[]; total: number }> {
+    const { status, limit, offset } = filters
+    const query: FilterQuery<IInactivationList> = {}
+    if (status) query.status = String(status) as IInactivationList['status']
 
-    const inactivation = await UserHistory.findById(id)
-    if (!inactivation) return 'not_found'
+    const [total, docs] = await Promise.all([
+      InactivationList.countDocuments(query),
+      InactivationList.aggregate<InactivationListAggregate>([
+        { $match: query },
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $skip: offset },
+        { $limit: limit },
+        { $addFields: { studentCount: { $size: { $ifNull: ['$students', []] } } } },
+        { $project: { students: 0 } },
+      ]),
+    ])
 
-    const updates: UpdateQuery<IUser> = {
-      'combined.status': 'ACTIVE',
+    const missingIds = [...new Set(docs.flatMap((doc) => doc.classNames?.length ? [] : (doc.classIds ?? [])))]
+    const nameById = new Map<string, string>()
+    if (missingIds.length) {
+      const classes = await Class.find({ classId: { $in: missingIds } }).select('classId name').lean()
+      for (const cls of classes) nameById.set(String(cls.classId), cls.name)
     }
 
-    const platforms = inactivation.metadata?.platforms || []
-    if (platforms.includes('hotmart') || platforms.includes('all')) {
-      updates['hotmart.status'] = 'ACTIVE'
+    return {
+      total,
+      lists: docs.map((doc) => ({
+        _id: doc._id,
+        name: doc.name,
+        classNames: doc.classNames?.length ? doc.classNames : (doc.classIds ?? []).map((classId) => nameById.get(String(classId)) ?? classId),
+        createdAt: doc.createdAt,
+        status: doc.status,
+        studentCount: doc.studentCount ?? doc.execution?.totalProcessed ?? 0,
+        executedDate: doc.execution?.completedAt ?? doc.execution?.startedAt,
+        revertedAt: doc.reversal?.reversedAt,
+        performedBy: doc.execution?.executedBy,
+        results: doc.execution ? { success: doc.execution.successCount ?? 0, errors: doc.execution.errorCount ?? 0, details: doc.execution.errors ?? [] } : undefined,
+      })),
     }
-    if (platforms.includes('curseduca') || platforms.includes('all')) {
-      updates['curseduca.memberStatus'] = 'ACTIVE'
+  }
+
+  async listInactivationStudents(filters: ListStudentsFilters): Promise<'not_found' | { list: InactivationListSummary; students: InactivationStudentView[]; total: number }> {
+    const { id, limit, offset, search } = filters
+    if (!mongoose.Types.ObjectId.isValid(id)) return 'not_found'
+    const list = await InactivationList.findById(id).select('name status').lean()
+    if (!list) return 'not_found'
+
+    const term = (search ?? '').trim()
+    const searchStages = term ? [{ $match: { $or: [
+      { email: { $regex: escapeRegex(term), $options: 'i' } },
+      { nome: { $regex: escapeRegex(term), $options: 'i' } },
+      { turma: { $regex: escapeRegex(term), $options: 'i' } },
+    ] } }] : []
+    const [result] = await InactivationList.aggregate<{ total: { n: number }[]; rows: InactivationStudentView[] }>([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      { $unwind: '$students' },
+      { $lookup: { from: 'users', localField: 'students.studentId', foreignField: '_id', as: 'user' } },
+      { $lookup: { from: 'classes', localField: 'students.classId', foreignField: 'classId', as: 'class' } },
+      { $project: {
+        _id: 0,
+        studentId: '$students.studentId',
+        email: { $ifNull: ['$students.email', { $first: '$user.email' }] },
+        nome: { $first: '$user.name' },
+        classId: '$students.classId',
+        turma: { $ifNull: [{ $first: '$class.name' }, '$students.classId'] },
+        estadoAnterior: '$students.previousState',
+        processado: { $ifNull: ['$students.processed', null] },
+        erro: { $ifNull: ['$students.error', null] },
+        estadoActual: { $first: '$user.combined.status' },
+      } },
+      ...searchStages,
+      { $facet: {
+        total: [{ $count: 'n' }],
+        rows: [{ $sort: { nome: 1, email: 1, studentId: 1 } }, { $skip: offset }, { $limit: limit }],
+      } },
+    ])
+    return { list: { _id: list._id, name: list.name, status: list.status }, students: result?.rows ?? [], total: result?.total?.[0]?.n ?? 0 }
+  }
+
+  async deleteInactivationRecord(id: string): Promise<'not_found' | DeletedListView> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return 'not_found'
+    const list = await InactivationList.findByIdAndDelete(id).lean()
+    if (!list) return 'not_found'
+    const count = list.students?.length ?? 0
+    logger.info(`[InactivationList] Registo apagado: "${list.name}" (${count} alunos abrangidos, estado ${list.status}). Nenhum aluno foi alterado.`)
+    return { _id: list._id, name: list.name, status: list.status, studentsAbrangidos: count }
+  }
+
+  async revertInactivationRecord(id: string, options: { reason?: string; userId?: string }): Promise<'not_found' | 'already_reversed' | 'too_large' | RevertOutcome> {
+    const reactivate = async (studentId: unknown, email?: string): Promise<void> => {
+      await User.findByIdAndUpdate(studentId, { $set: { 'combined.status': 'ACTIVE', 'hotmart.status': 'ACTIVE', 'discord.isActive': true } })
+      await UserProduct.updateMany({ userId: studentId, platform: { $in: ['hotmart', 'discord'] }, status: 'INACTIVE' }, { $set: { status: 'ACTIVE' } })
+      await UserHistory.create({
+        userId: studentId,
+        userEmail: email,
+        changeType: 'STATUS_CHANGE',
+        previousValue: { status: 'INACTIVE' },
+        newValue: { status: 'ACTIVE' },
+        source: 'MANUAL',
+        changedBy: options.userId || 'Sistema',
+        reason: options.reason || 'Reversão de inativação',
+      })
     }
-    if (platforms.includes('discord') || platforms.includes('all')) {
-      updates['discord.isActive'] = true
+
+    const list = mongoose.Types.ObjectId.isValid(id) ? await InactivationList.findById(id) : null
+    if (list) {
+      if (list.status === 'REVERSED') return 'already_reversed'
+      const students = list.students ?? []
+      if (students.length > MAX_REVERSAL_STUDENTS) return 'too_large'
+      const toReactivate = students.filter((student) => student.previousState === 'ativo')
+      const errors: { studentId: unknown; error: string }[] = []
+      let reactivated = 0
+      for (const student of toReactivate) {
+        try {
+          await reactivate(student.studentId, student.email)
+          reactivated += 1
+        } catch (error: unknown) {
+          errors.push({ studentId: student.studentId, error: errorMessage(error) })
+        }
+      }
+      list.status = 'REVERSED'
+      list.reversal = { reversedAt: new Date(), reversedBy: options.userId || 'Sistema', reason: options.reason || 'Reversão manual pelo Backoffice' }
+      await list.save()
+      return { listName: list.name, totalNaLista: students.length, reactivados: reactivated, jaEstavamInactivos: students.length - toReactivate.length, erros: errors }
     }
 
-    await User.findByIdAndUpdate(inactivation.userId, { $set: updates })
-
-    await UserProduct.updateMany({ userId: inactivation.userId }, { $set: { status: 'ACTIVE' } })
-
-    await UserHistory.create({
-      userId: inactivation.userId,
-      userEmail: inactivation.userEmail,
-      changeType: 'STATUS_CHANGE',
-      previousValue: { status: 'INACTIVE' },
-      newValue: { status: 'ACTIVE' },
-      source: 'MANUAL',
-      changedBy: userId || 'Sistema',
-      reason: reason || 'Reversão de inativação',
-    })
-
-    return 'ok'
+    const history = mongoose.Types.ObjectId.isValid(id) ? await UserHistory.findById(id) : null
+    if (!history) return 'not_found'
+    if (history.previousValue?.status === 'INACTIVE') {
+      return { totalNaLista: 1, reactivados: 0, jaEstavamInactivos: 1, erros: [] }
+    }
+    await reactivate(history.userId, history.userEmail)
+    return { totalNaLista: 1, reactivados: 1, jaEstavamInactivos: 0, erros: [] }
   }
 
   async applyClassStatus(

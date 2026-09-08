@@ -21,6 +21,10 @@ import { withValidatedInput } from '../security/validatedInput'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { requestIdFrom } from '../services/activeCampaign/activeCampaignExecution.service'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
+import { syncTurmaTags } from '../services/renewal/acTurmaTagSync.service'
+import { handleRefunds } from '../services/renewal/refundHandler.service'
+import { normalizeMainParityEmails, runMainParityExecution } from '../services/renewal/mainParityExecution'
+import { requireRenewalPreviewOrMutation } from './renewalParityRouteGuards'
 import { getRenewalAcManualExecution } from '../services/renewal/renewalAcManualExecution'
 import { isManualExecutionEnabled } from '../services/renewal/renewalAcSync.service'
 import type { CronManualCapabilityJob } from '../services/cron/scheduler/manualCapabilities'
@@ -101,6 +105,30 @@ router.post('/refunds/detect', asyncRoute(async (req: Request, res: Response) =>
   const windowDays = Number(req.body?.windowDays) || 30
   const report = await detectHotmartRefunds(windowDays)
   res.json({ success: true, data: report })
+}))
+
+router.post('/turma-tags/sync', requireRenewalPreviewOrMutation, asyncRoute(async (req: Request, res: Response) => {
+  const input = {
+    dryRun: req.body?.dryRun !== false,
+    emails: normalizeMainParityEmails(req.body?.emails),
+  }
+  const report = await runMainParityExecution({
+    job: 'ac-turma-tags-sync', payload: input, effect: input.dryRun ? 'provider' : 'provider-and-local', dryRun: input.dryRun, req, res,
+    run: () => syncTurmaTags(input),
+  })
+  res.json(successResponse({ report }))
+}))
+
+router.post('/refunds/handle', requireRenewalPreviewOrMutation, asyncRoute(async (req: Request, res: Response) => {
+  const input = {
+    dryRun: req.body?.dryRun !== false,
+    emails: normalizeMainParityEmails(req.body?.emails),
+  }
+  const report = await runMainParityExecution({
+    job: 'refund-handler', payload: input, effect: input.dryRun ? 'local' : 'provider-and-local', dryRun: input.dryRun, req, res,
+    run: () => handleRefunds(input),
+  })
+  res.json(successResponse({ report }))
 }))
 
 /**

@@ -16,6 +16,7 @@ const job = (name: string, syncType: string = 'hotmart', id = '507f1f77bcf86cd79
 
 describe('manual cron capabilities', () => {
   test.each([
+    ['AcTagWatch', 'hotmart', 'ac-tag-watch', 'implemented'],
     ['DailyPipeline', 'pipeline', 'daily-pipeline', 'implemented'],
     ['DiscordScheduledMessages', 'discord', 'discord-scheduled-messages', 'implemented'],
     ['CronExecutionCleanup', 'hotmart', 'cron-execution-cleanup', 'implemented'],

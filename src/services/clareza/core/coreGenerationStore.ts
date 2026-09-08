@@ -1,0 +1,178 @@
+import ClarezaCoreGeneration from '../../../models/ClarezaCoreGeneration'
+import ClarezaCorePublication from '../../../models/ClarezaCorePublication'
+import type {
+  CoreGenerationCandidate,
+  CoreGenerationStore,
+  PublicationResult,
+  PublishedGenerationPointer,
+} from './coreGeneration.types'
+import { beforeCanonicalMutation } from './canonicalExecutionContext'
+
+const POINTER_KEY = 'core'
+const MAX_CANDIDATE_RETENTION = 20
+
+type ErrorWithCode = { readonly code?: unknown }
+
+function isDuplicateKey(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as ErrorWithCode).code === 11000
+}
+
+function decodeCandidate(value: {
+  readonly generationId: string
+  readonly universeVersion: string
+  readonly dataVersion: string
+  readonly createdAt: Date
+  readonly records: CoreGenerationCandidate['records']
+}): CoreGenerationCandidate {
+  return {
+    generationId: value.generationId,
+    universeVersion: value.universeVersion,
+    dataVersion: value.dataVersion,
+    createdAt: value.createdAt,
+    records: value.records,
+  }
+}
+
+function publishedResult(value: {
+  readonly currentGenerationId: string
+  readonly previousGenerationId: string | null
+  readonly revision: number
+}): PublishedGenerationPointer {
+  return {
+    status: 'published',
+    currentGenerationId: value.currentGenerationId,
+    previousGenerationId: value.previousGenerationId,
+    revision: value.revision,
+  }
+}
+
+export class MongooseCoreGenerationStore implements CoreGenerationStore {
+  async createCandidate(candidate: CoreGenerationCandidate): Promise<void> {
+    beforeCanonicalMutation()
+    await ClarezaCoreGeneration.create({
+      ...candidate,
+      recordCount: candidate.records.length,
+      records: [...candidate.records],
+    })
+  }
+
+  async readCandidate(generationId: string): Promise<CoreGenerationCandidate | null> {
+    // Bounded so an Atlas blip fails fast into the caller's existing
+    // CoreGenerationUnavailableError/503 path instead of hanging until
+    // Railway's edge proxy kills the connection with a bare 502 (no CORS
+    // headers -- looks like a CORS bug to the browser, isn't one).
+    const found = await ClarezaCoreGeneration.findOne({ generationId }).maxTimeMS(5_000).lean()
+    return found ? decodeCandidate(found) : null
+  }
+
+  async readPublished(): Promise<CoreGenerationCandidate | null> {
+    const pointer = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).maxTimeMS(5_000).lean()
+    return pointer ? this.readCandidate(pointer.currentGenerationId) : null
+  }
+
+  async publishCandidate(
+    generationId: string,
+    expectedCurrentGenerationId: string | null,
+  ): Promise<PublicationResult> {
+    const candidate = await ClarezaCoreGeneration.findOne({ generationId }).lean()
+    if (!candidate) return { status: 'missing' }
+
+    const newerCandidate = await ClarezaCoreGeneration.exists({
+      createdAt: { $gt: candidate.createdAt },
+    })
+    if (newerCandidate) return { status: 'conflict' }
+
+    const current = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).lean()
+    if (current?.currentGenerationId === generationId) return publishedResult(current)
+
+    if (!current) {
+      if (expectedCurrentGenerationId !== null) return { status: 'conflict' }
+      try {
+        beforeCanonicalMutation()
+        const created = await ClarezaCorePublication.create({
+          key: POINTER_KEY,
+          currentGenerationId: generationId,
+          previousGenerationId: null,
+          revision: 1,
+          updatedAt: new Date(),
+        })
+        return publishedResult(created)
+      } catch (error: unknown) {
+        if (isDuplicateKey(error)) return { status: 'conflict' }
+        throw error
+      }
+    }
+
+    beforeCanonicalMutation()
+    const updated = await ClarezaCorePublication.findOneAndUpdate({
+      key: POINTER_KEY,
+      currentGenerationId: expectedCurrentGenerationId,
+      revision: current.revision,
+    }, {
+      $set: {
+        currentGenerationId: generationId,
+        previousGenerationId: expectedCurrentGenerationId,
+        updatedAt: new Date(),
+      },
+      $inc: { revision: 1 },
+    }, { new: true }).lean()
+
+    return updated ? publishedResult(updated) : { status: 'conflict' }
+  }
+
+  async rollback(expectedCurrentGenerationId: string): Promise<PublicationResult> {
+    const current = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).lean()
+    if (!current?.previousGenerationId) return { status: 'missing' }
+    if (current.currentGenerationId !== expectedCurrentGenerationId) return { status: 'conflict' }
+
+    beforeCanonicalMutation()
+    const updated = await ClarezaCorePublication.findOneAndUpdate({
+      key: POINTER_KEY,
+      currentGenerationId: expectedCurrentGenerationId,
+      revision: current.revision,
+    }, {
+      $set: {
+        currentGenerationId: current.previousGenerationId,
+        previousGenerationId: current.currentGenerationId,
+        updatedAt: new Date(),
+      },
+      $inc: { revision: 1 },
+    }, { new: true }).lean()
+
+    return updated ? publishedResult(updated) : { status: 'conflict' }
+  }
+
+  // Só sobrevivem a retainCandidates o ponteiro publicado, o seu anterior e as
+  // gerações mais recentes, por isso a leitura é curta; o limite mantém-na
+  // limitada mesmo que uma poda anterior tenha falhado.
+  async listGenerationIds(): Promise<readonly string[]> {
+    const found = await ClarezaCoreGeneration
+      .find({}, 'generationId')
+      .sort({ createdAt: -1 })
+      .limit(MAX_CANDIDATE_RETENTION)
+      .lean()
+    return found.map(entry => entry.generationId)
+  }
+
+  async retainCandidates(limit: number): Promise<void> {
+    if (!Number.isInteger(limit) || limit < 0 || limit > MAX_CANDIDATE_RETENTION) {
+      throw new RangeError(
+        `candidate retention limit must be an integer between 0 and ${MAX_CANDIDATE_RETENTION}`,
+      )
+    }
+
+    const [pointer, newest] = await Promise.all([
+      ClarezaCorePublication.findOne({ key: POINTER_KEY }).lean(),
+      ClarezaCoreGeneration.find({}, 'generationId').sort({ createdAt: -1 }).limit(limit).lean(),
+    ])
+    const protectedIds = new Set(newest.map(entry => entry.generationId))
+    if (pointer) {
+      protectedIds.add(pointer.currentGenerationId)
+      if (pointer.previousGenerationId) protectedIds.add(pointer.previousGenerationId)
+    }
+    beforeCanonicalMutation()
+    await ClarezaCoreGeneration.deleteMany({
+      generationId: { $nin: [...protectedIds] },
+    })
+  }
+}

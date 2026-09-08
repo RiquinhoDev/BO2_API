@@ -38,6 +38,7 @@ function manualMutableEnabled(
   weeklyState?: WeeklyManualState,
 ): WeeklyManualState {
   const capability = getCronManualCapability(job)
+  if (capability.id === 'ac-tag-watch') return { enabled: isSyncMutableExecutionEnabled() }
   if (capability.id === 'daily-pipeline') return { enabled: isSyncMutableExecutionEnabled() }
   if (capability.id === 'cron-execution-cleanup') return { enabled: isCronExecutionCleanupMutableExecutionEnabled() }
   if (capability.id === 'achievement-evaluation') return { enabled: isAchievementEvaluationMutableExecutionEnabled() }

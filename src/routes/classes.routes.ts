@@ -6,7 +6,7 @@ import { listClasses, listClassesSimple } from '../services/classes/classDirecto
 import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
 import { addOrEditClass, deleteClass } from '../services/classes/classMutations.runtime'
 import { moveMultipleStudents, moveStudent } from '../services/classes/studentMovement.runtime'
-import { createInactivationList, getInactivationLists, revertInactivation, updateClassStatus } from '../services/classes/classInactivation.runtime'
+import { createInactivationList, deleteInactivationList, getInactivationListStudents, getInactivationLists, revertInactivation, updateClassStatus } from '../services/classes/classInactivation.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 const router = Router()
@@ -81,6 +81,10 @@ router.get('/inactivationLists', getInactivationLists)
 
 // POST /api/classes/inactivationLists/revert/:id - Reverte inativação
 router.post('/inactivationLists/revert/:id', revertInactivation)
+
+router.get('/inactivationLists/:id/students', getInactivationListStudents)
+
+router.delete('/inactivationLists/:id', deleteInactivationList)
 
 
 

@@ -251,6 +251,10 @@ export class ActiveCampaignTagsService {
     }))
   }
 
+  async findExistingTagByName(tagName: string): Promise<string | null> {
+    return this.findTagByName(tagName)
+  }
+
   private async findTagByName(tagName: string, strict = false): Promise<string | null> {
     await this.transport.checkRateLimit()
     try {

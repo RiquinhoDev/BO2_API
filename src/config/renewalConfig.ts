@@ -1,4 +1,5 @@
 import type { IntegrationConfigs, RenewalConfig } from './configTypes'
+import { parseRenewalParity } from './renewalParityConfig'
 import { parseBooleanFlag, parseBoundedInteger, readOptionalString } from './configPrimitives'
 
 function parseDiscordChannelId(value: string | undefined): string | undefined {
@@ -115,6 +116,7 @@ export function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationCo
   }
 
   return {
+    ...parseRenewalParity(env),
     acSyncEnabled,
     manualExecutionEnabled,
     offerManualExecutionEnabled,

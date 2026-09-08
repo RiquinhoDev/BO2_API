@@ -93,7 +93,7 @@ describe('OPS-02 policy inventory', () => {
       .map((decision) => routeKey(decision.method, decision.path))
       .sort()
 
-    expect(expected).toHaveLength(160)
+    expect(expected).toHaveLength(172)
     expect(actual).toEqual(expected)
     expect(new Set(actual).size).toBe(actual.length)
   })

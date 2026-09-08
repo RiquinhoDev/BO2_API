@@ -8,6 +8,7 @@ import ts from 'typescript'
 const ROOT = process.cwd()
 const INVENTORY = process.env.SCALABILITY_READ_INVENTORY ?? path.join(ROOT, 'src', 'contracts', 'scalability-read-inventory.json')
 const MONGOOSE_BASELINE = path.join(ROOT, 'src', 'contracts', 'scalability-mongoose-baseline.json')
+const MAIN_PARITY_SITES = path.join(ROOT, 'src', 'contracts', 'scalability-main-parity-sites.json')
 const OVERLAY = process.env.SCALABILITY_READ_TEST_OVERLAY
 const ALLOW_OVERLAY = process.env.SCALABILITY_READ_ALLOW_TEST_OVERLAY
 const slash = value => value.split(path.sep).join('/')
@@ -74,7 +75,55 @@ function mongooseSites() {
   return {
     count: sites.length,
     hash: crypto.createHash('sha256').update(sites.join('\n')).digest('hex'),
+    sites,
   }
+}
+
+function validateMainParity(manifest, currentBaseline) {
+  const expectedSource = {
+    count: 384,
+    hash: 'eef0aa61c05598adceb67e494c9b6f7e8675dda27e080e4a69de23d0b86fa2c3',
+  }
+  if (!manifest || manifest.version !== 1) fail('main parity site manifest version unsupported')
+  if (JSON.stringify(manifest.sourceBaseline) !== JSON.stringify(expectedSource)) fail('main parity source baseline drift')
+  if (JSON.stringify(manifest.targetBaseline) !== JSON.stringify({ count: currentBaseline.count, hash: currentBaseline.hash })) {
+    fail('main parity target baseline drift')
+  }
+  if (!manifest.scope || manifest.scope.originalAdditions !== 37 || !Number.isInteger(manifest.scope.concurrentAdditions)) {
+    fail('main parity scope must preserve the original 37 additions')
+  }
+  if (!Array.isArray(manifest.entries) || manifest.entries.length !== 37 + manifest.scope.concurrentAdditions) {
+    fail('main parity site manifest does not adjudicate the complete scope')
+  }
+  const ids = new Set(manifest.entries.map(entry => entry.id))
+  const originalSites = new Set(manifest.entries.map(entry => entry.originalSite))
+  if (ids.size !== manifest.entries.length || originalSites.size !== manifest.entries.length) fail('main parity duplicate decision')
+
+  const counts = { planned: manifest.entries.length, complete: 0, pending: 0, excluded: 0 }
+  for (const entry of manifest.entries) {
+    if (!entry.id || !entry.originalSite || !entry.file || (!entry.currentSite && !entry.start) || !entry.owner || !entry.policy || !entry.reason) {
+      fail('main parity invalid decision')
+    }
+    if (!['complete', 'pending', 'excluded'].includes(entry.status)) fail(`${entry.id}: invalid main parity status`)
+    counts[entry.status] += 1
+    const selected = entry.currentSite ? null : segment(entry)
+    if (entry.currentSite && !currentBaseline.sites.includes(entry.currentSite)) fail(`${entry.id}: current site is stale`)
+    for (const token of entry.require ?? []) if (!(selected?.value ?? source(entry.file)).includes(token)) fail(`${entry.id}: missing ${token}`)
+    for (const token of entry.forbid ?? []) if ((selected?.value ?? source(entry.file)).includes(token)) fail(`${entry.id}: forbidden ${token}`)
+    if (entry.status === 'pending' && entry.reason.length < 20) fail(`${entry.id}: pending reason missing`)
+    if (entry.status === 'excluded') {
+      if (entry.policy !== 'non-mongoose-array' || !entry.evidenceFile || !entry.evidenceToken) {
+        fail(`${entry.id}: excluded site lacks explicit array evidence`)
+      }
+      if (!source(entry.evidenceFile).includes(entry.evidenceToken)) fail(`${entry.id}: stale array exclusion evidence`)
+    }
+  }
+  const currentDecisions = manifest.entries.filter(entry => entry.currentSite)
+  if (currentDecisions.length !== currentBaseline.count - manifest.sourceBaseline.count) {
+    fail('main parity current addition count drift')
+  }
+  if (JSON.stringify(manifest.summary) !== JSON.stringify(counts)) fail('main parity site manifest summary drift')
+  return counts
 }
 
 function segment(entry) {
@@ -209,7 +258,9 @@ function validate(inventory, currentBaseline) {
     fail(`new Mongoose list site or baseline drift (${astBaseline.count}:${astBaseline.hash} -> ${currentBaseline.count}:${currentBaseline.hash})`)
   }
 
-  return { complete, pending, scale02, scale03 }
+  const mainParity = validateMainParity(readJson(MAIN_PARITY_SITES), currentBaseline)
+
+  return { complete, pending, scale02, scale03, mainParity }
 }
 
 const command = process.argv[2]
@@ -218,4 +269,4 @@ const inventory = readJson(INVENTORY)
 const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
-process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites (AST v2)\n`)
+process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; main parity ${result.mainParity.planned} adjudicated (${result.mainParity.complete} complete / ${result.mainParity.pending} pending / ${result.mainParity.excluded} excluded); ${currentBaseline.count} Mongoose list sites (AST v2)\n`)

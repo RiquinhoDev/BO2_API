@@ -56,16 +56,16 @@ beforeEach(async () => {
   jest.restoreAllMocks()
   await Promise.all([Class.collection.deleteMany({}), User.collection.deleteMany({})])
   await Class.collection.insertMany([
-    { classId: 'A', name: 'Alpha', source: 'curseduca_sync', curseducaUuid: 'uuid-a', isActive: false, estado: 'inativo', code: 'A' },
+    { classId: 'A', name: 'Alpha', source: 'curseduca_sync', curseducaId: 'group-a', isActive: false, estado: 'inativo', code: 'A' },
     { classId: 'B', name: 'Beta', source: 'manual', isActive: true, estado: 'ativo', description: 'desc-b', code: 'B' },
     { classId: 'Z', source: 'manual', isActive: true, code: 'Z' },
   ])
   await User.collection.insertMany([
-    { _id: oid(1), email: 'u1@x.test', classId: 'B', status: 'ACTIVE' },
-    { _id: oid(2), email: 'u2@x.test', classId: 'B', status: 'ACTIVE' },
-    { _id: oid(3), email: 'u3@x.test', classId: 'B', status: 'INACTIVE' },
-    { _id: oid(4), email: 'u4@x.test', curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'ACTIVE' } },
-    { _id: oid(5), email: 'u5@x.test', curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'INACTIVE' } },
+    { _id: oid(1), email: 'u1@x.test', classId: 'OLD', hotmart: { enrolledClasses: [{ classId: 'B', className: 'Beta', isActive: true }] } },
+    { _id: oid(2), email: 'u2@x.test', classId: 'OLD', hotmart: { enrolledClasses: [{ classId: 'B', className: 'Beta', isActive: false }] } },
+    { _id: oid(3), email: 'u3@x.test', classId: 'B', hotmart: { enrolledClasses: [{ classId: 'OTHER', isActive: true }] } },
+    { _id: oid(4), email: 'u4@x.test', combined: { allClasses: [{ classId: 'group-a', className: 'Alpha', source: 'curseduca', isActive: true }] } },
+    { _id: oid(5), email: 'u5@x.test', combined: { allClasses: [{ classId: 'other-group', source: 'curseduca', isActive: true }] } },
   ])
 })
 

@@ -19,6 +19,15 @@
   },
   {
     "method": "DELETE",
+    "path": "/api/classes/inactivationLists/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; remove apenas registo historico; rota em src/routes/classes.routes.ts:87"
+  },
+  {
+    "method": "DELETE",
     "path": "/api/courses/:id",
     "access": "authenticated",
     "consumer": "desconhecido",
@@ -169,6 +178,24 @@
     "writes": true,
     "destructive": true,
     "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:314"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/eventos",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acTagWatch.routes.ts:70"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/status",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acTagWatch.routes.ts:32"
   },
   {
     "method": "GET",
@@ -456,7 +483,16 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:38"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:55"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/analysis",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:18"
   },
   {
     "method": "GET",
@@ -465,7 +501,16 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:37"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:54"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/search",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:17"
   },
   {
     "method": "GET",
@@ -474,7 +519,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:43"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:60"
   },
   {
     "method": "GET",
@@ -483,7 +528,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:8"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:25"
   },
   {
     "method": "GET",
@@ -492,7 +537,16 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:41"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:58"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/radar",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:16"
   },
   {
     "method": "GET",
@@ -501,7 +555,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:27"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:44"
   },
   {
     "method": "GET",
@@ -510,7 +564,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:29"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:46"
   },
   {
     "method": "GET",
@@ -519,7 +573,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:28"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:45"
   },
   {
     "method": "GET",
@@ -528,7 +582,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:30"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:47"
   },
   {
     "method": "GET",
@@ -537,7 +591,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:14"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:31"
   },
   {
     "method": "GET",
@@ -546,7 +600,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:15"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:32"
   },
   {
     "method": "GET",
@@ -555,7 +609,25 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:16"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:33"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:20"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin/export",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:21"
   },
   {
     "method": "GET",
@@ -564,7 +636,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:19"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:36"
   },
   {
     "method": "GET",
@@ -631,6 +703,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/classes/inactivationLists/:id/students",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; leitura paginada; rota em src/routes/classes.routes.ts:85"
+  },
+  {
+    "method": "GET",
     "path": "/api/classes/listClasses",
     "access": "authenticated",
     "consumer": "front",
@@ -672,7 +753,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:90"
+    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:94"
   },
   {
     "method": "GET",
@@ -1006,7 +1087,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:99"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:100"
   },
   {
     "method": "GET",
@@ -1015,7 +1096,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:226"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:227"
   },
   {
     "method": "GET",
@@ -1024,7 +1105,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:237"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:238"
   },
   {
     "method": "GET",
@@ -1033,7 +1114,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:256"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:257"
   },
   {
     "method": "GET",
@@ -1042,7 +1123,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:65"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:66"
   },
   {
     "method": "GET",
@@ -1051,7 +1132,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:162"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:163"
   },
   {
     "method": "GET",
@@ -1384,7 +1465,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:105"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:115"
   },
   {
     "method": "GET",
@@ -1456,7 +1537,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:153"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:163"
   },
   {
     "method": "GET",
@@ -1559,6 +1640,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/products-sales-performance/performance",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesPerformance.routes.ts:37"
+  },
+  {
+    "method": "GET",
+    "path": "/api/products-sales-performance/status",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesPerformance.routes.ts:25"
+  },
+  {
+    "method": "GET",
     "path": "/api/products/:id",
     "access": "authenticated",
     "consumer": "front",
@@ -1604,12 +1703,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/renewal-ac-data",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acRenewalData.routes.ts:58"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-ac-data/status",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acRenewalData.routes.ts:31"
+  },
+  {
+    "method": "GET",
     "path": "/api/renewal-ac/changes",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:68"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:72"
   },
   {
     "method": "GET",
@@ -1618,7 +1735,43 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:45"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:49"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/history",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmartSalesHistory.routes.ts:56"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/status",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmartSalesHistory.routes.ts:29"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalTimeline.routes.ts:48"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline/status",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalTimeline.routes.ts:28"
   },
   {
     "method": "GET",
@@ -1951,7 +2104,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:80"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
   },
   {
     "method": "GET",
@@ -2292,7 +2445,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:248"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:249"
   },
   {
     "method": "PATCH",
@@ -2374,6 +2527,33 @@
     "writes": true,
     "destructive": false,
     "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:93"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/correr",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acTagWatch.routes.ts:168"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/eventos/:id/aceitar",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acTagWatch.routes.ts:131"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/lotes/:lote/aceitar",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acTagWatch.routes.ts:145"
   },
   {
     "method": "POST",
@@ -2553,7 +2733,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:39"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:56"
   },
   {
     "method": "POST",
@@ -2562,7 +2742,7 @@
     "consumer": "externo",
     "writes": true,
     "destructive": false,
-    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:44"
+    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:61"
   },
   {
     "method": "POST",
@@ -2571,7 +2751,16 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:42"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:59"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/operations",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:22"
   },
   {
     "method": "POST",
@@ -2580,7 +2769,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:33"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:50"
   },
   {
     "method": "POST",
@@ -2589,7 +2778,16 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:11"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:28"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/suggestions",
+    "access": "public",
+    "consumer": "externo",
+    "writes": true,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:19"
   },
   {
     "method": "POST",
@@ -2598,7 +2796,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:22"
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:39"
   },
   {
     "method": "POST",
@@ -2670,7 +2868,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:92"
+    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:96"
   },
   {
     "method": "POST",
@@ -2798,7 +2996,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:131"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:132"
   },
   {
     "method": "POST",
@@ -2807,7 +3005,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:145"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:146"
   },
   {
     "method": "POST",
@@ -2816,7 +3014,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:197"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:198"
   },
   {
     "method": "POST",
@@ -2825,7 +3023,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:205"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:206"
   },
   {
     "method": "POST",
@@ -2834,7 +3032,16 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:124"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:125"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/send-now",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; envio manual Discord protegido por controlos operacionais; rota em src/routes/discordRenewal.routes.ts:310"
   },
   {
     "method": "POST",
@@ -2843,7 +3050,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:264"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:265"
   },
   {
     "method": "POST",
@@ -2852,7 +3059,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:279"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:280"
   },
   {
     "method": "POST",
@@ -3162,12 +3369,30 @@
   },
   {
     "method": "POST",
+    "path": "/api/products-sales-performance/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesPerformance.routes.ts:49"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac-data/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/acRenewalData.routes.ts:79"
+  },
+  {
+    "method": "POST",
     "path": "/api/renewal-ac/approve",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:109"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:137"
   },
   {
     "method": "POST",
@@ -3176,7 +3401,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:142"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:170"
   },
   {
     "method": "POST",
@@ -3185,7 +3410,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:128"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:156"
   },
   {
     "method": "POST",
@@ -3194,7 +3419,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:89"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:93"
   },
   {
     "method": "POST",
@@ -3203,7 +3428,43 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:100"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:104"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/handle",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:122"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/turma-tags/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:110"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-hotmart-sales/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmartSalesHistory.routes.ts:80"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-timeline/generate",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalTimeline.routes.ts:65"
   },
   {
     "method": "POST",
@@ -3365,7 +3626,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:78"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
   },
   {
     "method": "POST",
@@ -3374,7 +3635,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:79"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:89"
   },
   {
     "method": "POST",
@@ -3619,7 +3880,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:169"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:170"
   },
   {
     "method": "PUT",

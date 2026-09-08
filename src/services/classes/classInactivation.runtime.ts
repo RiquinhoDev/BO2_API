@@ -1,5 +1,7 @@
 import {
   createCreateInactivationListController,
+  createDeleteInactivationListController,
+  createGetInactivationListStudentsController,
   createGetInactivationListsController,
   createRevertInactivationController,
   createUpdateClassStatusController,
@@ -23,4 +25,6 @@ const service = new ClassInactivationService(
 export const createInactivationList = createCreateInactivationListController(service)
 export const getInactivationLists = createGetInactivationListsController(service)
 export const revertInactivation = createRevertInactivationController(service)
+export const getInactivationListStudents = createGetInactivationListStudentsController(service)
+export const deleteInactivationList = createDeleteInactivationListController(service)
 export const updateClassStatus = createUpdateClassStatusController(service)

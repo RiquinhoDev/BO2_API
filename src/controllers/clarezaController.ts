@@ -3,6 +3,7 @@ import { type NextFunction, type Request, type Response } from 'express'
 import { HttpError, internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
 import { isClarezaRefreshAuthorized } from '../security/clarezaRefreshAuthorization'
+import { isClarezaCanonicalEnabled } from '../services/clareza/canonicalSettings'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
@@ -42,6 +43,13 @@ function runClarezaRefresh<T>(
     refresh: (hooks: ClarezaRefreshPhaseHooks) => Promise<T>
   },
 ): Promise<T> {
+  if (isClarezaCanonicalEnabled()) {
+    throw new HttpError({
+      status: 409,
+      code: 'CLAREZA_CANONICAL_OPERATION_REQUIRED',
+      publicMessage: 'Modo canónico activo. Utilize /api/clareza/operations para actualizar os dados publicados.',
+    })
+  }
   return runClarezaRefreshWithReceipt({
     ...options,
     requestId: requestIdFrom(req.get('x-request-id') || res.locals.correlationId),

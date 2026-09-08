@@ -175,6 +175,7 @@ export async function performDiscordMessage(
       },
       { headers: message.headers, timeout: 60000 },
     )
+    context?.lease.assertOwnership()
   } catch (error: unknown) {
     if (context && error instanceof ActiveCampaignExecutionOwnershipError) throw error
     return { success: false, message: `Bot recusou/falhou: ${responseMessage(error) || errorMessage(error)}` }

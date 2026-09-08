@@ -192,7 +192,7 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
       plan.classHistoryEvent = {
         type: 'class-changed',
         classId: resolvedClass.classId,
-        className: item.className || `Turma ${resolvedClass.classId}`,
+        className: resolvedClass.className,
         previousClassId: oldClassId,
         previousClassName: oldClassName,
         dateMoved: clock.now(),
@@ -201,7 +201,7 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
       plan.classHistoryEvent = {
         type: 'first-enrollment',
         classId: resolvedClass.classId,
-        className: item.className || `Turma ${resolvedClass.classId}`,
+        className: resolvedClass.className,
         dateMoved: purchaseDate || clock.now(),
       }
     }

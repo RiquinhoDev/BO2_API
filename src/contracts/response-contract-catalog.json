@@ -24,6 +24,18 @@
   },
   {
     "method": "DELETE",
+    "path": "/api/classes/inactivationLists/:id",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:165",
+    "frontConsumer": null
+  },
+  {
+    "method": "DELETE",
     "path": "/api/courses/:id",
     "family": "success-data",
     "shapeKeys": [
@@ -222,6 +234,28 @@
       "success"
     ],
     "evidence": "src/controllers/userIdentityReconciliation.controller.ts:137",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/eventos",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acTagWatch.routes.ts:81",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acTagWatch.routes.ts:50",
     "frontConsumer": null
   },
   {
@@ -597,7 +631,17 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:302",
+    "evidence": "src/controllers/clarezaController.ts:310",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/analysis",
+    "family": "public-document",
+    "shapeKeys": [
+      "results"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:94",
     "frontConsumer": null
   },
   {
@@ -605,7 +649,19 @@
     "path": "/api/clareza/carteira/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:291",
+    "evidence": "src/controllers/clarezaController.ts:299",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/search",
+    "family": "public-document",
+    "shapeKeys": [
+      "count",
+      "query",
+      "results"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:107",
     "frontConsumer": null
   },
   {
@@ -619,7 +675,7 @@
       "results",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaController.ts:372",
+    "evidence": "src/controllers/clarezaController.ts:380",
     "frontConsumer": null
   },
   {
@@ -627,7 +683,7 @@
     "path": "/api/clareza/data",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:72",
+    "evidence": "src/controllers/clarezaController.ts:80",
     "frontConsumer": null
   },
   {
@@ -640,7 +696,22 @@
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaController.ts:316",
+    "evidence": "src/controllers/clarezaController.ts:324",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/radar",
+    "family": "public-document",
+    "shapeKeys": [
+      "count",
+      "dataVersion",
+      "generationId",
+      "stocks",
+      "universeVersion",
+      "updated"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:56",
     "frontConsumer": null
   },
   {
@@ -652,7 +723,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:213",
+    "evidence": "src/controllers/clarezaController.ts:221",
     "frontConsumer": null
   },
   {
@@ -665,7 +736,7 @@
       "results",
       "tested"
     ],
-    "evidence": "src/controllers/clarezaController.ts:255",
+    "evidence": "src/controllers/clarezaController.ts:263",
     "frontConsumer": null
   },
   {
@@ -677,7 +748,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:244",
+    "evidence": "src/controllers/clarezaController.ts:252",
     "frontConsumer": null
   },
   {
@@ -685,7 +756,7 @@
     "path": "/api/clareza/raiox/:ticker",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:194",
+    "evidence": "src/controllers/clarezaController.ts:202",
     "frontConsumer": null
   },
   {
@@ -774,7 +845,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:139",
+    "evidence": "src/controllers/clarezaController.ts:147",
     "frontConsumer": null
   },
   {
@@ -857,7 +928,7 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:124",
+    "evidence": "src/controllers/clarezaController.ts:132",
     "frontConsumer": null
   },
   {
@@ -939,7 +1010,26 @@
       "weightedAverageShsOutDil",
       "year"
     ],
-    "evidence": "src/controllers/clarezaController.ts:154",
+    "evidence": "src/controllers/clarezaController.ts:162",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaSuggestionAdmin.controller.ts:32",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin/export",
+    "family": "stream-or-file",
+    "shapeKeys": [],
+    "evidence": "mixed success exits (no-content, stream-or-file); src/controllers/clarezaSuggestionAdmin.controller.ts:51",
     "frontConsumer": null
   },
   {
@@ -947,7 +1037,7 @@
     "path": "/api/clareza/top10",
     "family": "public-document",
     "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:112",
+    "evidence": "src/controllers/clarezaController.ts:120",
     "frontConsumer": null
   },
   {
@@ -1030,8 +1120,20 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:42",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:78",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/classes/inactivationLists/:id/students",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:142",
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -1229,7 +1331,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:152",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:153",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1343,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:202",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:203",
     "frontConsumer": null
   },
   {
@@ -1509,7 +1611,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:120",
+    "evidence": "src/routes/discordRenewal.routes.ts:121",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1520,7 +1622,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:229",
+    "evidence": "src/routes/discordRenewal.routes.ts:230",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1531,7 +1633,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:244",
+    "evidence": "src/routes/discordRenewal.routes.ts:245",
     "frontConsumer": null
   },
   {
@@ -1542,7 +1644,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:260",
+    "evidence": "src/routes/discordRenewal.routes.ts:261",
     "frontConsumer": null
   },
   {
@@ -1553,7 +1655,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:93",
+    "evidence": "src/routes/discordRenewal.routes.ts:94",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1564,7 +1666,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:165",
+    "evidence": "src/routes/discordRenewal.routes.ts:166",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1981,7 +2083,7 @@
       "timestamp",
       "uptime"
     ],
-    "evidence": "src/routes/index.ts:106",
+    "evidence": "src/routes/index.ts:116",
     "frontConsumer": null
   },
   {
@@ -2075,7 +2177,7 @@
       "name",
       "version"
     ],
-    "evidence": "src/routes/index.ts:154",
+    "evidence": "src/routes/index.ts:164",
     "frontConsumer": null
   },
   {
@@ -2209,6 +2311,28 @@
   },
   {
     "method": "GET",
+    "path": "/api/products-sales-performance/performance",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/productSalesPerformance.routes.ts:41",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/products-sales-performance/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/productSalesPerformance.routes.ts:28",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/products/:id",
     "family": "success-data",
     "shapeKeys": [
@@ -2266,13 +2390,35 @@
   },
   {
     "method": "GET",
+    "path": "/api/renewal-ac-data",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acRenewalData.routes.ts:72",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-ac-data/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acRenewalData.routes.ts:43",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/renewal-ac/changes",
     "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:82",
+    "evidence": "src/routes/renewalAc.routes.ts:86",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2283,8 +2429,52 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:52",
+    "evidence": "src/routes/renewalAc.routes.ts:56",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/history",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:71",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:41",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/renewalTimeline.routes.ts:62",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/renewalTimeline.routes.ts:37",
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -3140,7 +3330,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:252",
+    "evidence": "src/routes/discordRenewal.routes.ts:253",
     "frontConsumer": null
   },
   {
@@ -3249,6 +3439,39 @@
     ],
     "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:222",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/correr",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acTagWatch.routes.ts:178",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/eventos/:id/aceitar",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acTagWatch.routes.ts:142",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/lotes/:lote/aceitar",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acTagWatch.routes.ts:159",
+    "frontConsumer": null
   },
   {
     "method": "POST",
@@ -3477,7 +3700,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:359",
+    "evidence": "src/controllers/clarezaController.ts:367",
     "frontConsumer": null
   },
   {
@@ -3488,7 +3711,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:414",
+    "evidence": "src/controllers/clarezaController.ts:422",
     "frontConsumer": null
   },
   {
@@ -3499,7 +3722,18 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:338",
+    "evidence": "src/controllers/clarezaController.ts:346",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/operations",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaOperations.controller.ts:43",
     "frontConsumer": null
   },
   {
@@ -3510,7 +3744,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:277",
+    "evidence": "src/controllers/clarezaController.ts:285",
     "frontConsumer": null
   },
   {
@@ -3521,7 +3755,18 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:94",
+    "evidence": "src/controllers/clarezaController.ts:102",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/suggestions",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaSuggestion.controller.ts:21",
     "frontConsumer": null
   },
   {
@@ -3532,7 +3777,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/clarezaController.ts:180",
+    "evidence": "src/controllers/clarezaController.ts:188",
     "frontConsumer": null
   },
   {
@@ -3579,7 +3824,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:23",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:55",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -3591,7 +3836,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:69",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:116",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -3789,7 +4034,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:141",
+    "evidence": "src/routes/discordRenewal.routes.ts:142",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3800,7 +4045,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:154",
+    "evidence": "src/routes/discordRenewal.routes.ts:155",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3811,7 +4056,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:201",
+    "evidence": "src/routes/discordRenewal.routes.ts:202",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3823,7 +4068,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:222",
+    "evidence": "src/routes/discordRenewal.routes.ts:223",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3834,8 +4079,19 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:127",
+    "evidence": "src/routes/discordRenewal.routes.ts:128",
     "frontConsumer": "src/services/discordRenewal.service.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/send-now",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/discordRenewal.routes.ts:315",
+    "frontConsumer": null
   },
   {
     "method": "POST",
@@ -3845,7 +4101,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:275",
+    "evidence": "src/routes/discordRenewal.routes.ts:276",
     "frontConsumer": null
   },
   {
@@ -3856,7 +4112,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:306",
+    "evidence": "src/routes/discordRenewal.routes.ts:307",
     "frontConsumer": null
   },
   {
@@ -4257,13 +4513,35 @@
   },
   {
     "method": "POST",
+    "path": "/api/products-sales-performance/sync",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/productSalesPerformance.routes.ts:54",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac-data/sync",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/acRenewalData.routes.ts:85",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
     "path": "/api/renewal-ac/approve",
     "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:119",
+    "evidence": "src/routes/renewalAc.routes.ts:147",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4275,7 +4553,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:145",
+    "evidence": "src/routes/renewalAc.routes.ts:173",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4286,7 +4564,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:136",
+    "evidence": "src/routes/renewalAc.routes.ts:164",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4297,7 +4575,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:93",
+    "evidence": "src/routes/renewalAc.routes.ts:97",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4308,8 +4586,52 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:103",
+    "evidence": "src/routes/renewalAc.routes.ts:107",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/handle",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/renewalAc.routes.ts:131",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/turma-tags/sync",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/renewalAc.routes.ts:119",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-hotmart-sales/sync",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:86",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-timeline/generate",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/renewalTimeline.routes.ts:81",
+    "frontConsumer": null
   },
   {
     "method": "POST",
@@ -4775,7 +5097,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:95",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:191",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -4844,7 +5166,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:193",
+    "evidence": "src/routes/discordRenewal.routes.ts:194",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {

@@ -238,6 +238,14 @@ test('renewal settings are parsed once into the typed startup boundary', () => {
   })
 
   expect(config.renewal).toEqual({
+    acFirstPurchaseDateFieldId: 337,
+    acPurchaseStatusFieldId: 282,
+    acRefundDateFieldId: 324,
+    ogiProductFamilyIds: ['1733154', '3100292', '4346330'],
+    ogiNewStudentPriceThresholdEur: 167,
+    guruClarezaMonthlyProductId: '',
+    guruClarezaAnnualProductId: '',
+    fxRatesToEur: { USD: 0.92, GBP: 1.17, CHF: 1.05, CAD: 0.68, BRL: 0.16 },
     acSyncEnabled: true,
     manualExecutionEnabled: false,
     offerManualExecutionEnabled: false,

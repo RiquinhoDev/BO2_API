@@ -68,13 +68,23 @@ describe('buildHotmartMutationPlan — class history events', () => {
 
   it('emits a class-changed event with previous id/name', () => {
     const user: HotmartUserState = { hotmart: { enrolledClasses: [{ classId: 'OLD', className: 'Antiga', isActive: true }] } }
-    const plan = build({ item: { classId: 'C1', className: 'Nova' }, user })
+    const plan = build({ item: { classId: 'C1', className: 'Nome recebido' }, resolvedClass: { classId: 'C1', className: 'Nome resolvido' }, user })
     expect(plan.classHistoryEvent).toMatchObject({
       type: 'class-changed',
       classId: 'C1',
+      className: 'Nome resolvido',
       previousClassId: 'OLD',
       previousClassName: 'Antiga',
     })
+  })
+
+  it('uses the resolved class name for first-enrollment history when the source name is absent', () => {
+    const plan = build({
+      item: { classId: 'C1', className: undefined },
+      user: { hotmart: {} },
+      resolvedClass: { classId: 'C1', className: 'Nome resolvido' },
+    })
+    expect(plan.classHistoryEvent).toMatchObject({ type: 'first-enrollment', classId: 'C1', className: 'Nome resolvido' })
   })
 })
 

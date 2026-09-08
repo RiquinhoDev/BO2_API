@@ -31,7 +31,6 @@ const redactFormat = winston.format((info) => {
 })
 
 const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
   winston.format.timestamp({ format: 'HH:mm:ss' }),
   winston.format.printf(({ timestamp, level, message, ...metadata }) => {
     const suffix = Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : ''

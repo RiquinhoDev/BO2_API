@@ -18,6 +18,7 @@ import {
   discordRenewalMessageSendInput,
   discordRenewalScheduledRunInput,
   discordRenewalScheduledTestInput,
+  discordRenewalScheduledSendNowInput,
 } from '../security/discordRenewalDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 import {
@@ -304,6 +305,14 @@ router.post('/scheduled/run', withValidatedInput(discordRenewalScheduledRunInput
     })
   }
   res.json({ success: true, data: report })
+}))
+
+router.post('/scheduled/:key/send-now', withValidatedInput(discordRenewalScheduledSendNowInput, async (input, req, res) => {
+  const { sendScheduledRuleNow } = await import('../services/renewal/discordScheduledSendNow.service')
+  const result = await sendScheduledRuleNow(input.params.key, actor(req), { dryRun: input.body.dryRun })
+  if (!result.success && 'kind' in result && result.kind) messageReceiptFailure(result)
+  if (!result.success) return res.status(400).json(result)
+  res.json(successResponse({ result }))
 }))
 
 export default router

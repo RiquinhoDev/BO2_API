@@ -176,7 +176,6 @@ function dateKey(now: Date): string {
 async function runScheduledMessagesCore(
   now: Date,
   options: ScheduledMessagesRunOptions,
-  requestId?: string,
 ): Promise<ScheduledMessagesReport> {
   const dryRun = options.dryRun === true
   let rules = await readScheduledRulesWithinCap()
@@ -257,9 +256,7 @@ async function runScheduledMessagesCore(
       templateKey: rule.templateKey,
       sentBy: 'cron:DiscordScheduledMessages'
     },
-    requestId
-      ? `${requestId}:rule:${rule.key}:${target.monthKey}`
-      : `cron:DiscordScheduledMessages:${rule.key}:${target.monthKey}`,
+    `cron:DiscordScheduledMessages:${rule.key}:${target.monthKey}`,
     {
       operation: 'scheduled-rule',
       identity: `rule:${rule.key}:${target.monthKey}`,
@@ -316,7 +313,7 @@ export async function runScheduledMessagesJob(
 ): Promise<ScheduledMessagesExecutionResult> {
   const now = options.now?.() ?? new Date()
   // Preview é estritamente read-only: não cria receipt de execução, seed, save nem chama provider.
-  if (options.dryRun === true) return runScheduledMessagesCore(now, options, requestId)
+  if (options.dryRun === true) return runScheduledMessagesCore(now, options)
   if (!requestId) return runScheduledMessagesCore(now, options)
 
   const execution = await executeDiscordMessageReceipt({
@@ -324,7 +321,7 @@ export async function runScheduledMessagesJob(
     identity: `run:${dateKey(now)}:live`,
     requestId,
     now: options.now,
-    run: () => runScheduledMessagesCore(now, options, requestId),
+    run: () => runScheduledMessagesCore(now, options),
   })
   if (execution.kind === 'completed' || execution.kind === 'replay' || execution.kind === 'failed') {
     return execution.result

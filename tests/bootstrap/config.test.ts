@@ -47,11 +47,34 @@ const DUPLICATE_SECRET_CASES = [
   },
 ] as const
 
+test('renewal parity configuration preserves defaults and explicit purchase field guard', () => {
+  expect(loadConfig(VALID_ENV).renewal).toMatchObject({
+    acFirstPurchaseDateFieldId: 337, acPurchaseStatusFieldId: 282, acRefundDateFieldId: 324,
+    ogiProductFamilyIds: ['1733154', '3100292', '4346330'],
+    ogiNewStudentPriceThresholdEur: 167, fxRatesToEur: { USD: 0.92, GBP: 1.17, CHF: 1.05, CAD: 0.68, BRL: 0.16 },
+  })
+  expect(loadConfig(VALID_ENV).renewal).not.toHaveProperty('acPurchaseDateFieldId')
+  expect(loadConfig({ ...VALID_ENV, AC_PURCHASE_DATE_FIELD_ID: '334', FX_RATE_USD_EUR: '0.85', HOTMART_OGI_PRODUCT_FAMILY_IDS: '1, 2' }).renewal)
+    .toMatchObject({ acPurchaseDateFieldId: 334, fxRatesToEur: { USD: 0.85 }, ogiProductFamilyIds: ['1', '2'] })
+  for (const invalid of [{ AC_PURCHASE_DATE_FIELD_ID: '0' }, { FX_RATE_USD_EUR: '-1' }, { HOTMART_OGI_PRODUCT_FAMILY_IDS: ' ' }]) {
+    expect(() => loadConfig({ ...VALID_ENV, ...invalid })).toThrow('CONFIG_INVALIDA')
+  }
+})
+
 test('carregar o modulo de config nao valida process.env no import', () => {
   expect(loadConfig).toEqual(expect.any(Function))
 })
 
-test('loadConfig exige MONGO_URI quando e chamada', () => {
+  test('canonical Clareza migration is opt-in and operations/egress are disabled by default', () => {
+    expect(loadConfig(VALID_ENV)).toMatchObject({ operationalControls: {
+      clarezaCanonicalEnabled: false, clarezaRefreshEnabled: false, clarezaFmpEgressEnabled: false,
+    } })
+    expect(loadConfig({ ...VALID_ENV, CLAREZA_CANONICAL_ENABLED: 'true', CLAREZA_REFRESH_ENABLED: 'true', CLAREZA_FMP_EGRESS_ENABLED: 'true' }))
+      .toMatchObject({ operationalControls: { clarezaCanonicalEnabled: true, clarezaRefreshEnabled: true, clarezaFmpEgressEnabled: true } })
+    expect(() => loadConfig({ ...VALID_ENV, CLAREZA_CANONICAL_ENABLED: 'yes' })).toThrow('CLAREZA_CANONICAL_ENABLED')
+  })
+
+  test('loadConfig exige MONGO_URI quando e chamada', () => {
   expect(() => loadConfig({ NODE_ENV: 'test' })).toThrow('MONGO_URI')
 })
 
@@ -337,7 +360,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
 test.each([
   ['test', false, false],
   ['development', true, true],
-  ['production', true, false],
+    ['production', true, true],
 ] as const)('loadConfig derives logger transports for %s', (nodeEnv, fileLoggingEnabled, consoleLoggingEnabled) => {
   const config = loadConfig({
     ...VALID_ENV,

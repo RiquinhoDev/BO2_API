@@ -38,6 +38,7 @@ export interface ClarezaRefreshExecutionContext {
 }
 
 export interface ClarezaRefreshPhaseHooks {
+  assertOwnership(): void
   providerStarted(): void
   providerSucceeded(): void
   localMutationStarted(): void
@@ -391,6 +392,7 @@ export async function runClarezaRefreshWithReceipt<T>(options: {
     run: async (context) => {
       const providerConfigured = Boolean(getOptionalFmpApiKey())
       const hooks: ClarezaRefreshPhaseHooks = {
+        assertOwnership: () => context.lease.assertOwnership(),
         providerStarted: () => {
           if (providerConfigured) context.provider.begin()
         },

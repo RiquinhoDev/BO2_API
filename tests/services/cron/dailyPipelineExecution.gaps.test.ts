@@ -14,6 +14,8 @@ const saveMarkdownReport = jest.fn()
 const orchestrateUserProduct = jest.fn()
 const getExecutionStats = jest.fn()
 const syncTestimonialTags = jest.fn()
+const mockRenewalFollowUp = jest.fn(async () => null)
+jest.mock('../../../src/services/cron/dailyRenewalFollowUp', () => ({ runDailyRenewalFollowUp: mockRenewalFollowUp }))
 
 jest.mock('../../../src/models', () => ({
   Product: { findOne: productFindOne, find: productFind },
@@ -242,4 +244,12 @@ test('marks the pipeline unsuccessful when testimonial sync reports failure', as
   expect(result.success).toBe(false)
   expect(result.steps.syncTestimonialTags.success).toBe(false)
   expect(result.errors).toContain('Sync Testimonial Tags: sincronização reportou falhas')
+})
+
+test('production daily entry point awaits renewal follow-up after its main stages', async () => {
+  mockRenewalFollowUp.mockResolvedValueOnce(null)
+  const result = await executeDailyPipeline()
+  expect(mockRenewalFollowUp).toHaveBeenLastCalledWith(true, undefined)
+  expect(syncTestimonialTags.mock.invocationCallOrder[0]).toBeLessThan(mockRenewalFollowUp.mock.invocationCallOrder[0])
+  expect(result).toHaveProperty('renewalPipeline', null)
 })

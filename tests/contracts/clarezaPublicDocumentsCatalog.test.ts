@@ -12,10 +12,13 @@ const routeCatalogPath = path.join(process.cwd(), 'src', 'security', 'route-cata
 const clarezaControllerPath = path.join(process.cwd(), 'src', 'controllers', 'clarezaController.ts')
 const publicDocumentIdentities = [
   'GET /api/clareza/carteira-search',
+  'GET /api/clareza/carteira/analysis',
   'GET /api/clareza/carteira/data',
+  'GET /api/clareza/carteira/search',
   'GET /api/clareza/comparador',
   'GET /api/clareza/data',
   'GET /api/clareza/earnings/data',
+  'GET /api/clareza/radar',
   'GET /api/clareza/raiox',
   'GET /api/clareza/raiox-diagnose',
   'GET /api/clareza/raiox-search',
@@ -74,7 +77,7 @@ describe('Clareza public-document catalog protection', () => {
       expect(entry.status).toBe('complete')
     }
     const refreshes = inventory.filter((entry) => entry.identity.startsWith('POST /api/clareza/'))
-    expect(refreshes).toHaveLength(6)
+    expect(refreshes).toHaveLength(8)
     for (const refresh of refreshes) {
       expect(refresh.targetFamily).toBe('success-data')
       expect(refresh.status).toBe('complete')
@@ -112,6 +115,6 @@ describe('Clareza public-document catalog protection', () => {
     const result = runChecker()
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('409 decisions; 209 Front calls; 185 consumers')
+    expect(result.stdout).toContain('438 decisions; 209 Front calls; 185 consumers')
   })
 })

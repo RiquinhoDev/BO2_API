@@ -388,6 +388,8 @@ const job = await CronJobConfig.create({
   }
 
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
+    // This switch is consumed by the daily pipeline after completion; never schedule twice.
+    if (job.name === 'RenewalPipeline') return
     if (!job.schedule.enabled || !job.isActive) {
       logger.info(`⏸️ Job não agendado (disabled): ${job.name}`)
       return

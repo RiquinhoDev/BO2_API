@@ -459,6 +459,22 @@ test('DiscordRoles invalid business result does not complete provider phase or l
   expect(updateChange).toHaveBeenCalledTimes(1)
 })
 
+test.each(['Unknown User', 'DiscordAPIError[10013]', 'Unknown Member', 'DiscordAPIError[10007]'])('DiscordRoles blocks unreachable account %s without retrying as a transient failure', async (error) => {
+  const axios = await import('axios')
+  jest.spyOn(axios.default, 'post').mockResolvedValueOnce({
+    data: { results: [{ discordUserId: 'discord-1', ok: false, error }] },
+  } as never)
+  resetRuntimeConfigForTests()
+  install({ discordRolesSyncEnabled: true }, true)
+  findChange.mockReturnValue(chain([{ _id: 'change-1', discordUserId: 'discord-1', payload: { addRoleId: 'role-1', removeRoleIds: [] } }]))
+  const { executeDiscordRolesPlan } = await import('../../src/services/renewal/discord/execution')
+  const result = await executeDiscordRolesPlan({ executedBy: 'test' })
+  expect(result).toMatchObject({ notInGuild: 1, failed: 0, applied: 0 })
+  expect(updateChange).toHaveBeenCalledWith({ _id: { $in: ['change-1'] } }, expect.objectContaining({
+    $set: expect.objectContaining({ status: 'BLOCKED', notInGuild: true }),
+  }))
+})
+
 test('DiscordRoles rejects provider result type drift before local writes', async () => {
   const axios = await import('axios')
   jest.spyOn(axios.default, 'post').mockResolvedValueOnce({

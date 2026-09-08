@@ -257,6 +257,7 @@ export interface PipelineStepResult {
 }
 
 export interface DailyPipelineResult {
+  renewalPipeline?: import('../services/renewal/renewalPipeline.service').RenewalPipelineReport | null
   success: boolean
   duration: number
   completedAt: Date

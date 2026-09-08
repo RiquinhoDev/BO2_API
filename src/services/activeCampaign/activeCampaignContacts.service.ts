@@ -211,6 +211,33 @@ export class ActiveCampaignContactsService {
     }
   }
 
+  async getContactFieldValues(
+    email: string,
+    userId: string | undefined,
+    fieldIds: number[],
+  ): Promise<{ contactId: string; values: Record<number, string | null> } | null> {
+    this.transport.ensureAvailable()
+    await this.transport.checkRateLimit()
+    try {
+      const contactId = await this.getContactId(email, userId)
+      if (!contactId) return null
+      const response = await this.transport.retryRequest(() =>
+        this.transport.client.get<ACFieldValuesResponse>(`/api/3/contacts/${contactId}/fieldValues`),
+      )
+      const fieldValues = response.data.fieldValues || []
+      const values: Record<number, string | null> = {}
+      for (const fieldId of fieldIds) {
+        const match = fieldValues.find((field) => String(field.field) === String(fieldId))
+        values[fieldId] = match?.value ?? null
+      }
+      return { contactId, values }
+    } catch (error) {
+      this.transport.rethrowIntegrationUnavailable(error)
+      logger.error(`Erro ao ler fields de ${email}: ${this.transport.formatError(error)}`)
+      throw error
+    }
+  }
+
   async updateContactField(email: string, fieldId: number, value: string): Promise<boolean> {
     this.transport.ensureAvailable()
     await this.transport.checkRateLimit()

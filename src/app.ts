@@ -10,12 +10,14 @@ import {
 import {
   HEAVY_OPERATION_PATHS,
   LOGIN_PATHS,
+  SUGGESTION_PATHS,
   WEBHOOK_PATHS,
   createHttpPerimeter,
   type HttpPerimeter,
 } from './security/httpPerimeter'
 import {
   createErrorHandling,
+  HttpError,
   type ErrorHandling,
 } from './security/errorHandling'
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
@@ -62,7 +64,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
     cors({
       origin: (origin, callback) => {
         if (isOriginAllowed(origin, allowedOrigins)) return callback(null, true)
-        return callback(new Error(`Origin ${origin} not allowed by CORS`))
+        return callback(new HttpError({ status: 403, code: 'CORS_ORIGIN_DENIED', publicMessage: 'Origem não autorizada' }))
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -73,6 +75,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(LOGIN_PATHS, httpPerimeter.login)
   app.use(WEBHOOK_PATHS, httpPerimeter.webhook)
   app.use(HEAVY_OPERATION_PATHS, httpPerimeter.heavy)
+  app.use(SUGGESTION_PATHS, httpPerimeter.suggestion)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.jsonParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)

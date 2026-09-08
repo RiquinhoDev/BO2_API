@@ -1,3 +1,4 @@
+import { recordOf, numberOf, booleanOf, stringOf, arrayOf, nestedRecordOf, errorMessageOf } from './dispatchResultFields'
 import { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
 import type {
   AchievementEvaluationPlan,
@@ -66,6 +67,7 @@ export interface CronDispatchDependencies {
   runScheduledMessages: UnknownRunner
   runDiscordRolesSync: UnknownRunner
   runRenewalAcSync: UnknownRunner
+  runAcTagWatch?: UnknownRunner
   evaluateAchievements: UnknownRunner
   executeDailyPipeline: (options?: CronDispatchOptions) => Promise<unknown>
   fetchHotmart(options?: CronDispatchOptions): Promise<UniversalSourceItem[]>
@@ -86,43 +88,16 @@ const SPECIFIC_JOB_NAMES = [
   'AchievementEvaluation',
   'RenewalAcSync',
   'DiscordRolesSync',
-  'DiscordScheduledMessages'
+  'DiscordScheduledMessages',
+  'AcTagWatch'
 ] as const
 
 function matchesSpecificJob(jobName: string, specificName: string): boolean {
+  if (specificName === 'AcTagWatch') return jobName === specificName
   return specificName === 'WeeklyTagSnapshot' || specificName === 'RenewalOfferSync' || specificName === 'RenewalAcSync' || specificName === 'DiscordRolesSync' || specificName === 'GuruTrialCheck'
     ? jobName === specificName
     : jobName.includes(specificName)
 }
-
-const recordOf = (value: unknown): Record<string, unknown> =>
-  typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value)) : {}
-
-const numberOf = (record: Record<string, unknown>, key: string): number => {
-  const value = record[key]
-  return typeof value === 'number' ? value : 0
-}
-
-const booleanOf = (record: Record<string, unknown>, key: string): boolean | undefined => {
-  const value = record[key]
-  return typeof value === 'boolean' ? value : undefined
-}
-
-const stringOf = (record: Record<string, unknown>, key: string): string | undefined => {
-  const value = record[key]
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-const arrayOf = (record: Record<string, unknown>, key: string): unknown[] => {
-  const value = record[key]
-  return Array.isArray(value) ? value : []
-}
-
-const nestedRecordOf = (record: Record<string, unknown>, key: string): Record<string, unknown> =>
-  recordOf(record[key])
-
-const errorMessageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const shouldPropagateHotmartControlError = (error: unknown): boolean => {
   if (error instanceof HttpError) {
@@ -205,6 +180,7 @@ const normalizeGenericResult = (value: unknown): CronDispatchResult => {
 }
 
 const defaultDependencies: CronDispatchDependencies = {
+  runAcTagWatch: async options => (await import('./acTagWatchDispatch')).dispatchAcTagWatch(options),
   evaluateRules: async () => (await import('../../../jobs/evaluateRules.job')).default.run(),
   resetCounters: async () => (await import('../../../jobs/resetCounters.job')).default.run(),
   rebuildDashboardStats: async () => {
@@ -218,7 +194,12 @@ const defaultDependencies: CronDispatchDependencies = {
   },
   cleanupExecutions: async (options) => (await import('../../../jobs/cronExecutionCleanup.job')).default.run(options),
   weeklyTagSnapshot: async (options) => (await import('../../../jobs/weeklyTagSnapshot.job')).default.run(options),
-  clarezaRefresh: async () => (await import('../../../jobs/clareza.job')).default.run(),
+  clarezaRefresh: async (options) => {
+    const { isClarezaCanonicalEnabled } = await import('../../clareza/canonicalSettings')
+    return isClarezaCanonicalEnabled()
+      ? (await import('../../../jobs/clarezaCanonical.job')).default.run(options?.phaseHooks)
+      : (await import('../../../jobs/clareza.job')).default.run()
+  },
   guruTrialCheck: async (options) => (await import('../../../jobs/guruTrialCheck.job')).default.run(options),
   syncRenewalOffers,
   runScheduledMessages: async (options) =>
@@ -283,6 +264,16 @@ export class CronJobDispatcher {
 
   private async executeSpecific(job: CronDispatchJob, options: CronDispatchOptions): Promise<CronDispatchResult> {
     try {
+      if (job.name === 'AcTagWatch') {
+        if (!this.dependencies.runAcTagWatch) throw new Error('AcTagWatch runner unavailable')
+        const report = recordOf(await this.dependencies.runAcTagWatch(options))
+        const errors = arrayOf(report, 'errors').length
+        return {
+          success: errors === 0,
+          stats: { ...EMPTY_STATS, total: numberOf(report, 'alunosLidos'), updated: numberOf(report, 'eventosGravados'), errors },
+          ...(report.dryRun === true ? { dryRun: true } : {}),
+        }
+      }
       if (job.name === 'RenewalOfferSync') {
         return normalizeRenewalOfferDispatch(await this.dependencies.syncRenewalOffers(options))
       }

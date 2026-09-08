@@ -7,6 +7,7 @@ import path from 'node:path'
 const root = process.cwd()
 const script = path.join(root, 'scripts', 'generate-scalability-read-inventory.mjs')
 const inventoryPath = path.join(root, 'src', 'contracts', 'scalability-read-inventory.json')
+const mainParityPath = path.join(root, 'src', 'contracts', 'scalability-main-parity-sites.json')
 
 const run = (env: NodeJS.ProcessEnv = {}) => execFileSync(process.execPath, [script, '--check'], {
   cwd: root,
@@ -25,6 +26,23 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 24, pending: 0, changed: 21, alreadyCompliant: 3 })
   expect(inventory.scale03.entries).toHaveLength(24)
   expect(run()).toContain('SCALE-03 24 complete / 0 pending')
+})
+
+test('SCALE main parity adjudicates every Mongoose scanner addition explicitly', () => {
+  const manifest = JSON.parse(fs.readFileSync(mainParityPath, 'utf8'))
+  const decisions = manifest.entries as Array<{ status: string }>
+
+  expect(manifest.sourceBaseline).toEqual({
+    count: 384,
+    hash: 'eef0aa61c05598adceb67e494c9b6f7e8675dda27e080e4a69de23d0b86fa2c3',
+  })
+  expect(manifest.summary).toEqual({
+    planned: decisions.length,
+    complete: decisions.filter(entry => entry.status === 'complete').length,
+    pending: decisions.filter(entry => entry.status === 'pending').length,
+    excluded: decisions.filter(entry => entry.status === 'excluded').length,
+  })
+  expect(run()).toContain(`main parity ${decisions.length} adjudicated`)
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {

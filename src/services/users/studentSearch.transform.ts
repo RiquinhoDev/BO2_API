@@ -75,7 +75,7 @@ export function transformUserForFrontend(
 
           const existingClass = baseCombined.allClasses.find(
             currentClass => currentClass.classId === productCode
-              || currentClass.className.includes(productName)
+              || currentClass.className?.includes(productName)
           )
 
           if (!existingClass) {
@@ -139,7 +139,11 @@ export function transformUserForFrontend(
         return tagsByProduct
       }, {})
 
-      const testimonialData = user.communicationByCourse?.get('TESTIMONIALS')
+      // Mongoose lean reads return plain objects; hydrated callers may still supply a Map.
+      const communication = user.communicationByCourse
+      const testimonialData = communication instanceof Map
+        ? communication.get('TESTIMONIALS')
+        : (communication as Record<string, { currentTags?: string[]; lastTagAppliedAt?: Date }> | undefined)?.TESTIMONIALS
       const testimonialTags = testimonialData?.currentTags || []
 
       if (testimonialTags.length > 0) {

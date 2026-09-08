@@ -103,6 +103,7 @@ test('route helper records configured provider and local phases in the durable r
       fingerprint: 'full',
       requestId: 'request-a',
       refresh: async (hooks) => {
+        hooks.assertOwnership()
         hooks.providerStarted()
         hooks.providerSucceeded()
         hooks.localMutationStarted()

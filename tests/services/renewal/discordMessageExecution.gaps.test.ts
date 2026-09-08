@@ -35,6 +35,9 @@ jest.mock('../../../src/models/discordRenewal', () => ({
 }))
 
 import { sendDiscordMessage } from '../../../src/services/renewal/discord/execution'
+import { performDiscordMessage } from '../../../src/services/renewal/discord/discordMessageTransport.service'
+import type { DiscordMessageExecutionContext } from '../../../src/services/renewal/discord/discordMessageExecution.service'
+import { ActiveCampaignExecutionOwnershipError } from '../../../src/services/activeCampaign/activeCampaignExecution.service'
 
 const message = {
   content: 'Renova até {dataFim}',
@@ -53,6 +56,27 @@ beforeEach(() => {
 })
 
 describe('Discord message provider write-path characterization', () => {
+  test('lost lease after provider await blocks provider success and Mongo audit', async () => {
+    let checks = 0
+    const context = {
+      lease: {
+        assertOwnership: jest.fn(() => {
+          checks += 1
+          if (checks === 2) throw new ActiveCampaignExecutionOwnershipError('discord-message')
+        }),
+      },
+      provider: {
+        begin: jest.fn(), notAttempted: jest.fn(), success: jest.fn(), retryableFailure: jest.fn(),
+      },
+    } as unknown as DiscordMessageExecutionContext
+    await expect(performDiscordMessage({
+      channelId: 'channel-1', content: 'Renova', mentionRoleIds: [], mentionRoleNames: [],
+      mentionEveryone: false, sentBy: 'reviewer@example.test', url: 'http://discord-bot', headers: {},
+    }, context)).rejects.toThrow(ActiveCampaignExecutionOwnershipError)
+    expect(context.provider.success).not.toHaveBeenCalled()
+    expect(mockMessageLogCreate).not.toHaveBeenCalled()
+  })
+
   test('provider success is followed by one Mongo audit log', async () => {
     const result = await sendDiscordMessage(message)
 

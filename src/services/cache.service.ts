@@ -7,9 +7,22 @@ import {
   type RedisRateLimitCommandPort,
 } from '../security/redisRateLimitStore'
 
+export interface RedisRefreshJobCommandPort {
+  eval(script: string, keys: readonly string[], args: readonly string[]): Promise<unknown>
+}
+
 class CacheService {
   private redis: Redis | null = null
   private isConnected = false
+
+  public getRefreshJobCommandPort(): RedisRefreshJobCommandPort {
+    return {
+      eval: async (script, keys, args) => {
+        if (!this.redis || !this.isConnected) throw new Error('Redis is not connected')
+        return this.redis.eval(script, keys.length, ...keys, ...args)
+      },
+    }
+  }
 
   public async connect(
     config: NonNullable<AppConfig['redis']>,

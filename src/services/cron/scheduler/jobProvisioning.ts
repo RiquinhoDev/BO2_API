@@ -88,6 +88,15 @@ const JOBS: readonly SystemJobDefinition[] = [
     updateSchedule: false,
     maxRetries: 1,
     exponentialBackoff: false
+  },
+  {
+    name: 'AcTagWatch',
+    description: 'Vigilância das tags AC: lê o provider e regista divergências localmente. Nasce desligada.',
+    cronExpression: '0 3 * * *',
+    enabled: false,
+    updateSchedule: false,
+    maxRetries: 1,
+    exponentialBackoff: false,
   }
 ]
 

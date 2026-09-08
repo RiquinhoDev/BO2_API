@@ -14,6 +14,7 @@ import {
   type PipelineUserProduct,
 } from './dailyPipelineSupport'
 import { executeSyncAndPreparationSteps } from './dailyPipelineSyncSteps'
+import { runDailyRenewalFollowUp } from './dailyRenewalFollowUp'
 
 export async function executeDailyPipeline(
   options: DailyPipelineOptions = {},
@@ -381,6 +382,13 @@ export async function executeDailyPipeline(
       }
 
       logStep(6, 'Sync Testimonial Tags', 'ERROR', message)
+    }
+
+    try {
+      result.renewalPipeline = await runDailyRenewalFollowUp(result.success, options.phaseHooks)
+    } catch (error: unknown) {
+      result.success = false
+      errors.push(`RenewalPipeline: ${error instanceof Error ? error.message : String(error)}`)
     }
 
     // FINALIZAR

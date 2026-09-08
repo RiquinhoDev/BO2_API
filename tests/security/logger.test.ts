@@ -13,6 +13,19 @@ class MemoryTransport extends Transport {
   }
 }
 
+test('console formatter emits plain text suitable for production log collectors', () => {
+  const instance = createStructuredLogger({ fileLoggingEnabled: false, consoleLoggingEnabled: true })
+  try {
+    const formatted = instance.transports[0].format!.transform({
+      level: 'info', message: 'safe message', [Symbol.for('level')]: 'info',
+    }, {})
+    expect(formatted).not.toBe(false)
+    expect(String((formatted as Record<symbol, unknown>)[Symbol.for('message')])).not.toMatch(/\u001b\[/)
+  } finally {
+    instance.close()
+  }
+})
+
 test('logger Winston aplica o redator único a todos os níveis e metadata', () => {
   const transport = new MemoryTransport()
   const logger = createStructuredLogger({ level: 'debug', transports: [transport] })

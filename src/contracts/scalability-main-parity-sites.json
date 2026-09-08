@@ -1,0 +1,624 @@
+{
+  "version": 1,
+  "sourceBaseline": {
+    "count": 384,
+    "hash": "eef0aa61c05598adceb67e494c9b6f7e8675dda27e080e4a69de23d0b86fa2c3"
+  },
+  "targetBaseline": {
+    "count": 442,
+    "hash": "013710d9fd626a310cd028b89bdc9dea2ac4c8fe10eb41e3cd97bcce8d22c12f"
+  },
+  "scope": {
+    "originalAdditions": 37,
+    "concurrentAdditions": 22
+  },
+  "summary": {
+    "planned": 59,
+    "complete": 55,
+    "pending": 0,
+    "excluded": 4
+  },
+  "entries": [
+    {
+      "id": "main-parity.site-01",
+      "originalSite": "src/routes/acRenewalData.routes.ts:71:find",
+      "currentSite": "src/routes/acRenewalData.routes.ts:71:find",
+      "file": "src/routes/acRenewalData.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-02",
+      "originalSite": "src/routes/acTagWatch.routes.ts:144:find",
+      "currentSite": "src/routes/acTagWatch.routes.ts:146:find",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-03",
+      "originalSite": "src/routes/acTagWatch.routes.ts:34:aggregate",
+      "currentSite": "src/routes/acTagWatch.routes.ts:34:aggregate",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-04",
+      "originalSite": "src/routes/acTagWatch.routes.ts:38:aggregate",
+      "currentSite": "src/routes/acTagWatch.routes.ts:38:aggregate",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-05",
+      "originalSite": "src/routes/acTagWatch.routes.ts:76:find",
+      "currentSite": "src/routes/acTagWatch.routes.ts:76:find",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-06",
+      "originalSite": "src/routes/acTagWatch.routes.ts:86:find",
+      "currentSite": "src/routes/acTagWatch.routes.ts:86:find",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-07",
+      "originalSite": "src/routes/acTagWatch.routes.ts:99:find",
+      "currentSite": "src/routes/acTagWatch.routes.ts:101:find",
+      "file": "src/routes/acTagWatch.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-08",
+      "originalSite": "src/routes/hotmartSalesHistory.routes.ts:65:find",
+      "currentSite": "src/routes/hotmartSalesHistory.routes.ts:65:find",
+      "file": "src/routes/hotmartSalesHistory.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-09",
+      "originalSite": "src/routes/renewalTimeline.routes.ts:61:find",
+      "currentSite": "src/routes/renewalTimeline.routes.ts:61:find",
+      "file": "src/routes/renewalTimeline.routes.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "bounded-stable-route",
+      "reason": "Reviewed route applies a request cap, deterministic ordering, and overflow rejection where mutation scope matters."
+    },
+    {
+      "id": "main-parity.site-10",
+      "originalSite": "src/services/clareza/core/coreEarningsCompanionStore.ts:41:find",
+      "currentSite": "src/services/clareza/core/coreEarningsCompanionStore.ts:41:find",
+      "file": "src/services/clareza/core/coreEarningsCompanionStore.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-11",
+      "originalSite": "src/services/clareza/core/coreGenerationStore.ts:149:find",
+      "currentSite": "src/services/clareza/core/coreGenerationStore.ts:149:find",
+      "file": "src/services/clareza/core/coreGenerationStore.ts",
+      "status": "complete",
+      "owner": "clareza-mapping",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-12",
+      "originalSite": "src/services/clareza/core/coreGenerationStore.ts:166:find",
+      "currentSite": "src/services/clareza/core/coreGenerationStore.ts:166:find",
+      "file": "src/services/clareza/core/coreGenerationStore.ts",
+      "status": "complete",
+      "owner": "clareza-mapping",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-13",
+      "originalSite": "src/services/clareza/core/coreRaioxCompanionStore.ts:31:find",
+      "currentSite": "src/services/clareza/core/coreRaioxCompanionStore.ts:31:find",
+      "file": "src/services/clareza/core/coreRaioxCompanionStore.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-14",
+      "originalSite": "src/services/clareza/core/coreSuggestionStore.ts:100:aggregate",
+      "currentSite": "src/services/clareza/core/coreSuggestionStore.ts:100:aggregate",
+      "file": "src/services/clareza/core/coreSuggestionStore.ts",
+      "status": "complete",
+      "owner": "clareza-mapping",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-15",
+      "originalSite": "src/services/clareza/core/coreSuggestionStore.ts:84:aggregate",
+      "currentSite": "src/services/clareza/core/coreSuggestionStore.ts:84:aggregate",
+      "file": "src/services/clareza/core/coreSuggestionStore.ts",
+      "status": "complete",
+      "owner": "clareza-mapping",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-16",
+      "originalSite": "src/services/clareza/core/coreSuggestionStore.ts:88:aggregate",
+      "currentSite": "src/services/clareza/core/coreSuggestionStore.ts:88:aggregate",
+      "file": "src/services/clareza/core/coreSuggestionStore.ts",
+      "status": "complete",
+      "owner": "clareza-mapping",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-17",
+      "originalSite": "src/services/clareza/core/coreTop10CompanionStore.ts:30:find",
+      "currentSite": "src/services/clareza/core/coreTop10CompanionStore.ts:30:find",
+      "file": "src/services/clareza/core/coreTop10CompanionStore.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-18",
+      "originalSite": "src/services/classes/mongooseClassDirectory.reader.ts:50:aggregate",
+      "currentSite": "src/services/classes/mongooseClassDirectory.reader.ts:50:aggregate",
+      "file": "src/services/classes/mongooseClassDirectory.reader.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-19",
+      "originalSite": "src/services/classes/mongooseClassDirectory.reader.ts:58:aggregate",
+      "currentSite": "src/services/classes/mongooseClassDirectory.reader.ts:58:aggregate",
+      "file": "src/services/classes/mongooseClassDirectory.reader.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-20",
+      "originalSite": "src/services/classes/mongooseClassInactivation.writer.ts:209:aggregate",
+      "currentSite": "src/services/classes/mongooseClassInactivation.writer.ts:209:aggregate",
+      "file": "src/services/classes/mongooseClassInactivation.writer.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-21",
+      "originalSite": "src/services/classes/mongooseClassInactivation.writer.ts:255:aggregate",
+      "currentSite": "src/services/classes/mongooseClassInactivation.writer.ts:255:aggregate",
+      "file": "src/services/classes/mongooseClassInactivation.writer.ts",
+      "status": "complete",
+      "owner": "class-parity",
+      "policy": "finite-or-bounded-aggregate",
+      "reason": "Reviewed aggregation emits a finite group or applies a validated bounded page."
+    },
+    {
+      "id": "main-parity.site-22",
+      "originalSite": "src/services/products/productSalesPerformance.service.ts:348:find",
+      "currentSite": "src/services/products/productSalesPerformance.service.ts:353:find",
+      "file": "src/services/products/productSalesPerformance.service.ts",
+      "status": "complete",
+      "owner": "root",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-23",
+      "originalSite": "src/services/renewal/acExpirationContext.ts:50:find",
+      "currentSite": "src/services/renewal/acExpirationContext.ts:50:find",
+      "file": "src/services/renewal/acExpirationContext.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-24",
+      "originalSite": "src/services/renewal/acExpirationContext.ts:63:find",
+      "currentSite": "src/services/renewal/acExpirationContext.ts:63:find",
+      "file": "src/services/renewal/acExpirationContext.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-25",
+      "originalSite": "src/services/renewal/acExpirationContext.ts:66:find",
+      "currentSite": "src/services/renewal/acExpirationContext.ts:66:find",
+      "file": "src/services/renewal/acExpirationContext.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-26",
+      "originalSite": "src/services/renewal/acExpirationContext.ts:69:find",
+      "currentSite": "src/services/renewal/acExpirationContext.ts:69:find",
+      "file": "src/services/renewal/acExpirationContext.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-27",
+      "originalSite": "src/services/renewal/acExpirationContext.ts:93:find",
+      "currentSite": "src/services/renewal/acExpirationContext.ts:93:find",
+      "file": "src/services/renewal/acExpirationContext.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-28",
+      "originalSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:224:find",
+      "currentSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:234:find",
+      "file": "src/services/renewal/acPurchaseDateReconcile.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-29",
+      "originalSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:235:find",
+      "currentSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:245:find",
+      "file": "src/services/renewal/acPurchaseDateReconcile.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-30",
+      "originalSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:238:find",
+      "currentSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:248:find",
+      "file": "src/services/renewal/acPurchaseDateReconcile.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-31",
+      "originalSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:84:find",
+      "currentSite": "src/services/renewal/acPurchaseDateReconcile.service.ts:89:find",
+      "file": "src/services/renewal/acPurchaseDateReconcile.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-32",
+      "originalSite": "src/services/renewal/acRenewalDataSync.service.ts:111:find",
+      "currentSite": "src/services/renewal/acRenewalDataSync.service.ts:124:find",
+      "file": "src/services/renewal/acRenewalDataSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-33",
+      "originalSite": "src/services/renewal/acRenewalDataSync.service.ts:51:find",
+      "currentSite": "src/services/renewal/acRenewalDataSync.service.ts:59:find",
+      "file": "src/services/renewal/acRenewalDataSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-34",
+      "originalSite": "src/services/renewal/acStudentTagsSync.service.ts:316:find",
+      "currentSite": "src/services/renewal/acStudentTagsSync.service.ts:320:find",
+      "file": "src/services/renewal/acStudentTagsSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-35",
+      "originalSite": "src/services/renewal/acStudentTagsSync.service.ts:375:find",
+      "currentSite": "src/services/renewal/acStudentTagsSync.service.ts:379:find",
+      "file": "src/services/renewal/acStudentTagsSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-36",
+      "originalSite": "src/services/renewal/acStudentTagsSync.service.ts:434:find",
+      "currentSite": "src/services/renewal/acStudentTagsSync.service.ts:438:find",
+      "file": "src/services/renewal/acStudentTagsSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-37",
+      "originalSite": "src/services/renewal/acTagWatch.context.ts:111:find",
+      "currentSite": "src/services/renewal/acTagWatch.context.ts:111:find",
+      "file": "src/services/renewal/acTagWatch.context.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-38",
+      "originalSite": "src/services/renewal/acTagWatch.context.ts:70:find",
+      "currentSite": "src/services/renewal/acTagWatch.context.ts:70:find",
+      "file": "src/services/renewal/acTagWatch.context.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-39",
+      "originalSite": "src/services/renewal/acTagWatch.context.ts:75:find",
+      "currentSite": "src/services/renewal/acTagWatch.context.ts:75:find",
+      "file": "src/services/renewal/acTagWatch.context.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-40",
+      "originalSite": "src/services/renewal/acTagWatch.regras.ts:243:find",
+      "currentSite": "src/services/renewal/acTagWatch.regras.ts:243:find",
+      "file": "src/services/renewal/acTagWatch.regras.ts",
+      "status": "excluded",
+      "owner": "renewal-parity",
+      "policy": "non-mongoose-array",
+      "reason": "The uppercase receiver is a readonly configuration array, proven by its declaration.",
+      "evidenceFile": "src/services/renewal/tagsObrigatorias.ts",
+      "evidenceToken": "export const TAGS_OBRIGATORIAS = ["
+    },
+    {
+      "id": "main-parity.site-41",
+      "originalSite": "src/services/renewal/acTagWatch.regras.ts:255:find",
+      "currentSite": "src/services/renewal/acTagWatch.regras.ts:255:find",
+      "file": "src/services/renewal/acTagWatch.regras.ts",
+      "status": "excluded",
+      "owner": "renewal-parity",
+      "policy": "non-mongoose-array",
+      "reason": "The uppercase receiver is a readonly configuration array, proven by its declaration.",
+      "evidenceFile": "src/services/renewal/tagsObrigatorias.ts",
+      "evidenceToken": "export const TAGS_ESTADO_VIGIADAS = ["
+    },
+    {
+      "id": "main-parity.site-42",
+      "originalSite": "src/services/renewal/acTagWatch.service.ts:144:find",
+      "currentSite": "src/services/renewal/acTagWatch.service.ts:144:find",
+      "file": "src/services/renewal/acTagWatch.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-43",
+      "originalSite": "src/services/renewal/acTagWatch.service.ts:270:find",
+      "currentSite": "src/services/renewal/acTagWatch.service.ts:270:find",
+      "file": "src/services/renewal/acTagWatch.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-44",
+      "originalSite": "src/services/renewal/acTurmaTagSync.service.ts:163:find",
+      "currentSite": "src/services/renewal/acTurmaTagSync.service.ts:170:find",
+      "file": "src/services/renewal/acTurmaTagSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-45",
+      "originalSite": "src/services/renewal/acTurmaTagSync.service.ts:164:find",
+      "currentSite": "src/services/renewal/acTurmaTagSync.service.ts:171:find",
+      "file": "src/services/renewal/acTurmaTagSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-46",
+      "originalSite": "src/services/renewal/acTurmaTagSync.service.ts:165:find",
+      "currentSite": "src/services/renewal/acTurmaTagSync.service.ts:172:find",
+      "file": "src/services/renewal/acTurmaTagSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-47",
+      "originalSite": "src/services/renewal/acTurmaTagSync.service.ts:172:find",
+      "currentSite": "src/services/renewal/acTurmaTagSync.service.ts:179:find",
+      "file": "src/services/renewal/acTurmaTagSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-48",
+      "originalSite": "src/services/renewal/acTurmaTagSync.service.ts:175:find",
+      "currentSite": "src/services/renewal/acTurmaTagSync.service.ts:182:find",
+      "file": "src/services/renewal/acTurmaTagSync.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-49",
+      "originalSite": "src/services/renewal/hotmartSalesHistory.service.ts:353:find",
+      "currentSite": "src/services/renewal/hotmartSalesHistory.service.ts:353:find",
+      "file": "src/services/renewal/hotmartSalesHistory.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-50",
+      "originalSite": "src/services/renewal/hotmartSalesHistory.service.ts:370:find",
+      "currentSite": "src/services/renewal/hotmartSalesHistory.service.ts:370:find",
+      "file": "src/services/renewal/hotmartSalesHistory.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-51",
+      "originalSite": "src/services/renewal/refundHandler.service.ts:124:find",
+      "currentSite": "src/services/renewal/refundHandler.service.ts:124:find",
+      "file": "src/services/renewal/refundHandler.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-52",
+      "originalSite": "src/services/renewal/refundHandler.service.ts:152:find",
+      "currentSite": "src/services/renewal/refundHandler.service.ts:152:find",
+      "file": "src/services/renewal/refundHandler.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-53",
+      "originalSite": "src/services/renewal/refundHandler.service.ts:154:find",
+      "currentSite": "src/services/renewal/refundHandler.service.ts:154:find",
+      "file": "src/services/renewal/refundHandler.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-54",
+      "originalSite": "src/services/renewal/tagsObrigatorias.ts:77:find",
+      "currentSite": "src/services/renewal/tagsObrigatorias.ts:77:find",
+      "file": "src/services/renewal/tagsObrigatorias.ts",
+      "status": "excluded",
+      "owner": "renewal-parity",
+      "policy": "non-mongoose-array",
+      "reason": "The uppercase receiver is a readonly configuration array, proven by its declaration.",
+      "evidenceFile": "src/services/renewal/tagsObrigatorias.ts",
+      "evidenceToken": "export const TAGS_OBRIGATORIAS = ["
+    },
+    {
+      "id": "main-parity.site-55",
+      "originalSite": "src/services/renewal/tagsObrigatorias.ts:78:find",
+      "currentSite": "src/services/renewal/tagsObrigatorias.ts:78:find",
+      "file": "src/services/renewal/tagsObrigatorias.ts",
+      "status": "excluded",
+      "owner": "renewal-parity",
+      "policy": "non-mongoose-array",
+      "reason": "The uppercase receiver is a readonly configuration array, proven by its declaration.",
+      "evidenceFile": "src/services/renewal/tagsObrigatorias.ts",
+      "evidenceToken": "export const TAGS_ESTADO_VIGIADAS = ["
+    },
+    {
+      "id": "main-parity.site-56",
+      "originalSite": "src/services/renewal/unmappedBaseOffers.service.ts:104:find",
+      "currentSite": "src/services/renewal/unmappedBaseOffers.service.ts:104:find",
+      "file": "src/services/renewal/unmappedBaseOffers.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-57",
+      "originalSite": "src/services/renewal/unmappedBaseOffers.service.ts:119:find",
+      "currentSite": "src/services/renewal/unmappedBaseOffers.service.ts:119:find",
+      "file": "src/services/renewal/unmappedBaseOffers.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.site-58",
+      "originalSite": "src/services/renewal/unmappedBaseOffers.service.ts:87:find",
+      "currentSite": "src/services/renewal/unmappedBaseOffers.service.ts:87:find",
+      "file": "src/services/renewal/unmappedBaseOffers.service.ts",
+      "status": "complete",
+      "owner": "renewal-parity",
+      "policy": "cursor-keyset-or-bounded-fanout",
+      "reason": "Reviewed read uses stable cursor or keyset batching, a batch size no greater than 200, and an explicit finite overflow cap."
+    },
+    {
+      "id": "main-parity.resolved-product-sales-years",
+      "originalSite": "src/services/products/productSalesPerformance.service.ts:392:find",
+      "file": "src/services/products/productSalesPerformance.service.ts",
+      "start": "const allYearsFilter = { productKey:",
+      "status": "complete",
+      "owner": "root",
+      "policy": "bounded-distinct",
+      "reason": "The former unbounded year materialisation is a distinct read over the fixed 1900-2100 horizon.",
+      "require": [
+        "year: { $gte: 1900, $lte: 2100 }"
+      ]
+    }
+  ]
+}

@@ -240,6 +240,7 @@ export async function fetchAllSubscriptionsPaginated(
     started_at_ini?: string // YYYY-MM-DD
     started_at_end?: string // YYYY-MM-DD
     status?: string
+    product_id?: string
   },
   // Progresso página-a-página (fetched, totalEsperado) — usado pela barra de progresso do churn live
   onProgress?: (fetched: number, total: number | null) => void,
@@ -273,6 +274,7 @@ export async function fetchAllSubscriptionsPaginated(
         started_at_ini?: string
         started_at_end?: string
         status?: string
+        product_id?: string
       } = {
         per_page: 50 // Máximo permitido pela API da Guru
       }
@@ -291,6 +293,9 @@ export async function fetchAllSubscriptionsPaginated(
       }
       if (additionalParams?.status) {
         requestParams.status = additionalParams.status
+      }
+      if (additionalParams?.product_id) {
+        requestParams.product_id = additionalParams.product_id
       }
 
       logger.info(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)

@@ -18,6 +18,9 @@ import { isRolesManualExecutionEnabled } from '../../renewal/discord/planning'
 import type { CronManualCapability } from './manualCapabilities'
 
 export async function assertManualExecutionEnabled(capability: CronManualCapability): Promise<void> {
+  if (capability.id === 'ac-tag-watch' && !isSyncMutableExecutionEnabled()) {
+    throw new HttpError({ status: 503, code: 'AC_TAG_WATCH_EXECUTION_DISABLED', publicMessage: 'Vigilância AC desativada' })
+  }
   if (capability.id === 'cron-execution-cleanup' && !isCronExecutionCleanupMutableExecutionEnabled()) {
     throw new HttpError({
       status: 503,

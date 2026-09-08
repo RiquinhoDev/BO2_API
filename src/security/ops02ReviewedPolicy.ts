@@ -1,6 +1,7 @@
 import { MAX_BULK_OPERATION_ITEMS } from './bulkOperationPolicy'
 import { MAX_PROVIDER_READ_ITEMS } from './providerReadBatchPolicy'
 import { REVIEWED_PROTECTION_POLICY_TAIL } from './ops02ReviewedProtectionPolicyTail'
+import { MAIN_PARITY_PROTECTIONS } from './ops02MainParityProtections'
 
 export type ReviewedLocalAuthorization = 'internal-write' | 'super-admin'
 
@@ -58,6 +59,8 @@ const VERIFIED_RECONCILIATION_REPLAY = new Map<string, string>([
 ])
 
 const REVIEWED_LOCAL_POLICY = new Map<string, ReviewedLocalPolicy>([
+  ['POST /api/renewal-timeline/generate', { scope: 'internal', authorization: 'super-admin', bulk: true }],
+  ['POST /api/ac-tag-watch/lotes/:lote/aceitar', { scope: 'internal', authorization: 'super-admin', bulk: true }],
   [
     'POST /api/guru/webhooks/:id/reprocess',
     { scope: 'internal', authorization: 'super-admin' },
@@ -415,6 +418,7 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
     },
   ],
   ...REVIEWED_PROTECTION_POLICY_TAIL,
+  ...MAIN_PARITY_PROTECTIONS,
 ])
 
 export function getVerifiedReconciliationReplayReason(

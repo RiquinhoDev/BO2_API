@@ -30,6 +30,11 @@ import eventsRoutes from './events.routes'
 import renewalRoutes from './renewal.routes'
 import renewalAcRoutes from './renewalAc.routes'
 import discordRenewalRoutes from './discordRenewal.routes'
+import hotmartSalesHistoryRoutes from './hotmartSalesHistory.routes'
+import acRenewalDataRoutes from './acRenewalData.routes'
+import renewalTimelineRoutes from './renewalTimeline.routes'
+import acTagWatchRoutes from './acTagWatch.routes'
+import productSalesPerformanceRoutes from './productSalesPerformance.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -67,6 +72,11 @@ router.use("/events", eventsRoutes)              // 📅 Calendário de Eventos
 router.use("/renewal", renewalRoutes)            // 🔁 Ofertas de renovação OGI
 router.use("/renewal-ac", renewalAcRoutes)       // 🔁 Sync Renovação OGI → AC (Fase B, desligado por defeito)
 router.use("/discord-renewal", discordRenewalRoutes) // 🎮 Cargos R.{Mês} + mensagens do bot (desligado por defeito)
+router.use("/renewal-hotmart-sales", hotmartSalesHistoryRoutes)
+router.use("/renewal-ac-data", acRenewalDataRoutes)
+router.use("/renewal-timeline", renewalTimelineRoutes)
+router.use("/ac-tag-watch", acTagWatchRoutes)
+router.use("/products-sales-performance", productSalesPerformanceRoutes)
 
 // 📊 ANÁLISES E RELATÓRIOS
 router.use("/dashboard", dashboardRoutes)

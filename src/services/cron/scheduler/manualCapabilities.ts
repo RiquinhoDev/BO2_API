@@ -95,6 +95,14 @@ const capabilityEntries: readonly {
   capability: CronManualCapability
 }[] = [
   {
+    matches: job => job.name === 'AcTagWatch',
+    capability: implemented('ac-tag-watch', 'sync-pipeline',
+      { status: 'verified', reason: 'ac-tag-watch-provider-read-cap', limit: MAX_PROVIDER_READ_ITEMS },
+      { status: 'verified', reason: 'SYNC_MUTABLE_EXECUTION_ENABLED' },
+      () => 'renewal-parity:ac-tag-watch-run',
+    ),
+  },
+  {
     matches: job => job.name === 'CronExecutionCleanup',
     capability: implemented(
       'cron-execution-cleanup',

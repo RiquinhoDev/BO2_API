@@ -41,3 +41,9 @@ export const discordRenewalScheduledRunInput = validatedSchema({
   query: {},
   body: { dryRun: z.boolean().optional() },
 })
+
+export const discordRenewalScheduledSendNowInput = validatedSchema({
+  params: { key: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/) },
+  query: {},
+  body: { dryRun: z.boolean().optional() },
+})

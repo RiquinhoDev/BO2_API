@@ -9,6 +9,10 @@
   },
   {
     "method": "DELETE",
+    "path": "/api/classes/inactivationLists/:id"
+  },
+  {
+    "method": "DELETE",
     "path": "/api/courses/:id"
   },
   {
@@ -74,6 +78,14 @@
   {
     "method": "DELETE",
     "path": "/api/users/unmatchedUsers/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/eventos"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ac-tag-watch/status"
   },
   {
     "method": "GET",
@@ -205,7 +217,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/carteira/analysis"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/carteira/data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/search"
   },
   {
     "method": "GET",
@@ -218,6 +238,10 @@
   {
     "method": "GET",
     "path": "/api/clareza/earnings/data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/radar"
   },
   {
     "method": "GET",
@@ -246,6 +270,14 @@
   {
     "method": "GET",
     "path": "/api/clareza/stock/:ticker"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin/export"
   },
   {
     "method": "GET",
@@ -278,6 +310,10 @@
   {
     "method": "GET",
     "path": "/api/classes/inactivationLists"
+  },
+  {
+    "method": "GET",
+    "path": "/api/classes/inactivationLists/:id/students"
   },
   {
     "method": "GET",
@@ -689,6 +725,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/products-sales-performance/performance"
+  },
+  {
+    "method": "GET",
+    "path": "/api/products-sales-performance/status"
+  },
+  {
+    "method": "GET",
     "path": "/api/products/:id"
   },
   {
@@ -709,11 +753,35 @@
   },
   {
     "method": "GET",
+    "path": "/api/renewal-ac-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-ac-data/status"
+  },
+  {
+    "method": "GET",
     "path": "/api/renewal-ac/changes"
   },
   {
     "method": "GET",
     "path": "/api/renewal-ac/status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/history"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-hotmart-sales/status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline"
+  },
+  {
+    "method": "GET",
+    "path": "/api/renewal-timeline/status"
   },
   {
     "method": "GET",
@@ -1049,6 +1117,18 @@
   },
   {
     "method": "POST",
+    "path": "/api/ac-tag-watch/correr"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/eventos/:id/aceitar"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac-tag-watch/lotes/:lote/aceitar"
+  },
+  {
+    "method": "POST",
     "path": "/api/ac/contact/:email/sync"
   },
   {
@@ -1137,11 +1217,19 @@
   },
   {
     "method": "POST",
+    "path": "/api/clareza/operations"
+  },
+  {
+    "method": "POST",
     "path": "/api/clareza/raiox/refresh"
   },
   {
     "method": "POST",
     "path": "/api/clareza/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/suggestions"
   },
   {
     "method": "POST",
@@ -1250,6 +1338,10 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/plan"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/send-now"
   },
   {
     "method": "POST",
@@ -1397,6 +1489,14 @@
   },
   {
     "method": "POST",
+    "path": "/api/products-sales-performance/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac-data/sync"
+  },
+  {
+    "method": "POST",
     "path": "/api/renewal-ac/approve"
   },
   {
@@ -1414,6 +1514,22 @@
   {
     "method": "POST",
     "path": "/api/renewal-ac/refunds/detect"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/handle"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/turma-tags/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-hotmart-sales/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-timeline/generate"
   },
   {
     "method": "POST",
