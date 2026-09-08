@@ -8,7 +8,7 @@ Catálogos reconciliados com o Front efetivo: 438 rotas, 227 chamadas Front, 204
 
 Evidência final: 574 suites / 3.853 testes passaram (510 suites unitárias e 64 de integração), além de build, lint e catálogos de rotas/respostas/escalabilidade. Testes offline, Mongo local e downloads desativados. O Front passou 222 suites / 1.048 testes e 34 testes Chromium com rede simulada.
 
-API validada no worktree irmão `BO2_API_remake`, branch existente `remake`, baseada em `b72edd35`. Dependências repostas da cache local mediante autorização explícita, sem rede nem scripts de instalação. Alterações desta integração permanecem locais, sem commit/push/deploy. Main preservado em `b4836ee9`.
+API validada no worktree irmão `BO2_API_remake`, branch existente `remake`, baseada em `b72edd35`. Dependências repostas da cache local mediante autorização explícita, sem rede nem scripts de instalação. O snapshot foi inicialmente validado sem commit/push/deploy. A implementação foi posteriormente commitada em `abc64f03`; o utilizador autorizou a publicação dos dois remake em 2026-09-09. O commit existente foi preservado sem reescrita. Esta publicação de código não inclui deploy nem ativação de provedores. Main preservado em `b4836ee9`.
 
 Validação operacional continua pendente: configuração conjunta Front/API, paginação com volume representativo, índices, Redis, acessos reais e recibos/efeitos em provedores isolados. O roteiro FE/BE acompanha o relatório de paridade no repositório Front.
 
