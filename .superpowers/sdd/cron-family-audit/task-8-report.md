@@ -248,3 +248,21 @@ git diff --check: pass
 ```
 
 The complete backend suite must be rerun after this repair before Task 8 can be approved.
+
+## Parent final approval — 2026-09-08
+
+Independent parent review found no remaining code blocker after the repair. Fresh complete offline backend evidence:
+
+```text
+MONGOMS_RUNTIME_DOWNLOAD=false
+RESPONSE_CONTRACT_FRONT_ROOT=C:\Users\User\Documents\GitHub\Riquinho\api\Front\Front
+npm.cmd test -- --runInBand --silent
+Test Suites: 461 passed, 461 total
+Tests: 3105 passed, 3105 total
+Snapshots: 0 total
+Time: 571.126 s
+```
+
+Final catalogs: `409` route identities; `409` response decisions / `211` Front calls / `187` consumers; SCALE-01 `40/0`, SCALE-02 `11/0`, SCALE-03 `24/0`, `384` Mongoose list sites. Front final evidence: `19/19` suites and `101/101` tests, types, lint, build and diff check pass.
+
+Task 8 is code/evidence complete on both `remake` branches. Operational/provider/live execution, real production database, browser/live-user validation, deployment and stable promotion remain explicitly unclaimed and authorization-gated.
