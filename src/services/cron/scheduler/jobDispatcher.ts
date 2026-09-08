@@ -490,16 +490,6 @@ export class CronJobDispatcher {
     }
   }
 
-  private readStats(result: Record<string, unknown>): ILastRunStats {
-    const stats = nestedRecordOf(result, 'stats')
-    return {
-      total: numberOf(stats, 'total'),
-      inserted: numberOf(stats, 'inserted'),
-      updated: numberOf(stats, 'updated'),
-      errors: numberOf(stats, 'errors'),
-      skipped: numberOf(stats, 'skipped')
-    }
-  }
 }
 
 export const cronJobDispatcher = new CronJobDispatcher()
