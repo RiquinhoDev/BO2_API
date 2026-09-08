@@ -3,18 +3,14 @@ import logger from '../../../utils/logger'
 import {
   EXPIRATION_DAYS,
   formatDateOnly,
-  type Clock,
 } from './hotmartExpiration'
 import type { ApprovedRenewalDecision } from './renewalPolicy'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
-
-const systemClock: Clock = { now: () => new Date() }
 
 export async function applyAutoReactivation(
   userId: string,
   userEmail: string,
   decision: ApprovedRenewalDecision,
-  clock: Clock = systemClock,
   phaseHooks?: CronExecutionPhaseHooks,
   userProductEffectCount = 1,
 ): Promise<void> {

@@ -40,7 +40,6 @@ export async function createUserSnapshot(
   syncType: 'hotmart' | 'curseduca' | 'discord' | 'manual',
   syncId?: mongoose.Types.ObjectId,
   phaseHooks?: CronExecutionPhaseHooks,
-  preloadedLastSnapshot?: IUserSnapshot | null,
 ): Promise<IUserSnapshot> {
   // Construir array de produtos
   const productSnapshots: IProductSnapshot[] = products.map((product) => {
@@ -110,7 +109,7 @@ export async function createUserSnapshot(
       ...snapshotUserState(user),
       totalProducts: products.length,
       activePlatforms: Object.entries(platformCounts)
-        .filter(([_, count]) => count > 0)
+        .filter((entry) => entry[1] > 0)
         .map(([platform]) => platform)
     },
 

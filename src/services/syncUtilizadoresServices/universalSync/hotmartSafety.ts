@@ -55,8 +55,6 @@ const boundedCollectionRead = async (
 
 const normalizeKey = (value: unknown): string => String(value ?? '').trim().toLowerCase()
 
-const documentId = (value: Record<string, unknown>): string => String(value._id ?? '')
-
 const stableValue = (value: unknown): unknown => {
   if (value === null || typeof value !== 'object') return value
   if (value instanceof Date) return value.toISOString()
@@ -129,6 +127,28 @@ export const hotmartUserOptimisticFilter = (plannedUser: Record<string, unknown>
   return filter
 }
 
+/**
+ * Keep the executable class snapshot current after Class.create/update. The
+ * next source item for the same class must use the returned updatedAt (and
+ * native _id), otherwise a repeated class is executed with a stale predicate.
+ */
+export const mergeHotmartClassPlan = (
+  executionPlan: Pick<HotmartExecutionPlan, 'classes'>,
+  classRow: unknown,
+): void => {
+  const value = classRow && typeof classRow === 'object' && 'toObject' in classRow
+    && typeof (classRow as { toObject?: unknown }).toObject === 'function'
+    ? (classRow as { toObject: () => unknown }).toObject()
+    : classRow
+  if (!value || typeof value !== 'object') return
+  const row = value as Record<string, unknown>
+  const classId = String(row.classId ?? '')
+  if (!classId) return
+  const index = executionPlan.classes.findIndex(item => String(item.classId ?? '') === classId)
+  if (index >= 0) executionPlan.classes[index] = row
+  else executionPlan.classes.push(row)
+}
+
 const assertBoundedRows = (rows: unknown[], code: string): unknown[] => {
   if (rows.length > HOTMART_SYNC_LIMIT) {
     throw safetyError(code, `leitura local excede ${HOTMART_SYNC_LIMIT} itens`, 413)
@@ -196,18 +216,22 @@ export async function prepareHotmartSync(
 
   const classIds = [...new Set(source.map(item => item.classId).filter((value): value is string => typeof value === 'string' && value.trim() !== ''))]
   const productCodes = [...new Set(source.map(item => item.productCode || 'OGI_V1'))]
+  // Native collection reads must receive native BSON ids. String ids are only
+  // suitable for plan maps and comparisons; passing them to $in would make
+  // Mongo silently miss ObjectId-backed UserProduct/Snapshot rows.
   const existingIds = existing
-    .map(item => documentId(item))
-    .filter(Boolean)
+    .map(item => item._id)
+    .filter((value): value is NonNullable<typeof value> => value !== undefined && value !== null)
 
   // Every source item can write a User (create + canonical update), one
-  // UserProduct, one snapshot and two UserHistory records. Class writes and
+  // UserProduct, one snapshot and at least two UserHistory records. Class writes and
   // class-history writes are per source item, not per distinct class: the
   // executor reconciles Class for every item. Report/history writes are
   // counted with the actual configured batch size.
   const batchCount = Math.ceil(source.length / batchSize)
   const reportEffects = 8 + batchCount
-  const itemEffects = source.length * 6
+  const baseItemEffects = source.length * 4 // User create/update, UserProduct, snapshot
+  const minimumHistoryEffects = source.length * 2
   const classEffects = source.filter(item => typeof item.classId === 'string' && item.classId.trim() !== '').length
   const classHistoryEffects = source.filter(item => typeof item.classId === 'string' && item.classId.trim() !== '').length
   const reactivationUserEffects = source.reduce((count, item) => {
@@ -227,7 +251,8 @@ export async function prepareHotmartSync(
       ? count + 1
       : count
   }, 0)
-  const minimumProjectedMutations = reportEffects + itemEffects + classEffects + classHistoryEffects + reactivationUserEffects
+  const minimumProjectedMutations = reportEffects + baseItemEffects + minimumHistoryEffects
+    + classEffects + classHistoryEffects + reactivationUserEffects
   if (minimumProjectedMutations > HOTMART_SYNC_LIMIT) {
     throw safetyError(
       'HOTMART_SYNC_EFFECTIVE_MUTATION_LIMIT_EXCEEDED',
@@ -259,6 +284,59 @@ export async function prepareHotmartSync(
     { userId: { $in: existingIds }, syncType: 'hotmart' },
     { _id: 1, userId: 1, snapshotDate: 1, userState: 1, products: 1, stats: 1 },
   ), 'HOTMART_SYNC_SNAPSHOT_READ_LIMIT_EXCEEDED') as Record<string, unknown>[]
+
+  // UserHistory rows are the variable part of snapshot execution. Derive a
+  // safe upper bound from the bounded before/after state before any mutation:
+  // two user fields; one add/remove slot per before/after product; six scalar
+  // changes per product; and one class add/remove/role slot per before/after
+  // class. A possible new product/class is included because the current source
+  // item can append both after the preloaded snapshot was taken.
+  const latestSnapshotByUser = new Map<string, Record<string, unknown>>()
+  for (const snapshot of snapshots) {
+    const key = String(snapshot.userId ?? '')
+    const previous = latestSnapshotByUser.get(key)
+    if (!previous || String(snapshot.snapshotDate ?? '') > String(previous.snapshotDate ?? '')) {
+      latestSnapshotByUser.set(key, snapshot)
+    }
+  }
+  const historyUpperBound = source.reduce((total, item) => {
+    const plannedUser = existing.find(row => normalizeKey(row.email) === normalizeKey(item.email))
+    const userId = String(plannedUser?._id ?? '')
+    const plannedProducts = userProducts.filter(row => String(row.userId ?? '') === userId)
+    const afterProductCount = plannedProducts.length + 1
+    const afterClassCount = plannedProducts.reduce((count, product) => {
+      const classes = Array.isArray(product.classes) ? product.classes : []
+      return count + classes.length
+    }, 0) + 1
+    const before = latestSnapshotByUser.get(userId)
+    if (!before) return total + 1 + afterProductCount // FIRST_ENROLLMENT + PRODUCT_ADDED
+
+    const beforeProducts = Array.isArray(before.products) ? before.products : []
+    const beforeProductCount = beforeProducts.length
+    const beforeClassCount = beforeProducts.reduce((count, product) => {
+      const classes = product && typeof product === 'object' && Array.isArray((product as Record<string, unknown>).classes)
+        ? (product as Record<string, unknown>).classes as unknown[]
+        : []
+      return count + classes.length
+    }, 0)
+    const matchedProductCount = Math.min(beforeProductCount, afterProductCount)
+    return total
+      + 2 // EMAIL_CHANGE + NAME_CHANGE
+      + beforeProductCount
+      + afterProductCount
+      + matchedProductCount * 6
+      + beforeClassCount
+      + afterClassCount
+  }, 0)
+  const itemEffects = baseItemEffects + historyUpperBound
+  const projectedWithHistory = reportEffects + itemEffects + classEffects + classHistoryEffects + reactivationUserEffects
+  if (projectedWithHistory > HOTMART_SYNC_LIMIT) {
+    throw safetyError(
+      'HOTMART_SYNC_EFFECTIVE_MUTATION_LIMIT_EXCEEDED',
+      `efeitos projectados excedem ${HOTMART_SYNC_LIMIT}`,
+      413,
+    )
+  }
   const reactivationTargetsByUser: Record<string, number> = {}
   const renewalTargetsByUser: Record<string, number> = {}
   for (const row of userProducts) {
@@ -274,7 +352,7 @@ export async function prepareHotmartSync(
   }
   const reactivationTargets = Object.values(reactivationTargetsByUser).reduce((sum, count) => sum + count, 0)
   const renewalTargets = Object.values(renewalTargetsByUser).reduce((sum, count) => sum + count, 0)
-  const projectedMutations = minimumProjectedMutations + reactivationTargets + renewalTargets
+  const projectedMutations = projectedWithHistory + reactivationTargets + renewalTargets
   if (projectedMutations > HOTMART_SYNC_LIMIT) {
     throw safetyError(
       'HOTMART_SYNC_EFFECTIVE_MUTATION_LIMIT_EXCEEDED',

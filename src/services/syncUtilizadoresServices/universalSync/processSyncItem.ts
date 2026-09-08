@@ -25,7 +25,12 @@ import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
-import { assertHotmartUserMatchesPlan, hotmartUserOptimisticFilter, type HotmartExecutionPlan } from './hotmartSafety'
+import {
+  assertHotmartUserMatchesPlan,
+  hotmartUserOptimisticFilter,
+  mergeHotmartClassPlan,
+  type HotmartExecutionPlan,
+} from './hotmartSafety'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -40,7 +45,7 @@ const beforeMutation = (hooks?: CronExecutionPhaseHooks, count = 1): void => {
  * Chamado durante o sync para garantir que todas as turmas são registadas
  */
 // Devolve o nome real da turma (da BD) após criar/actualizar
-async function ensureClassExists(
+export async function ensureClassExists(
   classId: string,
   className: string | undefined,
   source: 'hotmart' | 'curseduca',
@@ -49,6 +54,7 @@ async function ensureClassExists(
   phaseHooks?: CronExecutionPhaseHooks,
   plannedClass?: IClass,
   plannedClassLookupProvided = false,
+  onResolvedClass?: (classRow: Record<string, unknown>) => void,
 ): Promise<string> {
   if (!classId) return className || `Turma ${classId}`
 
@@ -63,7 +69,7 @@ async function ensureClassExists(
       const displayName = className || `Turma ${classId}`
 
       beforeMutation(phaseHooks)
-      await Class.create({
+      const createdClass = await Class.create({
         classId,
         name: displayName,
         curseducaId: source === 'curseduca' ? curseducaId : undefined,
@@ -74,6 +80,7 @@ async function ensureClassExists(
         studentCount: 1,
         lastSyncAt: new Date()
       })
+      onResolvedClass?.(createdClass as unknown as Record<string, unknown>)
 
       logger.info(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
       return displayName
@@ -107,7 +114,8 @@ async function ensureClassExists(
         updates,
         { new: true },
       )
-      if (!updatedClass && phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+      if (!updatedClass && plannedClassLookupProvided) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+      if (updatedClass) onResolvedClass?.(updatedClass as unknown as Record<string, unknown>)
       // Devolver o nome real da BD (que pode ter sido editado manualmente)
       return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
     }
@@ -172,6 +180,7 @@ export const processSyncItem = async (
   // ✅ HOTMART - VERSÃO COMPLETA (MANTÉM TUDO!)
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart') {
+    const plannedClass = executionPlan?.classes.find(classRow => String(classRow.classId ?? '') === item.classId)
     const resolvedClass = item.classId
       ? {
         classId: item.classId,
@@ -182,8 +191,11 @@ export const processSyncItem = async (
           undefined,
           undefined,
           config.phaseHooks,
-          executionPlan?.classes.find(classRow => String(classRow.classId ?? '') === item.classId) as unknown as IClass | undefined,
+          plannedClass as unknown as IClass | undefined,
           executionPlan !== undefined,
+          executionPlan
+            ? classRow => mergeHotmartClassPlan(executionPlan, classRow)
+            : undefined,
         ),
       }
       : undefined
@@ -316,7 +328,6 @@ export const processSyncItem = async (
       userIdStr,
       user.email,
       renewalResult,
-      undefined,
       config.phaseHooks,
       executionPlan?.renewalTargetsByUser[userIdStr] ?? 0,
     )
@@ -414,7 +425,7 @@ export const processSyncItem = async (
       ? hotmartUserOptimisticFilter(plannedUser)
       : { _id: userIdStr }
     const updatedUser = await User.findOneAndUpdate(userFilter, { $set: updateFields }, { new: true })
-    if (!updatedUser && config.phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+    if (!updatedUser && executionPlan) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
     debugLog(`🔄 [UniversalSync] User atualizado: ${user.email}`)
   }
 

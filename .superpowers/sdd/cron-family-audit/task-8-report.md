@@ -197,3 +197,31 @@ pass
 ```
 
 Expected pre-existing warnings remain: Mongoose duplicate-index/reserved-path warnings in backend Jest and React `act`/TypeScript interop warnings in Front Jest. No full backend suite was run; parent owns that gate. Request independent re-review now. Do not treat this round as independently approved or operationally closed.
+
+## Fix round 3/5 — pending final independent gate — 2026-09-08
+
+Round 3 closes the two concrete defects found after round 2:
+
+- Native Mongo collection queries preserve BSON `_id` values in the UserProduct and UserSnapshot `$in` predicates instead of converting them to strings.
+- The effective-mutation projection now includes a conservative upper bound for variable snapshot-history rows. The guaranteed two-history minimum still rejects obvious overflow before auxiliary reads.
+- The executable Class snapshot is refreshed after both create and optimistic update, so repeated source items for the same class use the current `_id` and `updatedAt` and cannot duplicate-create or fail against their own stale plan.
+- Three pre-existing unused Hotmart parameters/destructures exposed by the global lint gate were removed without changing behavior.
+
+Fresh focused evidence:
+
+```text
+npm.cmd exec -- jest tests/services/cron/hotmartSyncReviewRound3.test.ts tests/services/cron/hotmartSyncReviewRound2.test.ts tests/services/cron/hotmartSyncReviewRound1.test.ts tests/services/cron/hotmartSyncSafety.test.ts tests/services/cron/schedulerJobDispatcher.test.ts tests/services/cron/schedulerJobDispatcher.pipeline.test.ts tests/services/cron/schedulerJobExecution.test.ts tests/services/universalSync.runtimeConfig.test.ts --runInBand --no-cache --silent
+Test Suites: 8 passed, 8 total
+Tests: 85 passed, 85 total
+
+npm.cmd run types:check
+pass
+npm.cmd run lint -- --max-warnings=0
+pass; only the repository's informational unused-suppression notice remains
+npm.cmd run build
+pass
+git diff --check
+pass
+```
+
+No provider/network call, real or production database, dependency installation, deployment, promotion, push, merge, rebase, or `main` mutation was performed. Full-suite and catalog evidence remains parent-owned; Task 8 completion is not claimed by this implementation report.
