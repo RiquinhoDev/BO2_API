@@ -788,7 +788,7 @@
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": "src/pages/guru/GuruDashboard.tsx",
+    "frontConsumer": null,
     "status": "complete"
   },
   {
@@ -804,7 +804,7 @@
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": "src/pages/guru/GuruDashboard.tsx",
+    "frontConsumer": null,
     "status": "complete"
   },
   {

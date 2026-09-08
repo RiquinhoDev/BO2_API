@@ -1229,7 +1229,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:142",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:152",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1241,7 +1241,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:192",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:202",
     "frontConsumer": null
   },
   {
@@ -1372,7 +1372,7 @@
       "success"
     ],
     "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:90",
-    "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -1394,7 +1394,7 @@
       "success"
     ],
     "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:46",
-    "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
+    "frontConsumer": null
   },
   {
     "method": "GET",
