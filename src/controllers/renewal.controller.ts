@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import RenewalOffer from '../models/RenewalOffer'
+import { getUnmappedBaseOffers } from '../services/renewal/unmappedBaseOffers.service'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
@@ -28,7 +29,8 @@ export async function listOffers(req: Request, res: Response, next: NextFunction
       .lean()
       .exec()
 
-    res.json(successResponse({ offers }, { total: offers.length }))
+    const semTurma = await getUnmappedBaseOffers()
+    res.json(successResponse({ offers, semTurma }, { total: offers.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar ofertas', 'RENEWAL_LIST_FAILED', error))
   }

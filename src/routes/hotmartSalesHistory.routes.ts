@@ -18,6 +18,7 @@ import { normalizeMainParityEmails, runMainParityExecution } from '../services/r
 import { getMainParityExecutionStatus } from '../services/renewal/mainParityExecutionStatus'
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { requireRenewalMutationEnabled } from './renewalParityRouteGuards'
+import { renewalReadOffset } from './renewalReadPagination'
 
 const router = Router()
 
@@ -56,19 +57,21 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
 router.get('/history', asyncRoute(async (req: Request, res: Response) => {
   const { email, hasSales } = req.query
   const limit = boundedQueryLimit(req.query.limit, 200)
+  const offset = renewalReadOffset(req.query.offset)
 
   const query: Record<string, unknown> = {}
   if (email) query.email = String(email).toLowerCase().trim()
   if (hasSales === 'true') query.salesCount = { $gt: 0 }
   if (hasSales === 'false') query.salesCount = 0
 
-  const history = await HotmartSaleHistory.find(query)
+  const [history, total] = await Promise.all([HotmartSaleHistory.find(query)
     .sort({ latestApprovedDate: -1, _id: -1 })
+    .skip(offset)
     .limit(limit)
     .lean()
-    .exec()
+    .exec(), HotmartSaleHistory.countDocuments(query)])
 
-  res.json({ success: true, data: { total: history.length, history } })
+  res.json({ success: true, data: { total, history, pagination: { limit, offset, total, hasMore: offset + history.length < total } } })
 }))
 
 /**

@@ -32,7 +32,7 @@
       "success"
     ],
     "evidence": "src/controllers/classes/classInactivation.controller.ts:165",
-    "frontConsumer": null
+    "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
     "method": "DELETE",
@@ -1133,7 +1133,7 @@
       "success"
     ],
     "evidence": "src/controllers/classes/classInactivation.controller.ts:142",
-    "frontConsumer": null
+    "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
     "method": "GET",
@@ -1634,7 +1634,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:245",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -1645,7 +1645,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:261",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -2318,7 +2318,7 @@
       "success"
     ],
     "evidence": "src/routes/productSalesPerformance.routes.ts:41",
-    "frontConsumer": null
+    "frontConsumer": "src/services/productSalesPerformance.service.ts"
   },
   {
     "method": "GET",
@@ -2329,7 +2329,7 @@
       "success"
     ],
     "evidence": "src/routes/productSalesPerformance.routes.ts:28",
-    "frontConsumer": null
+    "frontConsumer": "src/services/productSalesPerformance.service.ts"
   },
   {
     "method": "GET",
@@ -2396,8 +2396,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/acRenewalData.routes.ts:72",
-    "frontConsumer": null
+    "evidence": "src/routes/acRenewalData.routes.ts:77",
+    "frontConsumer": "src/services/acRenewalData.service.ts"
   },
   {
     "method": "GET",
@@ -2407,8 +2407,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/acRenewalData.routes.ts:43",
-    "frontConsumer": null
+    "evidence": "src/routes/acRenewalData.routes.ts:44",
+    "frontConsumer": "src/services/acRenewalData.service.ts"
   },
   {
     "method": "GET",
@@ -2440,8 +2440,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/hotmartSalesHistory.routes.ts:71",
-    "frontConsumer": null
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:74",
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts"
   },
   {
     "method": "GET",
@@ -2451,8 +2451,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/hotmartSalesHistory.routes.ts:41",
-    "frontConsumer": null
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:42",
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts"
   },
   {
     "method": "GET",
@@ -2463,7 +2463,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalTimeline.routes.ts:62",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalTimeline.service.ts"
   },
   {
     "method": "GET",
@@ -2485,7 +2485,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:31",
+    "evidence": "src/controllers/renewal.controller.ts:33",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2496,7 +2496,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:155",
+    "evidence": "src/controllers/renewal.controller.ts:157",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2507,7 +2507,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:142",
+    "evidence": "src/controllers/renewal.controller.ts:144",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -3032,7 +3032,7 @@
       "success"
     ],
     "evidence": "src/controllers/users/studentHistory.controller.ts:25",
-    "frontConsumer": null
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts"
   },
   {
     "method": "GET",
@@ -3331,7 +3331,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:253",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "PATCH",
@@ -3353,7 +3353,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:128",
+    "evidence": "src/controllers/renewal.controller.ts:130",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4091,7 +4091,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:315",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
@@ -4102,7 +4102,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:276",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
@@ -4520,7 +4520,7 @@
       "success"
     ],
     "evidence": "src/routes/productSalesPerformance.routes.ts:54",
-    "frontConsumer": null
+    "frontConsumer": "src/services/productSalesPerformance.service.ts"
   },
   {
     "method": "POST",
@@ -4530,8 +4530,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/acRenewalData.routes.ts:85",
-    "frontConsumer": null
+    "evidence": "src/routes/acRenewalData.routes.ts:90",
+    "frontConsumer": "src/services/acRenewalData.service.ts"
   },
   {
     "method": "POST",
@@ -4619,8 +4619,8 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/hotmartSalesHistory.routes.ts:86",
-    "frontConsumer": null
+    "evidence": "src/routes/hotmartSalesHistory.routes.ts:89",
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts"
   },
   {
     "method": "POST",
@@ -4631,7 +4631,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalTimeline.routes.ts:81",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalTimeline.service.ts"
   },
   {
     "method": "POST",
@@ -4641,7 +4641,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:86",
+    "evidence": "src/controllers/renewal.controller.ts:88",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4653,7 +4653,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:178",
+    "evidence": "src/controllers/renewal.controller.ts:180",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {

@@ -27,6 +27,8 @@ O BO2_API usa npm como package manager único: `package.json` fixa `npm@11.9.0`,
 
 ## Archive
 
+- [Tarefas de implementação concluídas](TASKS_DONE.md) — evidência offline; não certifica encerramento operacional.
+
 - [Auditoria estática da API (2026-07-15)](archive/API_AUDIT_2026-07-15.md) — snapshot de auditoria; não é prova atual de segurança da repository.
 - [Auditoria de segurança de tags nativas (2026-01-23)](archive/NATIVE_TAG_SECURITY_AUDIT_2026-01-23.md) — auditoria histórica de escopo limitado.
 - [Plano do sistema de tag monitoring](archive/TAG_MONITORING_SYSTEM_PLAN.md) — plano histórico arquivado, não instrução operacional atual.

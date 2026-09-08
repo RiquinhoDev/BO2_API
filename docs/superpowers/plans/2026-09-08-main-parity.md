@@ -65,7 +65,7 @@ Files: src/services/clareza/core, universe and operations modules, core models/c
 
 ## Execution evidence
 
-Implementation and offline evidence: complete, archived in `TASKS_DONE.md`. Development validation: PENDENTE. Baseline source main b4836ee9; destination remake 0704745b. Both worktrees were clean before implementation.
+Implementation and offline evidence: complete, archived in [TASKS_DONE.md](../../TASKS_DONE.md). Development validation: PENDENTE. Baseline source main b4836ee9; destination remake 0704745b. Both worktrees were clean before implementation.
 
 Ruling: existing migration sequence and architecture were proposed in the previous reply and the user requested their application; no repeated design approval is required.
 

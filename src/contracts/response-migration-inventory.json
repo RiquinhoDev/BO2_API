@@ -20,7 +20,7 @@
     "owner": "src/controllers/classes/classInactivation.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/features/inactivation/inactivation.api.ts",
     "status": "complete"
   },
   {
@@ -628,7 +628,7 @@
     "owner": "src/controllers/classes/classInactivation.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/features/inactivation/inactivation.api.ts",
     "status": "complete"
   },
   {
@@ -972,7 +972,7 @@
     "owner": "src/routes/discordRenewal.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/discordRenewal.service.ts",
     "status": "complete"
   },
   {
@@ -980,7 +980,7 @@
     "owner": "src/routes/discordRenewal.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/discordRenewal.service.ts",
     "status": "complete"
   },
   {
@@ -1452,7 +1452,7 @@
     "owner": "src/routes/productSalesPerformance.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/productSalesPerformance.service.ts",
     "status": "complete"
   },
   {
@@ -1460,7 +1460,7 @@
     "owner": "src/routes/productSalesPerformance.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/productSalesPerformance.service.ts",
     "status": "complete"
   },
   {
@@ -1508,7 +1508,7 @@
     "owner": "src/routes/acRenewalData.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/acRenewalData.service.ts",
     "status": "complete"
   },
   {
@@ -1516,7 +1516,7 @@
     "owner": "src/routes/acRenewalData.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/acRenewalData.service.ts",
     "status": "complete"
   },
   {
@@ -1540,7 +1540,7 @@
     "owner": "src/routes/hotmartSalesHistory.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts",
     "status": "complete"
   },
   {
@@ -1548,7 +1548,7 @@
     "owner": "src/routes/hotmartSalesHistory.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts",
     "status": "complete"
   },
   {
@@ -1556,7 +1556,7 @@
     "owner": "src/routes/renewalTimeline.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/renewalTimeline.service.ts",
     "status": "complete"
   },
   {
@@ -1948,7 +1948,7 @@
     "owner": "src/controllers/users/studentHistory.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts",
     "status": "complete"
   },
   {
@@ -2156,7 +2156,7 @@
     "owner": "src/routes/discordRenewal.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/discordRenewal.service.ts",
     "status": "complete"
   },
   {
@@ -2684,7 +2684,7 @@
     "owner": "src/routes/discordRenewal.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/discordRenewal.service.ts",
     "status": "complete"
   },
   {
@@ -2692,7 +2692,7 @@
     "owner": "src/routes/discordRenewal.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/discordRenewal.service.ts",
     "status": "complete"
   },
   {
@@ -2980,7 +2980,7 @@
     "owner": "src/routes/productSalesPerformance.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/productSalesPerformance.service.ts",
     "status": "complete"
   },
   {
@@ -2988,7 +2988,7 @@
     "owner": "src/routes/acRenewalData.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/acRenewalData.service.ts",
     "status": "complete"
   },
   {
@@ -3052,7 +3052,7 @@
     "owner": "src/routes/hotmartSalesHistory.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/hotmartSalesHistory.service.ts",
     "status": "complete"
   },
   {
@@ -3060,7 +3060,7 @@
     "owner": "src/routes/renewalTimeline.routes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": null,
+    "frontConsumer": "src/services/renewalTimeline.service.ts",
     "status": "complete"
   },
   {

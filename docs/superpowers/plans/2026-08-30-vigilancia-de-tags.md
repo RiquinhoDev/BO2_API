@@ -4,7 +4,7 @@ Snapshot de código: 2026-09-08. Origem: `00a9b9a0cfd9d378608fc06b56dd29640ac687
 
 ## Estado e responsabilidade
 
-**PENDENTE: validação em dev.** Backend é responsável pelos comandos, limites, configuração e comportamento da API. Frontend é responsável pela fila, expansão de lotes, histórico e apresentação dos erros. A conclusão da implementação offline é registada em `TASKS_DONE.md`; este roteiro não certifica produção.
+**PENDENTE: validação em dev.** Backend é responsável pelos comandos, limites, configuração e comportamento da API. Frontend é responsável pela fila, expansão de lotes, histórico e apresentação dos erros. A conclusão da implementação offline é registada em [TASKS_DONE.md](../../TASKS_DONE.md); este roteiro não certifica produção.
 
 A adaptação substitui o plano histórico de 30/08, cujas contagens reais e afirmações sobre jobs ligados não descrevem o ambiente atual. O documento original continua acessível no commit de origem, mesmo depois de removido o branch. As notas visuais de `.impeccable.md` não são configuração da API; o contexto funcional relevante está neste documento e no diagrama.
 

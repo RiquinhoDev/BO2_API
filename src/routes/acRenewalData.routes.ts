@@ -21,6 +21,7 @@ import { getMainParityExecutionStatus } from '../services/renewal/mainParityExec
 import { boundedQueryLimit } from '../utils/queryBounds'
 import { requireRenewalMutationEnabled } from './renewalParityRouteGuards'
 import { HttpError } from '../security/errorHandling'
+import { renewalReadOffset } from './renewalReadPagination'
 
 const router = Router()
 
@@ -68,8 +69,12 @@ router.get('/', asyncRoute(async (req: Request, res: Response) => {
   }
 
   const limit = boundedQueryLimit(req.query.limit, 100)
-  const data = await ACRenewalData.find(query).sort({ _id: 1 }).limit(limit).lean().exec()
-  res.json({ success: true, data: { total: data.length, entries: data } })
+  const offset = renewalReadOffset(req.query.offset)
+  const [data, total] = await Promise.all([
+    ACRenewalData.find(query).sort({ _id: 1 }).skip(offset).limit(limit).lean().exec(),
+    ACRenewalData.countDocuments(query),
+  ])
+  res.json({ success: true, data: { total, entries: data, pagination: { limit, offset, total, hasMore: offset + data.length < total } } })
 }))
 
 /**
