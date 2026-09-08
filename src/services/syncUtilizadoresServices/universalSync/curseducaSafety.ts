@@ -138,6 +138,9 @@ export async function prepareCurseducaSync(sourceData: UniversalSourceItem | Uni
     { curseducaGroupId: { $in: groupIds } },
     { code: { $in: ['CLAREZA_MENSAL', 'CLAREZA_ANUAL'] } },
     ...groupNames.map(name => ({ name: { $regex: name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } })),
+    ...(source.some(item => item.groupId === undefined || item.groupId === null)
+      ? [{ platform: 'curseduca', isActive: true }]
+      : []),
   ]
   const products = await boundedRead(Product, { platform: 'curseduca', isActive: true, $or: productSelectors }, { _id: 1, code: 1, platform: 1, curseducaGroupId: 1, name: 1, platformData: 1 }) as Record<string, unknown>[]
   const classes = groupIds.length === 0 ? [] : await boundedRead(Class, { classId: { $in: groupIds } }, { _id: 1, classId: 1, name: 1, updatedAt: 1 }) as Record<string, unknown>[]

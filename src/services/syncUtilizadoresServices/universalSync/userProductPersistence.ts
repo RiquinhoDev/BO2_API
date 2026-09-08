@@ -96,6 +96,10 @@ async function determineProductId(
         )
         if (cached) return cached._id
       }
+      if (!groupId) {
+        const fallback = productsCache.values().find(product => product.platform === 'curseduca')
+        if (fallback) return fallback._id
+      }
       logger.warn(`⚠️ [ProductMapping] Produto CursEduca fora do snapshot: ${groupId || item.groupName || productCode || 'sem chave'}`)
       return null
     }
