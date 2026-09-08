@@ -7,17 +7,16 @@ import logger from '../../../utils/logger'
 // field mutations; this module owns the Mongo reads/writes and their order.
 // ════════════════════════════════════════════════════════════
 
-import type { UpdateQuery } from 'mongoose'
 import User from '../../../models/user'
 import { UserProduct } from '../../../models'
-import { Class, type IClass } from '../../../models/Class'
+import type { IClass } from '../../../models/Class'
 import UserSnapshot from '../../../models/UserSnapshot'
 import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import { snapshotAndCompare } from '../../snapshotServices/userSnapshot.service'
 import type { UniversalSnapshotContext } from '../universalSyncSnapshot'
 import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
-import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
+import { errorMessage, normalizeEmail, toDateOrNull } from './fieldUtils'
 import { HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
@@ -27,6 +26,8 @@ import { persistUserProduct } from './userProductPersistence'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 import { assertHotmartUserMatchesPlan, hotmartUserOptimisticFilter, mergeHotmartClassPlan, type HotmartExecutionPlan } from './hotmartSafety'
 import { assertCurseducaUserMatchesPlan, curseducaUserOptimisticFilter, mergeCurseducaClassPlan, type CurseducaExecutionPlan } from './curseducaSafety'
+import { ensureClassExists } from './classPersistence'
+export { ensureClassExists }
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -39,96 +40,6 @@ const beforeMutation = (hooks?: CronExecutionPhaseHooks, count = 1): void => {
 const planConflict = (syncType: UniversalSyncConfig['syncType']): Error => new Error(
   syncType === 'curseduca' ? 'CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT' : 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
 )
-
-/**
- * Cria ou atualiza uma turma na tabela Class
- * Chamado durante o sync para garantir que todas as turmas são registadas
- */
-// Devolve o nome real da turma (da BD) após criar/actualizar
-export async function ensureClassExists(
-  classId: string,
-  className: string | undefined,
-  source: 'hotmart' | 'curseduca',
-  curseducaId?: string,
-  curseducaUuid?: string,
-  phaseHooks?: CronExecutionPhaseHooks,
-  plannedClass?: IClass,
-  plannedClassLookupProvided = false,
-  onResolvedClass?: (classRow: Record<string, unknown>) => void,
-  planConflictCode = 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
-): Promise<string> {
-  if (!classId) return className || `Turma ${classId}`
-
-  try {
-    // A prepared execution plan is authoritative, including a deliberate
-    // null result. Never turn a planned miss into an unbounded live lookup.
-    const existingClass = plannedClassLookupProvided
-      ? plannedClass
-      : await Class.findOne({ classId })
-
-    if (!existingClass) {
-      const displayName = className || `Turma ${classId}`
-
-      beforeMutation(phaseHooks)
-      const createdClass = await Class.create({
-        classId,
-        name: displayName,
-        curseducaId: source === 'curseduca' ? curseducaId : undefined,
-        curseducaUuid: source === 'curseduca' ? curseducaUuid : undefined,
-        source: source === 'hotmart' ? 'hotmart_sync' : 'curseduca_sync',
-        isActive: true,
-        estado: 'ativo',
-        studentCount: 1,
-        lastSyncAt: new Date()
-      })
-      onResolvedClass?.(createdClass as unknown as Record<string, unknown>)
-
-      logger.info(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
-      return displayName
-
-    } else {
-      const updates: UpdateQuery<IClass> = {
-        lastSyncAt: new Date(),
-        $inc: { studentCount: 0 }
-      }
-
-      const isGenericName = existingClass.name.match(/^Turma [a-zA-Z0-9]+$/)
-      const hasNewName = className && className !== existingClass.name && !className.match(/^Turma [a-zA-Z0-9]+$/)
-
-      if (isGenericName && hasNewName) {
-        updates.name = className
-        logger.info(`   📝 [Class] Nome atualizado: ${classId} - "${existingClass.name}" → "${className}"`)
-      }
-
-      if (source === 'curseduca') {
-        if (curseducaId && !existingClass.curseducaId) updates.curseducaId = curseducaId
-        if (curseducaUuid && !existingClass.curseducaUuid) updates.curseducaUuid = curseducaUuid
-      }
-
-      beforeMutation(phaseHooks)
-      const updatedClass = await Class.findOneAndUpdate(
-        {
-          _id: existingClass._id,
-          classId,
-          ...(existingClass.updatedAt ? { updatedAt: existingClass.updatedAt } : { name: existingClass.name }),
-        },
-        updates,
-        { new: true },
-      )
-      if (!updatedClass && plannedClassLookupProvided) throw new Error(planConflictCode)
-      if (updatedClass) onResolvedClass?.(updatedClass as unknown as Record<string, unknown>)
-      // Devolver o nome real da BD (que pode ter sido editado manualmente)
-      return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
-    }
-  } catch (error: unknown) {
-    if (phaseHooks) throw error
-    if (mongoErrorCode(error) !== 11000) {
-      logger.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, errorMessage(error))
-    }
-    return className || `Turma ${classId}`
-  }
-}
-
 
 export const processSyncItem = async (
   item: UniversalSourceItem,
