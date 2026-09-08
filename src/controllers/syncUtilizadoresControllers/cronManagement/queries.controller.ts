@@ -16,6 +16,7 @@ import {
   isCronExecutionCleanupMutableExecutionEnabled,
   isGuruTrialManualExecutionEnabled,
   isHotmartSyncManualExecutionEnabled,
+  isCurseducaSyncManualExecutionEnabled,
   isRenewalOfferManualExecutionEnabled,
   isSyncMutableExecutionEnabled,
   isWeeklyTagSnapshotMutableExecutionEnabled,
@@ -61,6 +62,10 @@ function manualMutableEnabled(
   if (capability.id === 'hotmart-sync') {
     const enabled = isHotmartSyncManualExecutionEnabled()
     return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual do sync Hotmart desativada' }) }
+  }
+  if (capability.id === 'curseduca-sync') {
+    const enabled = isCurseducaSyncManualExecutionEnabled()
+    return { enabled, ...(enabled ? {} : { blockedReason: 'Execução manual do sync CursEduca desativada' }) }
   }
   return { enabled: false }
 }

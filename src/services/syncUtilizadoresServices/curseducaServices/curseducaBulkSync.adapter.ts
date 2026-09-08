@@ -13,7 +13,6 @@ import {
   CollectionPayload,
   CursEducaRosterMember,
   UnifiedCurseducaMember,
-  collectionItems,
   curseducaApiUrl,
   deduplicateMembers,
   detectSubscriptionType,
@@ -32,6 +31,11 @@ import {
   fetchGroupMembersList,
   fetchProgressReport
 } from './curseducaReports.client'
+import {
+  CurseducaProviderReadBudget,
+  CurseducaProviderSafetyError,
+  fetchCurseducaPages,
+} from './curseducaPagination'
 export const fetchCurseducaDataForSync = async (
   options: CurseducaSyncOptions = {
     includeProgress: true,
@@ -50,6 +54,7 @@ export const fetchCurseducaDataForSync = async (
   try {
     // âœ… VALIDAR CREDENCIAIS
     const headers = getRequestHeaders()
+    const providerReadBudget = new CurseducaProviderReadBudget()
 
     // âœ… CRIAR HEADERS UMA ÃšNICA VEZ
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -58,12 +63,15 @@ export const fetchCurseducaDataForSync = async (
     
     logger.info('ðŸ“š [CurseducaAdapter] Step 1/5: Buscando grupos...')
     
-    const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
-      headers,
-      timeout: 30000
+    const groupItems = await fetchCurseducaPages<CursEducaGroup>({
+      resource: 'groups', phaseHooks: options.phaseHooks, budget: providerReadBudget,
+      identityOf: group => group.id == null ? undefined : String(group.id),
+      request: async params => (await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
+        headers, params, timeout: 30000
+      })).data,
     })
-    
-    let allGroups = collectionItems(groupsResponse.data)
+
+    let allGroups = groupItems
     
     allGroups = allGroups.filter(g => 
       g.name.toLowerCase().includes('clareza')
@@ -99,11 +107,11 @@ export const fetchCurseducaDataForSync = async (
     logger.info('   2ï¸âƒ£  /groups/{groupId}/members (TODOS, incluindo admins)')
 
     logger.info('   Buscando relatorio de acessos para engagement...')
-    const accessReport = await fetchAccessReport(headers)
+    const accessReport = await fetchAccessReport(headers, options.phaseHooks, providerReadBudget)
 
     // ðŸš€ Buscar situation/lastAccess de TODOS os membros de uma vez (paginado),
     // em vez de 1 chamada /members/{id} por membro (que sofre de 504s).
-    const allMembersMap = await fetchAllMembersMap(headers)
+    const allMembersMap = await fetchAllMembersMap(headers, options.phaseHooks, providerReadBudget)
     const allMembersWithMetadata: CursEducaMemberWithMetadata[] = []
     const errors: string[] = []
 
@@ -114,22 +122,20 @@ export const fetchCurseducaDataForSync = async (
         // STEP 1: Buscar lista completa via /groups/{id}/members
         logger.info(`   ðŸ“¡ 1/2: Buscando lista via /groups/${group.id}/members...`)
 
-        const groupMembersResponse = await axios.get<CollectionPayload<CursEducaRosterMember>>(
-          `${curseducaApiUrl()}/groups/${group.id}/members`,
-          {
-            headers,
-            params: { limit: 1000 },
-            timeout: 30000
-          }
-        )
-
-        const allGroupMembers = collectionItems(groupMembersResponse.data)
+        const allGroupMembers = await fetchCurseducaPages<CursEducaRosterMember>({
+          resource: `groups/${group.id}/members`, phaseHooks: options.phaseHooks, budget: providerReadBudget,
+          baseParams: { groupId: group.id },
+          identityOf: member => member.id == null ? undefined : String(member.id),
+          request: async params => (await axios.get<CollectionPayload<CursEducaRosterMember>>(
+            `${curseducaApiUrl()}/groups/${group.id}/members`, { headers, params, timeout: 30000 }
+          )).data,
+        })
 
         logger.info(`   âœ… ${allGroupMembers.length} members encontrados`)
 
         // STEP 2: Buscar progresso via /reports/group/members
         logger.info(`   ðŸ“¡ 2/2: Buscando progresso via /reports/group/members...`)
-        const membersWithProgress = await fetchGroupMembersList(group.id, headers)
+        const membersWithProgress = await fetchGroupMembersList(group.id, headers, options.phaseHooks, providerReadBudget)
         logger.info(`   âœ… ${membersWithProgress.length} members com dados de progresso`)
 
         // STEP 3: Merge - adicionar progresso aos members (preferir email se IDs divergem)
@@ -200,7 +206,7 @@ export const fetchCurseducaDataForSync = async (
 
         logger.info(`   âœ… Dados mesclados: ${unifiedMembersList.length} members com progresso`)
 
-        const progressReport = await fetchProgressReport(group.id, group.name, headers)
+        const progressReport = await fetchProgressReport(group.id, group.name, headers, options.phaseHooks, providerReadBudget)
         if (progressReport.size > 0) {
           let updatedCount = 0
           for (const member of unifiedMembersList) {
@@ -258,6 +264,10 @@ export const fetchCurseducaDataForSync = async (
           for (const member of unifiedMembersList) {
             try {
               validateCurseducaMember(member)
+              const bulk = allMembersMap.get(member.id)
+              if (!bulk) {
+                throw new CurseducaProviderSafetyError('CURSEDUCA_PROVIDER_DATA_INVALID', 'members detalhe ausente')
+              }
 
               allMembersWithMetadata.push({
                 id: member.id,
@@ -271,9 +281,9 @@ export const fetchCurseducaDataForSync = async (
                 subscriptionType: detectSubscriptionType(group.name) || 'MONTHLY',
                 enrolledAt: new Date().toISOString(),
                 expiresAt: member.expiresAt,
-                situation: 'ACTIVE',
-                lastLogin: member.lastLogin,
-                lastAccess: member.lastAccess,
+                situation: bulk.situation,
+                lastLogin: bulk.lastAccess || member.lastLogin,
+                lastAccess: member.lastAccess || bulk.lastAccess,
                 accessCount: member.accessCount
               })
 
@@ -286,6 +296,7 @@ export const fetchCurseducaDataForSync = async (
         await new Promise(resolve => setTimeout(resolve, 1000))
         
       } catch (error: unknown) {
+        if (error instanceof CurseducaProviderSafetyError) throw error
         logger.error(`   âŒ Erro ao processar grupo ${group.name}:`, errorMessage(error))
         errors.push(`Grupo ${group.name}: ${errorMessage(error)}`)
       }
@@ -335,12 +346,15 @@ export const fetchCurseducaDataForSync = async (
       if (errors.length > 5) {
         logger.warn(`   ... e mais ${errors.length - 5} erros`)
       }
+      throw new CurseducaProviderSafetyError('CURSEDUCA_PROVIDER_DATA_INVALID', 'CursEduca snapshot contém dados inválidos')
     }
 
     return normalized
     
   } catch (error: unknown) {
     logger.error('âŒ [CurseducaAdapter] Erro fatal:', error)
+
+    if (error instanceof CurseducaProviderSafetyError) throw error
     
     if (errorStatus(error) === 401) {
       throw new Error(
@@ -356,4 +370,3 @@ export const fetchCurseducaDataForSync = async (
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ðŸ†• SYNC INDIVIDUAL - ESTRATÃ‰GIA OTIMIZADA (2 CHAMADAS)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-

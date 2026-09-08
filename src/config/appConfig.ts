@@ -1,6 +1,7 @@
 import { buildAllowedOrigins } from '../security/cors'
 import { freezeRecursively } from './runtimeConfig'
 import { parseHotmartSyncManualExecutionEnabled } from './hotmartSyncConfig'
+import { parseCurseducaSyncManualExecutionEnabled } from './curseducaSyncConfig'
 import type {
   ActiveCampaignIntegration,
   AppConfig,
@@ -455,6 +456,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     env,
     integrations.hotmart,
   )
+  const curseducaSyncManualExecutionEnabled = parseCurseducaSyncManualExecutionEnabled(
+    env,
+    integrations.curseduca,
+  )
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
@@ -478,6 +483,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     achievementEvaluationMutableExecutionEnabled,
     guruTrialManualExecutionEnabled,
     hotmartSyncManualExecutionEnabled,
+    curseducaSyncManualExecutionEnabled,
     weeklyTagSnapshotMutableExecutionEnabled: parseBooleanFlag(
       env.WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED,
       'WEEKLY_TAG_SNAPSHOT_MUTABLE_EXECUTION_ENABLED',

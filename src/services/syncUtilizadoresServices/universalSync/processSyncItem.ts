@@ -26,6 +26,7 @@ import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
 import type { CronExecutionPhaseHooks } from '../../cron/scheduler/executionPhases'
 import { assertHotmartUserMatchesPlan, hotmartUserOptimisticFilter, mergeHotmartClassPlan, type HotmartExecutionPlan } from './hotmartSafety'
+import { assertCurseducaUserMatchesPlan, curseducaUserOptimisticFilter, mergeCurseducaClassPlan, type CurseducaExecutionPlan } from './curseducaSafety'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -34,6 +35,10 @@ const beforeMutation = (hooks?: CronExecutionPhaseHooks, count = 1): void => {
   hooks?.localMutationStarted()
   hooks?.consumeMutation?.(count)
 }
+
+const planConflict = (syncType: UniversalSyncConfig['syncType']): Error => new Error(
+  syncType === 'curseduca' ? 'CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT' : 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
+)
 
 /**
  * Cria ou atualiza uma turma na tabela Class
@@ -50,6 +55,7 @@ export async function ensureClassExists(
   plannedClass?: IClass,
   plannedClassLookupProvided = false,
   onResolvedClass?: (classRow: Record<string, unknown>) => void,
+  planConflictCode = 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
 ): Promise<string> {
   if (!classId) return className || `Turma ${classId}`
 
@@ -109,7 +115,7 @@ export async function ensureClassExists(
         updates,
         { new: true },
       )
-      if (!updatedClass && plannedClassLookupProvided) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+      if (!updatedClass && plannedClassLookupProvided) throw new Error(planConflictCode)
       if (updatedClass) onResolvedClass?.(updatedClass as unknown as Record<string, unknown>)
       // Devolver o nome real da BD (que pode ter sido editado manualmente)
       return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
@@ -142,10 +148,13 @@ export const processSyncItem = async (
   // ═══════════════════════════════════════════════════════════
   // BUSCAR OU CRIAR USER
   // ═══════════════════════════════════════════════════════════
-  const executionPlan = config.hotmartExecutionPlan as HotmartExecutionPlan | undefined
+  const executionPlan = config.hotmartExecutionPlan as (HotmartExecutionPlan | CurseducaExecutionPlan | undefined)
   const plannedUser = executionPlan?.usersByEmail[email]
   let user = await User.findOne({ email })
-  if (executionPlan) assertHotmartUserMatchesPlan(plannedUser ?? null, user)
+  if (executionPlan) {
+    if (config.syncType === 'hotmart') assertHotmartUserMatchesPlan(plannedUser ?? null, user)
+    else assertCurseducaUserMatchesPlan(plannedUser ?? null, user)
+  }
   const isNew = !user
 
   if (!user) {
@@ -189,7 +198,9 @@ export const processSyncItem = async (
           plannedClass as unknown as IClass | undefined,
           executionPlan !== undefined,
           executionPlan
-            ? classRow => mergeHotmartClassPlan(executionPlan, classRow)
+            ? classRow => config.syncType === 'hotmart'
+              ? mergeHotmartClassPlan(executionPlan as HotmartExecutionPlan, classRow)
+              : mergeCurseducaClassPlan(executionPlan as CurseducaExecutionPlan, classRow)
             : undefined,
         ),
       }
@@ -258,7 +269,15 @@ export const processSyncItem = async (
   if (config.syncType === 'curseduca') {
     // PREPARE: ensure the group's class exists (side effect only; groupId is the classId, never the student uuid).
     if (item.groupId) {
-      await ensureClassExists(String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined, config.phaseHooks)
+      const plannedClass = executionPlan?.classes.find(classRow => String(classRow.classId ?? '') === String(item.groupId))
+      await ensureClassExists(
+        String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined, config.phaseHooks,
+        plannedClass as unknown as IClass | undefined, executionPlan !== undefined,
+        executionPlan ? classRow => config.syncType === 'curseduca'
+          ? mergeCurseducaClassPlan(executionPlan as CurseducaExecutionPlan, classRow)
+          : mergeHotmartClassPlan(executionPlan as HotmartExecutionPlan, classRow) : undefined,
+        'CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT',
+      )
     }
 
     const plan = buildCurseducaMutationPlan({
@@ -274,15 +293,32 @@ export const processSyncItem = async (
 
     if (plan.reconcileParaInativar) {
       try {
-        const userProductToUpdate = await UserProduct.findOne({
-          userId: userIdStr,
-          platform: 'curseduca',
-          status: 'PARA_INATIVAR'
-        })
+        const userProductToUpdate = executionPlan
+          ? executionPlan.userProducts.find((row) => String(row.userId ?? '') === userIdStr && row.platform === 'curseduca' && row.status === 'PARA_INATIVAR')
+          : await UserProduct.findOne({
+            userId: userIdStr,
+            platform: 'curseduca',
+            status: 'PARA_INATIVAR'
+          })
 
         if (userProductToUpdate) {
           beforeMutation(config.phaseHooks)
-          await UserProduct.findByIdAndUpdate(userProductToUpdate._id, {
+          const plannedRow = userProductToUpdate as Record<string, unknown>
+          const filter = executionPlan
+            ? {
+              _id: plannedRow._id,
+              userId: userIdStr,
+              platform: 'curseduca',
+              status: 'PARA_INATIVAR',
+              ...(plannedRow.updatedAt ? { updatedAt: plannedRow.updatedAt } : {}),
+            }
+            : {
+              _id: plannedRow._id,
+              userId: userIdStr,
+              platform: 'curseduca',
+              status: 'PARA_INATIVAR',
+            }
+          const updatedUserProduct = await UserProduct.findOneAndUpdate(filter, {
             $set: {
               status: 'INACTIVE',
               'metadata.inactivatedAt': new Date(),
@@ -293,7 +329,19 @@ export const processSyncItem = async (
               'metadata.markedForInactivationAt': 1,
               'metadata.markedForInactivationReason': 1
             }
-          })
+          }, { new: true })
+          if (executionPlan && !updatedUserProduct) throw planConflict('curseduca')
+          if (executionPlan && updatedUserProduct) {
+            const planIndex = executionPlan.userProducts.findIndex(row => String(row._id ?? '') === String(plannedRow._id ?? ''))
+            if (planIndex >= 0) {
+              const refreshed = updatedUserProduct as unknown as Record<string, unknown>
+              executionPlan.userProducts[planIndex] = {
+                ...plannedRow,
+                status: 'INACTIVE',
+                ...(refreshed.updatedAt ? { updatedAt: refreshed.updatedAt } : {}),
+              }
+            }
+          }
           debugLog(`   ✅ [CursEduca Sync] Removido de PARA_INATIVAR (já INACTIVE): ${user.email}`)
         }
       } catch (err: unknown) {
@@ -325,6 +373,8 @@ export const processSyncItem = async (
       renewalResult,
       config.phaseHooks,
       executionPlan?.renewalTargetsByUser[userIdStr] ?? 0,
+      executionPlan?.userProducts,
+      config.syncType === 'curseduca' ? 'CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT' : 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
     )
     if (executionPlan) {
       for (const plannedProduct of executionPlan.userProducts) {
@@ -417,10 +467,10 @@ export const processSyncItem = async (
   if (needsUpdate) {
     beforeMutation(config.phaseHooks)
     const userFilter = executionPlan && plannedUser
-      ? hotmartUserOptimisticFilter(plannedUser)
+      ? config.syncType === 'curseduca' ? curseducaUserOptimisticFilter(plannedUser) : hotmartUserOptimisticFilter(plannedUser)
       : { _id: userIdStr }
     const updatedUser = await User.findOneAndUpdate(userFilter, { $set: updateFields }, { new: true })
-    if (!updatedUser && executionPlan) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+    if (!updatedUser && executionPlan) throw planConflict(config.syncType)
     debugLog(`🔄 [UniversalSync] User atualizado: ${user.email}`)
   }
 
@@ -449,7 +499,9 @@ export const processSyncItem = async (
   }
 
   try {
-    const plannedProducts = executionPlan?.userProducts.filter(product => String(product.userId ?? '') === userIdStr)
+    const plannedProducts = executionPlan?.userProducts.filter(product =>
+      String(product.userId ?? '') === userIdStr && product.productId !== undefined && product.productId !== null,
+    )
     const userProducts = plannedProducts
       ? plannedProducts as unknown as import('../../../models/UserProduct').IUserProduct[]
       : await UserProduct.find({ userId: user._id }).populate('productId', 'name code platform')
@@ -458,7 +510,7 @@ export const processSyncItem = async (
       .sort((left, right) => String(right.snapshotDate ?? '').localeCompare(String(left.snapshotDate ?? '')))[0]
 
     if (executionPlan) {
-      const latestSnapshot = await UserSnapshot.findOne({ userId: user._id, syncType: 'hotmart' })
+      const latestSnapshot = await UserSnapshot.findOne({ userId: user._id, syncType: config.syncType })
         .sort({ snapshotDate: -1 })
         .lean()
       const plannedSnapshotId = String(plannedSnapshot?._id ?? '')
@@ -466,7 +518,7 @@ export const processSyncItem = async (
       const plannedSnapshotDate = String(plannedSnapshot?.snapshotDate ?? '')
       const latestSnapshotDate = String(latestSnapshot?.snapshotDate ?? '')
       if (plannedSnapshotId !== latestSnapshotId || plannedSnapshotDate !== latestSnapshotDate) {
-        throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+        throw planConflict(config.syncType)
       }
     }
 

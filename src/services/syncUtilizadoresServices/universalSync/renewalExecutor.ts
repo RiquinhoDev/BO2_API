@@ -13,6 +13,8 @@ export async function applyAutoReactivation(
   decision: ApprovedRenewalDecision,
   phaseHooks?: CronExecutionPhaseHooks,
   userProductEffectCount = 1,
+  plannedUserProducts?: Record<string, unknown>[],
+  conflictCode = 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
 ): Promise<void> {
   logger.info('🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!')
   logger.info(`   📧 User: ${userEmail}`)
@@ -36,14 +38,21 @@ export async function applyAutoReactivation(
   phaseHooks?.assertOwnership?.()
   phaseHooks?.localMutationStarted()
   phaseHooks?.consumeMutation?.(Math.max(1, userProductEffectCount))
-  const result = await UserProduct.updateMany({ userId }, { $set: { status: 'ACTIVE' } })
+  const plannedIds = plannedUserProducts
+    ?.filter(row => String(row.userId ?? '') === userId && (row.status === 'INACTIVE' || row.status === 'PARA_INATIVAR'))
+    .map(row => row._id)
+    .filter(value => value !== undefined && value !== null)
+  const filter = plannedUserProducts
+    ? { userId, _id: { $in: plannedIds ?? [] }, status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } }
+    : { userId }
+  const result = await UserProduct.updateMany(filter, { $set: { status: 'ACTIVE' } })
   if (
     phaseHooks
     && userProductEffectCount > 0
     && typeof result.matchedCount === 'number'
     && result.matchedCount !== userProductEffectCount
   ) {
-    throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+    throw new Error(conflictCode)
   }
 
   // The removed legacy Discord call targeted an endpoint that never existed.

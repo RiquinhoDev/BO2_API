@@ -172,6 +172,19 @@ const capabilityEntries: readonly {
     ),
   },
   {
+    matches: job => job.name === 'Job de CursEduca' && job.syncType === 'curseduca',
+    capability: implemented(
+      'curseduca-sync',
+      'cron-job',
+      {
+        status: 'verified',
+        reason: 'curseduca-sync-max-provider-pages-items-and-effective-mutations',
+        limit: MAX_PROVIDER_READ_ITEMS,
+      },
+      { status: 'verified', reason: 'CURSEDUCA_SYNC_MANUAL_EXECUTION_ENABLED' },
+    ),
+  },
+  {
     matches: job => job.syncType === 'pipeline',
     capability: implemented(
       'daily-pipeline',

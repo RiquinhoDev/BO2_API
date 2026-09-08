@@ -72,15 +72,35 @@ async function determineProductId(
   if (syncType === 'curseduca') {
     const groupId = String(item.groupId || '')
 
-    if (groupId) {
-      if (useCache) {
+    // A loaded execution-plan snapshot is the only permitted product source
+    // after effects begin. A miss is a bounded, fail-closed result; never
+    // reopen Product.findOne with an unplanned query.
+    if (useCache) {
+      if (groupId) {
         const cached = productsCache.get(`group_${groupId}`)
-        if (cached) {
-          debugLog(`✅ [ProductMapping] Produto CursEduca do cache (groupId ${groupId}): ${cached.code}`)
-          return cached._id
-        }
+        if (cached) return cached._id
       }
+      const productCode = item.subscriptionType === 'MONTHLY'
+        ? 'CLAREZA_MENSAL'
+        : item.subscriptionType === 'ANNUAL'
+          ? 'CLAREZA_ANUAL'
+          : undefined
+      if (productCode) {
+        const cached = productsCache.get(productCode)
+        if (cached) return cached._id
+      }
+      if (item.groupName) {
+        const groupName = item.groupName.trim().toLowerCase()
+        const cached = productsCache.values().find(product =>
+          product.platform === 'curseduca' && typeof product.name === 'string' && product.name.toLowerCase().includes(groupName),
+        )
+        if (cached) return cached._id
+      }
+      logger.warn(`⚠️ [ProductMapping] Produto CursEduca fora do snapshot: ${groupId || item.groupName || productCode || 'sem chave'}`)
+      return null
+    }
 
+    if (groupId) {
       const product = await Product.findOne({
         platform: 'curseduca',
         curseducaGroupId: groupId,
@@ -102,14 +122,6 @@ async function determineProductId(
             : null
 
       if (productCode) {
-        if (useCache) {
-          const cached = productsCache.get(productCode)
-          if (cached) {
-            debugLog(`✅ [ProductMapping] Produto do cache (subscriptionType): ${productCode}`)
-            return cached._id
-          }
-        }
-
         const product = await Product.findOne({
           platform: 'curseduca',
           code: productCode,
@@ -139,18 +151,6 @@ async function determineProductId(
       if (product) {
         logger.info(`✅ [ProductMapping] Produto encontrado por groupName "${item.groupName}": ${product.code}`)
         return product._id
-      }
-    }
-
-    if (useCache) {
-      const cachedDefault = Array.from(productsCache.values()).find(
-        (product) => product.platform === 'curseduca',
-      )
-      if (cachedDefault) {
-        logger.warn(
-          `⚠️ [ProductMapping] Usando produto default CursEDuca: ${cachedDefault.code} (groupId: ${groupId})`,
-        )
-        return cachedDefault._id
       }
     }
 
@@ -203,7 +203,9 @@ export async function persistUserProduct(
 
     const existing = input.plannedUserProducts
       ? input.plannedUserProducts.find((row) =>
-        String(row.userId ?? '') === userId && String(row.productId ?? '') === String(productId),
+        String(row.userId ?? '') === userId
+        && String(row.productId ?? '') === String(productId)
+        && (syncType !== 'curseduca' || row.platform === 'curseduca'),
       ) as unknown as IUserProduct | undefined
       : await UserProduct.findOne({ userId, productId })
 
@@ -230,7 +232,9 @@ export async function persistUserProduct(
         input.phaseHooks?.consumeMutation?.()
         const optimisticFilter = buildUserProductOptimisticFilter(existing as unknown as Record<string, unknown>)
         const updated = await UserProduct.findOneAndUpdate(optimisticFilter, { $set: plan.fields }, { new: true })
-        if (!updated && input.phaseHooks) throw new Error('HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT')
+        if (!updated && input.phaseHooks) throw new Error(
+          input.syncType === 'curseduca' ? 'CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT' : 'HOTMART_SYNC_PLAN_CONCURRENCY_CONFLICT',
+        )
         debugLog(`   📦 UserProduct atualizado: ${user.email}`)
         return { status: 'completed', userProduct: updated ?? existing }
       }
@@ -246,12 +250,19 @@ export async function persistUserProduct(
 
     let isPrimary = item.platformData?.isPrimary ?? true
     if (syncType === 'curseduca' && isPrimary) {
-      const existingPrimary = await UserProduct.findOne({
-        userId,
-        platform: 'curseduca',
-        productId: { $ne: productId },
-        isPrimary: true,
-      })
+      const existingPrimary = input.plannedUserProducts
+        ? input.plannedUserProducts.find((row) =>
+          String(row.userId ?? '') === userId
+          && row.platform === 'curseduca'
+          && String(row.productId ?? '') !== String(productId)
+          && row.isPrimary === true,
+        ) as unknown as IUserProduct | undefined
+        : await UserProduct.findOne({
+          userId,
+          platform: 'curseduca',
+          productId: { $ne: productId },
+          isPrimary: true,
+        })
 
       if (existingPrimary) {
         logger.info(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
@@ -267,10 +278,24 @@ export async function persistUserProduct(
           input.phaseHooks?.assertOwnership?.()
           input.phaseHooks?.localMutationStarted()
           input.phaseHooks?.consumeMutation?.()
-          await UserProduct.updateOne(
-            { _id: existingPrimary._id },
+          const primaryFilter = input.plannedUserProducts
+            ? {
+              _id: existingPrimary._id,
+              userId,
+              platform: 'curseduca',
+              productId: existingPrimary.productId,
+              isPrimary: true,
+              status: existingPrimary.status,
+              ...(existingPrimary.updatedAt ? { updatedAt: existingPrimary.updatedAt } : {}),
+            }
+            : { _id: existingPrimary._id }
+          const demoted = await UserProduct.updateOne(
+            primaryFilter,
             { $set: reassignment.demoteUpdate },
           )
+          if (input.plannedUserProducts && typeof demoted.matchedCount === 'number' && demoted.matchedCount !== 1) {
+            throw new Error('CURSEDUCA_SYNC_PLAN_CONCURRENCY_CONFLICT')
+          }
         } else {
           logger.info('      🔻 Novo produto mais antigo → SECONDARY (antigo mantém-se PRIMARY)')
         }

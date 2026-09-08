@@ -15,6 +15,7 @@ export interface CurseducaSyncOptions {
   groupId?: string
   progressConcurrency?: number
   enrichWithDetails?: boolean
+  phaseHooks?: import('../services/cron/scheduler/executionPhases').CronExecutionPhaseHooks
 }
 
 // ═══════════════════════════════════════════════════════════

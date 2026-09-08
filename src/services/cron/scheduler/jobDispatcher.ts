@@ -8,11 +8,13 @@ import type {
   RenewalAcSyncPlan,
   RenewalOfferSyncPlan,
   HotmartSyncPlan,
+  CurseducaSyncPlan,
 } from '../../../types/cron.types'
 import type { CronExecutionPhaseHooks } from './executionPhases'
 import { normalizePlannedExecution } from './plannedExecutionNormalizer'
 import { normalizeGuruTrialDispatch } from './guruTrialDispatchNormalizer'
 import { normalizeHotmartSyncDispatch } from './hotmartSyncDispatchNormalizer'
+import { normalizeCurseducaSyncDispatch } from './curseducaSyncDispatchNormalizer'
 import { normalizeRenewalOfferDispatch } from './renewalOfferDispatchNormalizer'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
@@ -38,7 +40,7 @@ export interface CronDispatchResult {
   errorMessage?: string
   dryRun?: boolean
   data?: unknown
-  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan
+  plan?: DailyPipelinePlan | CronExecutionCleanupPlan | AchievementEvaluationPlan | WeeklyTagSnapshotPlan | RenewalAcSyncPlan | DiscordRolesSyncPlan | RenewalOfferSyncPlan | HotmartSyncPlan | CurseducaSyncPlan
 }
 
 export interface CronDispatchOptions {
@@ -215,12 +217,13 @@ const defaultDependencies: CronDispatchDependencies = {
       progressConcurrency: 5,
       phaseHooks: options?.phaseHooks,
     }),
-  fetchCurseduca: () =>
+  fetchCurseduca: (options) =>
     curseducaAdapter.fetchCurseducaDataForSync({
       includeProgress: true,
       includeGroups: true,
       enrichWithDetails: true,
-      progressConcurrency: 5
+      progressConcurrency: 5,
+      phaseHooks: options?.phaseHooks,
     }),
   executeUniversalSync: request => universalSyncService.executeUniversalSync(request)
 }
@@ -428,12 +431,13 @@ export class CronJobDispatcher {
       )
       return syncType === 'hotmart'
         ? normalizeHotmartSyncDispatch(result, { requestedDryRun: options.dryRun === true })
-        : {
-          success: booleanOf(result, 'success') === true,
-          stats: this.readStats(result)
-        }
+        : normalizeCurseducaSyncDispatch(result, { requestedDryRun: options.dryRun === true })
     } catch (error: unknown) {
-      if (syncType !== 'hotmart') throw error
+      if (syncType === 'curseduca') {
+        if (shouldPropagateHotmartControlError(error)) throw error
+        logger.error('Erro interno no sync CursEduca', error)
+        return { success: false, stats: { ...EMPTY_STATS, errors: 1 }, errorMessage: 'Execução CursEduca sync falhou' }
+      }
       if (!(error instanceof HttpError)
         && typeof error === 'object' && error !== null
         && (error as { status?: unknown }).status === 413) {

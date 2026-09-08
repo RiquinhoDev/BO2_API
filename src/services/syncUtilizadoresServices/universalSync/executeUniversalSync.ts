@@ -16,6 +16,7 @@ import { productsCache } from './productsCache'
 import { processSyncItem } from './processSyncItem'
 import { debugLog } from './debugLog'
 import { governHotmartExecution, prepareHotmartSync } from './hotmartSafety'
+import { governCurseducaExecution, prepareCurseducaSync } from './curseducaSafety'
 
 // ═══════════════════════════════════════════════════════════
 // MAIN SYNC FUNCTION
@@ -53,21 +54,19 @@ export const executeUniversalSync = async (
   try {
     const prepared = config.syncType === 'hotmart'
       ? await prepareHotmartSync(config.sourceData, config.dryRun === true, config.batchSize)
-      : {
-        sourceData: Array.isArray(config.sourceData) ? config.sourceData : [config.sourceData],
-        plan: undefined,
-        executionPlan: undefined,
-      }
+      : await prepareCurseducaSync(config.sourceData, config.dryRun === true, config.batchSize)
 
     phaseHooks = prepared.executionPlan
-      ? governHotmartExecution(prepared.executionPlan, config.phaseHooks)
+      ? config.syncType === 'hotmart'
+        ? governHotmartExecution(prepared.executionPlan, config.phaseHooks)
+        : governCurseducaExecution(prepared.executionPlan, config.phaseHooks)
       : config.phaseHooks
 
     if (config.dryRun === true) {
       return {
         success: true,
         dryRun: true,
-        plan: prepared.plan as Record<string, unknown> | undefined,
+        plan: prepared.plan as unknown as Record<string, unknown> | undefined,
         stats: {
           total: 0,
           inserted: 0,

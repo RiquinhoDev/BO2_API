@@ -23,6 +23,7 @@ export interface CoreConfig {
   readonly weeklyTagSnapshotMutableExecutionEnabled?: boolean
   readonly guruTrialManualExecutionEnabled?: boolean
   readonly hotmartSyncManualExecutionEnabled?: boolean
+  readonly curseducaSyncManualExecutionEnabled?: boolean
   readonly allowedOrigins: readonly string[]
   readonly port: number
 }
