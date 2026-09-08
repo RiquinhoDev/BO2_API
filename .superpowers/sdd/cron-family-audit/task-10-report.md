@@ -7,7 +7,9 @@ Branches: backend `remake` / Front `remake`
 
 Implemented the bounded `syncType: all` composite on the existing `remake` branches.
 
-Backend commit: `0684a3d2` (`feat(cron): add bounded all composite`).
+Backend commits: `0684a3d2` (`feat(cron): add bounded all composite`), `ad1826ca`
+(`fix(cron): fence all live mutation allocations`), and `7e7fac34` (`fix(cron): preserve
+discord fallback contract`).
 Front commit: `0454ae7` (`feat(cron): expose all policy state`).
 
 The backend now treats the persisted `syncType: all` as the exact capability identity. No
@@ -32,9 +34,13 @@ credentials. The existing scheduled path remains available through the same boun
 - Propagates `dryRun`, `phaseHooks`, and `triggeredBy` through source fetches and child requests.
   Child/provider failures become the fixed public `Execução All sync falhou` result without raw
   provider messages.
-- Removed synthetic Discord counts. Discord is an explicit `{ status: 'skipped', reason:
-  'not-configured' }` no-op in both the aggregate plan and live result; its stats contribute only a
-  truthful skipped count.
+- The composite does not invoke the standalone Discord branch. Discord is an explicit `{ status:
+  'skipped', reason: 'not-configured' }` no-op in both the aggregate plan and live result; its
+  stats contribute only a truthful skipped count. The existing standalone `syncType: discord`
+  fallback contract is unchanged.
+- Each live child receives exactly its own preflight `projectedMutations` as an internal allocation.
+  UniversalSync re-plans immediately before writes and fails closed for invalid or over-budget
+  allocations before creating a report/history or invoking mutation hooks.
 - Added backend list-view state for the aggregate switch, including capability, cap, reason,
   preview availability and live ON/OFF state.
 - Front metadata now resolves aggregate jobs by exact `syncType: all`, while the existing generic
@@ -94,6 +100,15 @@ git diff --check                             PASS (line-ending warnings only)
 
 The Front build emitted existing Browserslist/Tailwind ambiguity and chunk-size warnings only.
 Backend tests emitted existing Mongoose duplicate-index/reserved-key warnings only.
+
+Review-fix TDD evidence:
+
+```text
+RED: all composite live-call assertions failed because no per-child allocation was forwarded;
+     UniversalSync config rejected the new allocation field at compile time.
+GREEN: 4 suites, 64 tests passed, including distinct Hotmart/CursEduca allocations and a live
+        over-allocation rejection with zero report/history/mutation-hook calls.
+```
 
 ## Scope and residual risks
 
