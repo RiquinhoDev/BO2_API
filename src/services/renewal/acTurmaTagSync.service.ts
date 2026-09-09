@@ -146,7 +146,10 @@ async function aplicarTag(contactId: string, tagId: string): Promise<void> {
 
 export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<TurmaTagSyncReport> {
   const dryRun = opcoes.dryRun !== false
-  const soEstes = opcoes.userIds?.length ? new Set(opcoes.userIds.map(String)) : null
+  // `undefined` e `[]` NAO sao a mesma coisa: ausente varre toda a gente,
+  // vazio nao trata ninguem. Foi a diferenca entre as duas que quase
+  // deixou o filtro passar em branco.
+  const soEstes = opcoes.userIds ? new Set(opcoes.userIds.map(String)) : null
   const filtro = opcoes.emails?.length
     ? { email: { $in: opcoes.emails.map((email) => email.toLowerCase().trim()) } }
     : {}

@@ -143,7 +143,9 @@ function temRecompraNoMesmoPeriodo(timeline: TimelineDoc | undefined, ciclo: any
 /** Processa os eventos que já estão no espelho; não consulta a Hotmart. */
 export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<RefundHandlerReport> {
   const dryRun = opcoes.dryRun !== false
-  const soEstas = opcoes.transacoes?.length ? new Set(opcoes.transacoes.map(String)) : null
+  // Ausente varre o espelho todo; vazio nao trata nenhum. Ver o comentario
+  // gemeo no acTurmaTagSync.
+  const soEstas = opcoes.transacoes ? new Set(opcoes.transacoes.map(String)) : null
   const filtro = opcoes.emails?.length
     ? { email: { $in: opcoes.emails.map((email) => email.toLowerCase().trim()) } }
     : {}

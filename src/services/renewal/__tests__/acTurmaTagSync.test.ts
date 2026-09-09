@@ -245,3 +245,44 @@ test('aluno INACTIVE com turma e timeline é excluído dos candidatos', async ()
     ;(AcWriteLog as any).create = originals.log
   }
 })
+
+
+// -- Lista vazia nao e lista ausente ---------------------------------
+// O ensaio contra dados reais apanhou isto e os testes nao: com
+// `userIds?.length` o array vazio caia no ramo do `null` e o servico
+// varria os 930 alunos em vez de nenhum.
+
+test('userIds vazio nao trata ninguem; ausente trata toda a gente', async () => {
+  const originals = {
+    timeline: (StudentRenewalTimeline as any).find,
+    mapa: (TurmaTagMap as any).find,
+    tags: (ACStudentTag as any).find,
+    users: (User as any).find,
+    log: (AcWriteLog as any).create
+  }
+  const query = (rows: any[]) => ({ select: () => ({ lean: () => ({ exec: async () => rows }) }) })
+  ;(StudentRenewalTimeline as any).find = () => query([{
+    userId: 'u1',
+    email: 'aluno@example.com',
+    ciclos: [{ turma: { nome: 'Turma Renovação | 2606' }, compras: [{ reembolsada: false }] }]
+  }])
+  ;(TurmaTagMap as any).find = () => query([])
+  ;(ACStudentTag as any).find = () => query([{ email: 'aluno@example.com', contactId: 'c1', tags: [] }])
+  ;(User as any).find = () => query([{ _id: 'u1', email: 'aluno@example.com', combined: { status: 'ACTIVE' } }])
+  ;(AcWriteLog as any).create = async () => ({})
+  try {
+    const vazio: any = await syncTurmaTags({ dryRun: true, userIds: [] })
+    assert.equal(vazio.candidatos, 0, 'lista vazia nao pode produzir candidatos')
+    assert.equal(vazio.semEvento, 1)
+
+    const ausente: any = await syncTurmaTags({ dryRun: true })
+    assert.equal(ausente.candidatos, 1, 'sem lista, varre - e o que a corrida manual quer')
+    assert.equal(ausente.semEvento, 0)
+  } finally {
+    ;(StudentRenewalTimeline as any).find = originals.timeline
+    ;(TurmaTagMap as any).find = originals.mapa
+    ;(ACStudentTag as any).find = originals.tags
+    ;(User as any).find = originals.users
+    ;(AcWriteLog as any).create = originals.log
+  }
+})
