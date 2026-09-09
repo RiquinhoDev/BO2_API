@@ -249,7 +249,7 @@ function parseObservability(
     metricsEnabled,
     logDirectory,
     fileLoggingEnabled: nodeEnv !== 'test',
-    consoleLoggingEnabled: nodeEnv !== 'test',
+    consoleLoggingEnabled: parseBooleanFlag(env.LOG_CONSOLE_ENABLED, 'LOG_CONSOLE_ENABLED', nodeEnv !== 'test'),
   }
 }
 

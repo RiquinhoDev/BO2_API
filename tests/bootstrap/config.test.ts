@@ -383,3 +383,9 @@ test.each([
 test.each(['TRUE', 'yes', '1', ''])('parseBooleanFlag rejects malformed value %s', (value) => {
   expect(() => parseBooleanFlag(value, 'TEST_FLAG')).toThrow('TEST_FLAG')
 })
+
+test('deployed test environments can explicitly enable console diagnostics', () => {
+  const config = loadConfig({ ...VALID_ENV, NODE_ENV: 'test', LOG_CONSOLE_ENABLED: 'true' })
+  expect(config.observability.consoleLoggingEnabled).toBe(true)
+  expect(config.observability.fileLoggingEnabled).toBe(false)
+})
