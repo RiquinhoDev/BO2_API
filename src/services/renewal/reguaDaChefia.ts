@@ -184,6 +184,8 @@ export interface CompraDoCiclo {
   data: Date
   reembolsada?: boolean
   recurrencyNumber?: number | null
+  /** O agrupamento reconheceu-a como prestação de um plano já aberto. */
+  prestacao?: boolean
 }
 
 /**
@@ -200,12 +202,20 @@ export interface CompraDoCiclo {
  * regra 6) e um ganha um ano — a `alvessonia`, que comprou três vezes no
  * mesmo dia e a quem o tecto de `anos = 2` dava dois.
  *
+ * As prestações são descartadas por **dois** sinais independentes, e basta
+ * um: a `recurrency_number` da Hotmart, e a marca que o agrupamento em ciclos
+ * põe quando reconhece a cobrança seguinte de um plano já aberto. O segundo
+ * existe porque o primeiro falta em muitas vendas — 1755 no espelho a
+ * 09/09/2026 — e a regra 1.6 manda contar o que falta como cobrança nº 1.
+ * Sem ele, um plano de cinco prestações sem o campo daria cinco anos.
+ *
  * @param compras todas as compras do aluno, de todos os ciclos, por
  *        qualquer ordem. Reembolsadas e prestações são descartadas aqui.
  */
 export function fimDoAcessoAcumulado(compras: CompraDoCiclo[]): Date | null {
   const datas = compras
     .filter((c) => c.reembolsada !== true)
+    .filter((c) => c.prestacao !== true)
     .filter((c) => (c.recurrencyNumber === null || c.recurrencyNumber === undefined ? 1 : Number(c.recurrencyNumber)) === 1)
     .map((c) => c.data)
     .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))

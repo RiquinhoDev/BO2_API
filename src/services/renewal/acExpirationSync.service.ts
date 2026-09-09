@@ -6,11 +6,13 @@
 // escrita nossa — por isso não há urgência de "só escrever se mudou"
 // por causa de retrigger, mas fazemo-lo na mesma para poupar chamadas.
 //
-// Regra da expiração, escolhida primeiro pela turma actual do aluno:
-//   base       → período/nome da turma (incluindo [2 anos]);
-//   renovação  → compra âncora + 12 meses × anos do ciclo.
+// Regra da expiração, validada pela chefia a 08/09/2026:
+//   sempre     → a conta acumulada de TODAS as compras válidas do aluno,
+//                12 meses cada, somando-se ao que resta quando ainda há
+//                acesso (cláusulas 2.1 a 2.4 das regras);
+//   turma base → o nome da turma ESTENDE quando dá mais (cláusula 2.6).
 // Sem turma datável, a oferta da compra âncora é o recurso para compras novas.
-// Nos dois ramos, o resultado é o último instante UTC do mês.
+// Em todos os ramos, o resultado é o último instante UTC do mês.
 //
 // Um estado interno por aluno identifica o último ciclo tratado. O campo
 // de compra da AC não é watermark: prestações podem mudá-lo sem criarem
@@ -33,7 +35,8 @@ import { AC_EXPIRATION_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from './renewalConstants'
 import { agruparCiclos } from './renewalCycles'
 import { parseOfferName, parseTurmaName, tipoDeTurma } from './turmaParser'
-import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
+import { fimDoAcessoAcumulado } from './reguaDaChefia'
+import type { CicloBase, CompraCiclo, VendaEntrada } from './renewalTimeline.types'
 
 // mesmos 2 estados usados em hotmartRefunds.service.ts — uma compra
 // nestes estados nunca deve gerar escrita de expiração.
@@ -116,22 +119,54 @@ function nomeDaTurmaActual(user: {
   return nome && parseTurmaName(nome).hasExpiry ? nome : null
 }
 
-/** Decide a fórmula pela turma actual; sem turma datável, usa a oferta. */
-function calcularExpiracao(
+/** O último instante UTC do mês da data dada. */
+function ultimoInstanteDoMes(d: Date | null): Date | null {
+  if (!d) return null
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 23, 59, 59, 999))
+}
+
+/** O mais tardio de dois fins de acesso. A turma estende, nunca encurta. */
+function oMaisTardio(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b
+  if (!b) return a
+  return a.getTime() >= b.getTime() ? a : b
+}
+
+/**
+ * O fim do acesso.
+ *
+ * A base é sempre a conta acumulada de TODAS as compras válidas do aluno
+ * (cláusulas 2.1 a 2.4): cada uma vale 12 meses, e uma compra feita com
+ * acesso ainda a correr soma-se ao que resta em vez de recomeçar. É por
+ * isso que recebe `todasAsCompras` e não só as do último ciclo — uma
+ * extensão comprada há dois anos ainda conta.
+ *
+ * Numa turma base, o nome da turma ESTENDE quando dá mais (cláusula 2.6):
+ * quem pagou em Junho e entrou numa coorte que abriu em Outubro fica com
+ * o ano inteiro da coorte. Nunca encurta.
+ *
+ * O multiplicador `anos` do ciclo saiu daqui de propósito e não pode
+ * voltar. Fazia exactamente o mesmo trabalho que a acumulação — transformar
+ * 397€ + 97€ no mesmo dia em 24 meses — um multiplicando e a outra somando.
+ * Aplicar os dois dava 36 meses a quem comprou dois anos: medido a
+ * 09/09/2026, 123 alunos.
+ */
+export function calcularExpiracao(
   ciclo: CicloBase,
+  todasAsCompras: CompraCiclo[],
   oferta: OfertaDaAncora | undefined,
   nomeTurmaActual: string | null
 ): Date | null {
+  const acumulado = ultimoInstanteDoMes(fimDoAcessoAcumulado(todasAsCompras))
   const ancora = ciclo.compras[0]
-  if (CODIGOS_RENOVACAO_ESPECIAIS.has(ancora.offerCode ?? '')) {
-    return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
-  }
+
+  // A Turma 1 e a Turma 2 têm preço próprio; contam sempre da compra,
+  // mesmo quando o nome da turma parece base.
+  if (CODIGOS_RENOVACAO_ESPECIAIS.has(ancora.offerCode ?? '')) return acumulado
 
   if (nomeTurmaActual) {
-    if (tipoDeTurma(nomeTurmaActual) === 'renovacao') {
-      return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
-    }
-    return parseTurmaName(nomeTurmaActual).accessEndOgi
+    if (tipoDeTurma(nomeTurmaActual) === 'renovacao') return acumulado
+    return oMaisTardio(acumulado, parseTurmaName(nomeTurmaActual).accessEndOgi ?? null)
   }
 
   const nome = typeof oferta?.offerName === 'string' ? oferta.offerName.trim() : ''
@@ -139,7 +174,8 @@ function calcularExpiracao(
     oferta?.isRenewal === true ||
     (nome !== '' && tipoDeTurma(nome) === 'renovacao')
 
-  if (renovacao) return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
+  if (renovacao) return acumulado
+  // Sem turma nem oferta datável não se escreve nada — é a cláusula 2.10.
   if (!nome) return null
 
   const nomeComPeriodo = oferta?.periodYYMM ? `${nome} | ${oferta.periodYYMM}` : nome
@@ -147,7 +183,7 @@ function calcularExpiracao(
   if (!ofertaParsed.valid) return null
 
   // parseTurmaName preserva o marcador histórico [2 anos] das ofertas base.
-  return parseTurmaName(nomeComPeriodo).accessEndOgi
+  return oMaisTardio(acumulado, parseTurmaName(nomeComPeriodo).accessEndOgi ?? null)
 }
 
 /** Uma escrita só é segura se nunca reduzir a expiração já guardada na AC. */
@@ -310,6 +346,14 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     hotmartDocs.map((h) => [
       String(h.userId),
       agruparCiclos(h.sales ?? []).filter((c) => c.compras.some((compra) => !compra.reembolsada)).at(-1) ?? null
+    ])
+  )
+  // A régua acumulada olha para o histórico inteiro, não só para o último
+  // ciclo: uma extensão comprada em 2024 ainda vale doze meses hoje.
+  const comprasByUserId = new Map(
+    hotmartDocs.map((h) => [
+      String(h.userId),
+      agruparCiclos(h.sales ?? []).flatMap((c) => c.compras)
     ])
   )
   const codigosOferta = [...new Set(
@@ -614,6 +658,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
 
       const expiration = calcularExpiracao(
         ciclo,
+        comprasByUserId.get(String(ac.userId)) ?? ciclo.compras,
         ofertaByCode.get(ancora.offerCode ?? ''),
         turmaActualByUserId.get(String(ac.userId)) ?? null
       )

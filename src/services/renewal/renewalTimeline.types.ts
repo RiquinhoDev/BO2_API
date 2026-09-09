@@ -57,6 +57,13 @@ export interface CompraCiclo {
   reembolsada?: boolean
   /** A "Quantidade de cobrança". >1 marca uma prestação, que não é compra nova. */
   recurrencyNumber?: number | null
+  /**
+   * true quando o agrupamento reconheceu esta cobrança como prestação de um
+   * plano já aberto. É o sinal de reserva para quando a Hotmart não manda o
+   * `recurrency_number` — sem ele, um plano de cinco prestações contaria
+   * como cinco compras e daria cinco anos de acesso.
+   */
+  prestacao?: boolean
 }
 
 export interface CicloBase {

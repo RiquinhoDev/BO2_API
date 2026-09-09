@@ -116,22 +116,29 @@ function mesmoDia(a: Date, b: Date): boolean {
  * Decide se `compra` pertence ao ciclo já aberto. `ancora` é a
  * primeira compra desse ciclo, `ultima` a mais recente lá dentro.
  */
+type MotivoDoCiclo = 'transacao' | 'mesmoDia' | 'extensao' | 'prestacao' | null
+
+/**
+ * Porque é que `compra` pertence ao ciclo já aberto — ou null se não pertence.
+ * O motivo importa: só 'prestacao' e 'transacao' marcam uma cobrança que não é
+ * compra nova. 'mesmoDia' e 'extensao' são compras a sério, feitas juntas.
+ */
 function pertenceAoMesmoCiclo(
   compra: CompraCiclo,
   ancora: CompraCiclo,
   ultima: CompraCiclo,
   vendaAncora: VendaEntrada,
   vendaCompra: VendaEntrada
-): boolean {
-  if (compra.transacao && compra.transacao === ultima.transacao) return true
-  if (mesmoDia(compra.data, ancora.data)) return true
+): MotivoDoCiclo {
+  if (compra.transacao && compra.transacao === ultima.transacao) return 'transacao'
+  if (mesmoDia(compra.data, ancora.data)) return 'mesmoDia'
 
   const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
 
   // A extensão é uma segunda venda autónoma. Nos dados reais pode ser
   // cobrada até sete dias depois da compra que prolonga; não abre esta
   // janela para produtos normais nem para uma terceira venda do ciclo.
-  if (compra.extensao && ultima === ancora && dias <= DIAS_MAX_ATE_EXTENSAO) return true
+  if (compra.extensao && ultima === ancora && dias <= DIAS_MAX_ATE_EXTENSAO) return 'extensao'
 
   const mesmaOferta = !!vendaAncora.offerCode && vendaAncora.offerCode === vendaCompra.offerCode
   const mesmoProduto = compra.produtoId === ancora.produtoId
@@ -149,9 +156,11 @@ function pertenceAoMesmoCiclo(
     String(vendaCompra.paymentMode) === MODO_PRESTACOES
   // desde a compra anterior, não desde a âncora — ver o cabeçalho
   const total = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
-  if (total >= DIAS_MAX_TOTAL_PRESTACOES) return false
-  if (planoDePrestacoes) return true
+  if (total >= DIAS_MAX_TOTAL_PRESTACOES) return null
+  if (planoDePrestacoes) return 'prestacao'
   return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
+    ? 'prestacao'
+    : null
 }
 
 /**
@@ -183,16 +192,20 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
     }
 
     const actual = grupos[grupos.length - 1]
-    if (
-      actual &&
-      pertenceAoMesmoCiclo(
+    const motivo = actual
+      ? pertenceAoMesmoCiclo(
         compra,
         actual.compras[0],
         actual.compras[actual.compras.length - 1],
         actual.vendas[0],
         venda
       )
-    ) {
+      : null
+    if (actual && motivo) {
+      // 'transacao' é a Hotmart a repetir a linha da mesma cobrança;
+      // 'prestacao' é a cobrança seguinte do mesmo plano. Nenhuma das duas
+      // é uma compra nova, e nenhuma das duas pode valer mais doze meses.
+      compra.prestacao = motivo === 'prestacao' || motivo === 'transacao'
       actual.compras.push(compra)
       actual.vendas.push(venda)
     } else {
