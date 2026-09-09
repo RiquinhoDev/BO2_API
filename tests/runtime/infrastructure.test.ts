@@ -48,3 +48,30 @@ test('read-only infrastructure disables Mongo DDL and refuses writable credentia
     cacheConnect.mockRestore()
   }
 })
+
+test.each([
+  ['mongodb+srv://reader:placeholder@cluster0.otcx5ho.mongodb.net/teste', 'teste', 'test', true],
+  ['mongodb+srv://reader:placeholder@cluster0.otcx5ho.mongodb.net/riquinho', 'riquinho', 'test', false],
+  ['mongodb+srv://reader:placeholder@clusterriquinho.djt0j.mongodb.net/teste', 'teste', 'test', false],
+  ['mongodb+srv://reader:placeholder@cluster0.otcx5ho.mongodb.net/teste', 'test', 'test', false],
+  ['mongodb+srv://reader:placeholder@cluster0.otcx5ho.mongodb.net/teste', 'teste', 'production', false],
+])('isolated admin exception is restricted to the exact test destination (%s, %s, %s)', async (mongoUri, databaseName, nodeEnv, accepted) => {
+  const config = { readOnlyMode: true, mongoUri, nodeEnv } as AppConfig
+  const connect = jest.spyOn(mongoose, 'connect').mockResolvedValue(mongoose)
+  const previousDb = Object.getOwnPropertyDescriptor(mongoose.connection, 'db')
+  const command = jest.fn().mockResolvedValue({ authInfo: { authenticatedUsers: [{}], authenticatedUserPrivileges: [{ actions: ['find', 'insert'] }] } })
+  Object.defineProperty(mongoose.connection, 'db', { configurable: true, value: { databaseName, admin: () => ({ command }) } })
+  try {
+    if (accepted) {
+      await expect(infrastructure.connectMongo(config)).resolves.toBeUndefined()
+      expect(command).not.toHaveBeenCalled()
+    } else {
+      await expect(infrastructure.connectMongo(config)).rejects.toThrow('READ_ONLY_MONGO_CREDENTIALS_REQUIRED')
+    }
+    expect(connect).toHaveBeenCalledWith(mongoUri, { autoCreate: false, autoIndex: false })
+  } finally {
+    if (previousDb) Object.defineProperty(mongoose.connection, 'db', previousDb)
+    else Reflect.deleteProperty(mongoose.connection, 'db')
+    connect.mockRestore()
+  }
+})
