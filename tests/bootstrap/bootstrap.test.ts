@@ -592,3 +592,22 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T | PromiseLike<
   })
   return { promise, resolve }
 }
+
+test('read-only bootstrap never loads jobs and restores transport after a failed listener', async () => {
+  const loadJobStarter = jest.fn()
+  const originalFetch = globalThis.fetch
+  await expect(bootstrap({
+    env: {
+      NODE_ENV: 'test', READ_ONLY_MODE: 'true', MONGO_URI: 'mongodb://database.internal/bo2',
+      JWT_SECRET: STRONG_JWT_SECRET, OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET, AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+    },
+    loadInfrastructure: async () => ({ connectMongo: jest.fn(), connectRedis: jest.fn(), disconnect: jest.fn() }),
+    loadModelRegistrar: async () => jest.fn(),
+    loadRouteRegistrar: async () => jest.fn(),
+    loadJobStarter,
+    loadListener: async () => async () => { throw new Error('test-listener-stop') },
+  })).rejects.toThrow('test-listener-stop')
+  expect(loadJobStarter).not.toHaveBeenCalled()
+  expect(globalThis.fetch).toBe(originalFetch)
+})

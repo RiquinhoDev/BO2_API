@@ -8,6 +8,7 @@ export interface RedisConfig {
 }
 
 export interface CoreConfig {
+  readonly readOnlyMode?: boolean
   readonly nodeEnv: NodeEnvironment
   readonly serverVersion?: string
   readonly mongoUri: string

@@ -339,6 +339,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const observability = parseObservability(env, nodeEnv)
   const renewal = parseRenewal(env, integrations)
   const core = {
+    readOnlyMode: parseBooleanFlag(env.READ_ONLY_MODE, 'READ_ONLY_MODE'),
     nodeEnv,
     ...(serverVersion !== undefined ? { serverVersion } : {}),
     mongoUri,

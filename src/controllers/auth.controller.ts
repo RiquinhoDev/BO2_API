@@ -4,7 +4,7 @@ import Admin from "../models/Admin"
 import { signAppToken } from '../security/jwt'
 import { successResponse } from '../contracts/responseContract'
 import { forwardApplicationError } from '../security/forwardApplicationError'
-
+import { isReadOnlyMode } from '../security/readOnlyMode'
 const JWT_EXPIRES_IN = "7d"
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
@@ -43,7 +43,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         admin.isLocked = false
         admin.failedAttempts = 0
         admin.lockUntil = undefined
-        await admin.save()
+        if (!isReadOnlyMode()) await admin.save()
       } else {
         return res.status(403).json({
           success: false,
@@ -66,7 +66,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         admin.lockUntil = new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
       }
 
-      await admin.save()
+      if (!isReadOnlyMode()) await admin.save()
 
       return res.status(401).json({
         success: false,
@@ -77,7 +77,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     // Reset failed attempts on successful login
     admin.failedAttempts = 0
     admin.lastLogin = new Date()
-    await admin.save()
+    if (!isReadOnlyMode()) await admin.save()
 
     // Generate JWT token
     const token = signAppToken(

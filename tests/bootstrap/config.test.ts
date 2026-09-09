@@ -315,6 +315,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
   const config = loadConfig(VALID_ENV)
 
   expect(config.core).toEqual({
+    readOnlyMode: false,
     nodeEnv: 'test',
     mongoUri: VALID_ENV.MONGO_URI,
     jwtSecret: STRONG_JWT_SECRET,

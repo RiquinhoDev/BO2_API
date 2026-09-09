@@ -6,6 +6,7 @@ import { loadConfig, type AppConfig } from './config/appConfig'
 import { initializeRuntimeConfig } from './config/runtimeConfig'
 import { configureJwt } from './security/jwt'
 import { configureDebugRoutes } from './security/debugRoutes'
+import { installReadOnlyTransport } from './security/readOnlyTransport'
 import logger, { configureLogger, type AppLogger } from './utils/logger'
 
 export interface Infrastructure {
@@ -51,16 +52,18 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
   configureJwt(config)
   configureDebugRoutes(config)
   const log = options.log ?? logger
+  const restoreTransport = config.readOnlyMode ? installReadOnlyTransport() : undefined
   if (config.nodeEnv === 'production' && !config.authEnforce) {
     log.error('AUTH_ENFORCE=false em producao: default-deny de autenticacao desligado')
   }
-  const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
+  let infrastructure: Infrastructure | undefined
   let storeFactory: RateLimitStoreFactory | undefined
   let disposeJobs: JobDisposer | undefined
   try {
+    infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
     await infrastructure.connectMongo(config)
     storeFactory = await infrastructure.connectRedis(config)
-    if (config.nodeEnv === 'production' && !storeFactory) {
+    if (config.nodeEnv === 'production' && !config.readOnlyMode && !storeFactory) {
       throw new Error('CONFIG_INVALIDA: Redis rate-limit store factory obrigatoria em producao')
     }
 
@@ -69,6 +72,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
 
     const registerRoutes = await (options.loadRouteRegistrar ?? defaultLoadRouteRegistrar)()
     const app = createApp({
+      readOnlyMode: config.readOnlyMode,
       createHttpPerimeter: () => createHttpPerimeter({ storeFactory }),
       registerRoutes,
       allowedOrigins: config.allowedOrigins,
@@ -76,13 +80,16 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
       authEnforce: config.authEnforce,
     })
 
-    const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
-    const startedJobs = await startJobs(config)
-    if (startedJobs) disposeJobs = startedJobs
+    if (!config.readOnlyMode) {
+      const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
+      const startedJobs = await startJobs(config)
+      if (startedJobs) disposeJobs = startedJobs
+    }
 
     const listen = await (options.loadListener ?? defaultLoadListener)()
     return await listen(app, config.port)
   } catch (error) {
+    restoreTransport?.()
     if (disposeJobs) {
       try {
         await disposeJobs({ stopCache: false })
@@ -91,7 +98,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
       }
     }
     try {
-      await infrastructure.disconnect()
+      await infrastructure?.disconnect()
     } catch (cleanupError) {
       log.error('Erro ao limpar infraestrutura apos falha de arranque', cleanupError)
     }

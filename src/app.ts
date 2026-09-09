@@ -23,12 +23,14 @@ import {
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
 import { routeAuthorization } from './security/routeAuthorization'
 import { bulkOperationGuard } from './security/bulkOperationPolicy'
+import { readOnlyRequestGuard } from './security/readOnlyMode'
 import {
   createRouteUsageInstrumentation,
   type RouteUsageInstrumentation,
 } from './observability/routeUsageInstrumentation'
 
 export interface CreateAppDependencies {
+  readOnlyMode?: boolean
   registerRoutes: (app: Application) => void
   allowedOrigins?: readonly string[]
   createHttpPerimeter?: () => HttpPerimeter
@@ -72,6 +74,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
     }),
   )
   app.use(compression())
+  if (_deps.readOnlyMode) app.use(readOnlyRequestGuard)
   app.use(LOGIN_PATHS, httpPerimeter.login)
   app.use(WEBHOOK_PATHS, httpPerimeter.webhook)
   app.use(HEAVY_OPERATION_PATHS, httpPerimeter.heavy)
