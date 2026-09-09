@@ -389,9 +389,18 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   // para mapear. A turma actual é sempre avaliada.
   const turmasParaAvaliar = [...turmas, ...(e.turmaAtual ? [e.turmaAtual] : [])]
   for (const t of turmasParaAvaliar) {
-    const resolucao = resolverTagDaTurma(t.className, e.excepcoesTurmaTag)
     const chave = t.classId ?? normalizarNomeTurma(t.className)
     const ehAtual = chaveAtualParaMapa !== null && chave === chaveAtualParaMapa
+
+    // O historico carimba o nome da turma no momento da mudanca e nunca mais
+    // la volta. Quando o aluno e movido para uma turma acabada de criar, o
+    // nome ainda e o remendo que o sync poe, e so depois alguem lhe da nome
+    // no backoffice. Se este registo for do mesmo classId da turma actual, o
+    // nome bom esta na matricula — e a matricula ja e avaliada aqui a parte.
+    // Julgar pelo nome velho dava 119 falsos "por mapear" a 09/09/2026.
+    if (ehAtual && t !== e.turmaAtual) continue
+
+    const resolucao = resolverTagDaTurma(t.className, e.excepcoesTurmaTag)
     const temPeriodo = parseTurmaName(t.className).periodYYMM !== null
     if (resolucao.origem === null && (ehAtual || temPeriodo)) {
       turmasPorMapear.add(t.className)

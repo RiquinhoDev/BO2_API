@@ -1152,3 +1152,47 @@ test('para tras a janela continua apertada', () => {
   assert.equal(t.ciclos[0].coortes[0].tag, null)
   assert.deepEqual(t.tagsOrfas.map((o) => o.id), ['9'])
 })
+
+
+// -- O nome velho no historico ---------------------------------------
+// A Hotmart so devolve ids. O sync cria a turma com um remendo por nome,
+// os alunos sao movidos para la, e so depois alguem lhe da nome no
+// backoffice. O registo de historico ficou com o remendo e ninguem volta
+// la — mas a matricula do aluno tem o nome bom.
+
+test('a turma actual e julgada pela matricula, nao pelo nome velho do historico', () => {
+  const r = gerarTimeline({
+    vendas: [],
+    tags: [],
+    turmaAtual: { classId: 'v94Jy0bbOg', className: 'Turma 12 [renov] + Divid + REITs | 2511', entrouEm: new Date('2025-11-30T00:00:00Z') },
+    movimentacoes: [
+      { classId: 'v94Jy0bbOg', className: 'Nome não disponível', entrouEm: new Date('2026-01-11T00:00:00Z') }
+    ],
+    acExpiracao: null,
+    acDataCompra: null,
+    excepcoesTurmaTag: new Map(),
+    fontes: { vendas: null, tags: null, ac: null }
+  } as any)
+
+  assert.deepEqual(r.turmasPorMapear, [], 'o remendo do historico nao e uma turma por mapear')
+})
+
+test('um nome de historico com periodo que ninguem resolve continua a ser reportado', () => {
+  // A correccao acima nao pode calar o caso verdadeiro: um nome com periodo,
+  // de outra turma que nao a actual, que nem a convencao nem as excepcoes
+  // sabem mapear.
+  const r = gerarTimeline({
+    vendas: [],
+    tags: [],
+    turmaAtual: { classId: 'actual', className: 'Turma 18 | 2605', entrouEm: null },
+    movimentacoes: [
+      { classId: 'outra', className: 'Turmas 1 a 9 [renov] + REITs | 2507', entrouEm: null }
+    ],
+    acExpiracao: null,
+    acDataCompra: null,
+    excepcoesTurmaTag: new Map(),
+    fontes: { vendas: null, tags: null, ac: null }
+  } as any)
+
+  assert.deepEqual(r.turmasPorMapear, ['Turmas 1 a 9 [renov] + REITs | 2507'])
+})
