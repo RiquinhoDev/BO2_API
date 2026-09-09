@@ -8,6 +8,7 @@ import {
 } from '../cron/compositeExecution.service'
 import { HttpError } from '../../security/errorHandling'
 import type { CompositeExecutionPhaseHooks } from '../cron/compositeExecution.service'
+import CompositeExecutionReceipt from '../../models/CompositeExecutionReceipt'
 
 const phaseContext = new AsyncLocalStorage<CompositeExecutionPhaseHooks>()
 
@@ -98,6 +99,24 @@ export async function runMainParityExecution<T>(
   options: MainParityExecutionOptions<T>,
 ): Promise<T> {
   if (options.dryRun === true) return options.run()
+  if (options.job === 'product-sales-performance-sync') {
+    // Sales sync reads providers and replaces monthly totals with upserts.
+    // An abandoned attempt can be retried; retain its unknown outcome in the
+    // history while releasing only inactive receipts from the identity lock.
+    const now = new Date()
+    await CompositeExecutionReceipt.updateMany({
+      operation: 'sync-pipeline',
+      identity: 'renewal-parity:product-sales-performance-sync',
+      $or: [
+        { status: 'indeterminate' },
+        { status: 'running', leaseExpiresAt: { $lte: now } },
+        { status: 'running', leaseExpiresAt: { $exists: false } },
+      ],
+    }, {
+      $set: { status: 'failed', providerStatus: 'unknown', finishedAt: now },
+      $unset: { leaseExpiresAt: 1 },
+    }).exec()
+  }
   const actor = actorId(options.req)
   return runCompositeExecutionWithReceipt({
     operation: 'sync-pipeline',

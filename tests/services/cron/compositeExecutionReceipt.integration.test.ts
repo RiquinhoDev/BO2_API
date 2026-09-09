@@ -20,6 +20,7 @@ import { executeSyncAndPreparationSteps } from '../../../src/services/cron/daily
 import { DAILY_PIPELINE_MAX_ITEMS, getProductsConfig } from '../../../src/services/cron/dailyPipelineSupport'
 import type { DailyPipelineResult } from '../../../src/types/cron.types'
 import { runCleanupManually } from '../../../src/jobs/cronExecutionCleanup.job'
+import { runMainParityExecution } from '../../../src/services/renewal/mainParityExecution'
 
 jest.setTimeout(30_000)
 
@@ -59,6 +60,36 @@ beforeEach(async () => {
   await CompositeExecutionReceipt.deleteMany({})
   mockFetchHotmartDataForSync.mockReset()
 })
+
+test.each(['indeterminate', 'expired', 'missing-lease', 'running'])(
+  'product sales retries abandoned %s receipts but preserves active exclusion', async (state) => {
+    const at = new Date()
+    await CompositeExecutionReceipt.create({
+      operation: 'sync-pipeline', identity: 'renewal-parity:product-sales-performance-sync',
+      actorId: 'actor-a', fingerprint: 'old', requestId: 'old-sales', ownerId: 'old-owner',
+      status: state === 'indeterminate' ? 'indeterminate' : 'running',
+      providerStatus: 'unknown', startedAt: new Date(at.getTime() - 300_000),
+      ...(state === 'missing-lease' ? {} : {
+        leaseExpiresAt: new Date(at.getTime() + (state === 'running' ? 300_000 : -1)),
+      }),
+    })
+    const execute = (id: string) => runMainParityExecution({
+      job: 'product-sales-performance-sync', payload: {}, effect: 'provider-and-local',
+      req: { get: () => id, user: { email: 'actor-a' } } as never,
+      res: { locals: {} } as never, run: async () => ({ salesFound: 42, errors: [] }),
+    })
+    if (state === 'running') {
+      await expect(execute('new-sales')).rejects.toMatchObject({ code: 'COMPOSITE_EXECUTION_IN_PROGRESS' })
+      expect(await CompositeExecutionReceipt.countDocuments({ status: 'running' })).toBe(1)
+    } else {
+      await expect(execute('new-sales')).resolves.toEqual({ salesFound: 42, errors: [] })
+      expect(await CompositeExecutionReceipt.findOne({ requestId: 'old-sales' }).lean())
+        .toMatchObject({ status: 'failed', providerStatus: 'unknown' })
+      expect(await CompositeExecutionReceipt.findOne({ requestId: 'new-sales' }).lean())
+        .toMatchObject({ status: 'completed' })
+    }
+  },
+)
 
 function pipelineResult(): DailyPipelineResult {
   return {
