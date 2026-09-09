@@ -64,6 +64,15 @@ export function decidirTurmaTag(input: TurmaTagInput): TurmaTagDecision {
 }
 
 export interface TurmaTagSyncOptions {
+  /**
+   * Só estes alunos são considerados. É como o nocturno lhe passa quem
+   * comprou esta noite: faltar uma tag é um estado, não um acontecimento,
+   * e o sistema gere acontecimentos.
+   *
+   * Ausente = percorre toda a gente. É o que a corrida manual quer, e o
+   * que o pipeline nunca deve fazer — há um teste que o garante.
+   */
+  userIds?: string[]
   dryRun?: boolean
   emails?: string[]
   manual?: boolean
@@ -83,6 +92,8 @@ export interface TurmaTagSyncReport {
   inactivos: number
   erros: Array<{ email: string; error: string }>
   recusas: Array<{ email: string; turma: string; motivo: TurmaTagMotivo }>
+  /** Alunos postos de lado por não estarem na lista de quem comprou. */
+  semEvento: number
 }
 
 type TimelineDoc = {
@@ -135,6 +146,7 @@ async function aplicarTag(contactId: string, tagId: string): Promise<void> {
 
 export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<TurmaTagSyncReport> {
   const dryRun = opcoes.dryRun !== false
+  const soEstes = opcoes.userIds?.length ? new Set(opcoes.userIds.map(String)) : null
   const filtro = opcoes.emails?.length
     ? { email: { $in: opcoes.emails.map((email) => email.toLowerCase().trim()) } }
     : {}
@@ -151,7 +163,8 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
     tagInexistente: 0,
     inactivos: 0,
     erros: [],
-    recusas: []
+    recusas: [],
+    semEvento: 0
   }
 
   const [timelines, mapas, tags] = await Promise.all([
@@ -173,6 +186,10 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
     const ciclo = [...(timeline.ciclos ?? [])].reverse().find((item) => item.turma)
     if (!ciclo?.turma?.nome) continue
     const email = timeline.email.toLowerCase().trim()
+    if (soEstes && !soEstes.has(String(timeline.userId))) {
+      report.semEvento += 1
+      continue
+    }
     report.candidatos += 1
     const tagDoc = tagsPorEmail.get(email)
     const temCompraValida = (ciclo.compras ?? []).some((compra: any) => compra.reembolsada !== true)

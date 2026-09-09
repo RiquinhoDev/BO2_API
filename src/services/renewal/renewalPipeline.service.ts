@@ -25,6 +25,7 @@
 // ════════════════════════════════════════════════════════════
 
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
+import RenewalEvent from '../../models/renewal/RenewalEvent'
 import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmartSalesHistory.service'
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
 import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
@@ -46,6 +47,43 @@ export interface RenewalPipelineStepResult<T> {
   error?: string
 }
 
+/**
+ * O que o espelho detectou e ainda ninguém tratou.
+ *
+ * É lido UMA vez, aqui, e distribuído pelas peças. Se cada uma fosse à
+ * fila por sua conta, podiam discordar sobre o que é novo — e é a
+ * discordância entre regras que temos vindo a apagar do sistema.
+ */
+interface FilaDeEventos {
+  compras: Array<{ _id: unknown; userId: unknown }>
+  reembolsos: Array<{ _id: unknown; transacao: string | null }>
+}
+
+const FILA_VAZIA: FilaDeEventos = { compras: [], reembolsos: [] }
+
+async function lerFila(): Promise<FilaDeEventos> {
+  const [compras, reembolsos] = await Promise.all([
+    (RenewalEvent as any).find({ tipo: 'compra', 'tratado.tagTurma': null })
+      .select('_id userId').lean().exec(),
+    (RenewalEvent as any).find({ tipo: 'reembolso', 'tratado.reembolso': null })
+      .select('_id transacao').lean().exec()
+  ])
+  return { compras: compras ?? [], reembolsos: reembolsos ?? [] }
+}
+
+/**
+ * Marca a parte tratada. Só depois de o passo ter corrido bem: um passo
+ * que rebentou a meio deixa a fila como estava e volta a ser tentado na
+ * noite seguinte.
+ */
+async function marcarTratado(ids: unknown[], campo: 'tagTurma' | 'reembolso'): Promise<void> {
+  if (!ids.length) return
+  await (RenewalEvent as any).updateMany(
+    { _id: { $in: ids } },
+    { $set: { [`tratado.${campo}`]: new Date() } }
+  )
+}
+
 export interface RenewalPipelineReport {
   hotmartSales: RenewalPipelineStepResult<SalesHistorySyncReport>
   acRenewalData: RenewalPipelineStepResult<AcRenewalDataSyncReport>
@@ -54,6 +92,8 @@ export interface RenewalPipelineReport {
   acTurmaTags: RenewalPipelineStepResult<TurmaTagSyncReport>
   acRefunds: RenewalPipelineStepResult<RefundHandlerReport>
   timelines: RenewalPipelineStepResult<TimelineSyncReport>
+  /** Quantos acontecimentos o espelho trouxe para esta corrida. */
+  fila: { compras: number; reembolsos: number }
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
   success: boolean
 }
@@ -68,6 +108,8 @@ export interface RenewalPipelineDependencies {
   handleRefunds: typeof handleRefunds
   runDiscordRolesSyncJob: typeof runDiscordRolesSyncJob
   gerarTimelinesEmLote: typeof gerarTimelinesEmLote
+  lerFila: typeof lerFila
+  marcarTratado: typeof marcarTratado
 }
 
 type CronJobConfigReadModel = { findOne: (...args: any[]) => any }
@@ -126,6 +168,9 @@ export async function runRenewalPipelineComDependencias(
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => dependencias.syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => dependencias.syncActiveStudentAcRenewalData())
   const acStudentTags = await runStep('Sync AC (tags)', () => dependencias.syncAcStudentTags())
+  // Depois dos espelhos, porque é o sync das vendas que enche a fila.
+  const fila = await dependencias.lerFila().catch(() => FILA_VAZIA)
+
   const acExpiration = await runGatedStep(
     'AC Expiração (escrita)',
     AC_EXPIRATION_SYNC_JOB_NAME,
@@ -135,15 +180,28 @@ export async function runRenewalPipelineComDependencias(
   const acTurmaTags = await runGatedStep(
     'AC Tags de turma',
     AC_TURMA_TAG_SYNC_JOB_NAME,
-    () => dependencias.syncTurmaTags({ dryRun: false }),
+    () => dependencias.syncTurmaTags({
+      dryRun: false,
+      userIds: fila.compras.map((evento) => String(evento.userId))
+    }),
     dependencias.isJobSwitchEnabled
   )
   const acRefunds = await runGatedStep(
     'Reembolsos',
     AC_REFUND_HANDLER_JOB_NAME,
-    () => dependencias.handleRefunds({ dryRun: false }),
+    () => dependencias.handleRefunds({
+      dryRun: false,
+      transacoes: fila.reembolsos.map((evento) => String(evento.transacao ?? ''))
+    }),
     dependencias.isJobSwitchEnabled
   )
+  if (acTurmaTags.success && !acTurmaTags.skipped && fila.compras.length) {
+    await dependencias.marcarTratado(fila.compras.map((e) => e._id), 'tagTurma').catch(() => undefined)
+  }
+  if (acRefunds.success && !acRefunds.skipped && fila.reembolsos.length) {
+    await dependencias.marcarTratado(fila.reembolsos.map((e) => e._id), 'reembolso').catch(() => undefined)
+  }
+
   const discordRoles = await runStep('Discord Roles', () => dependencias.runDiscordRolesSyncJob())
   // Só faz sentido depois de os três espelhos estarem frescos.
   const timelines = await runStep('Timelines de renovação', () => dependencias.gerarTimelinesEmLote())
@@ -157,6 +215,7 @@ export async function runRenewalPipelineComDependencias(
     acRefunds,
     timelines,
     discordRoles,
+    fila: { compras: fila.compras.length, reembolsos: fila.reembolsos.length },
     success:
       hotmartSales.success &&
       acRenewalData.success &&
@@ -180,6 +239,8 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
     handleRefunds,
     runDiscordRolesSyncJob,
     gerarTimelinesEmLote,
+    lerFila,
+    marcarTratado
   })
 }
 

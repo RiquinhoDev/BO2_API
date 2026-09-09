@@ -42,6 +42,9 @@ const REFUND_TRANSACTION_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
 // moeda (a esmagadora maioria das vendas é em EUR).
 const OGI_NEW_STUDENT_PRICE_THRESHOLD = OGI_NEW_STUDENT_PRICE_THRESHOLD_EUR
 
+import RenewalEvent, { chaveDoEvento } from '../../models/renewal/RenewalEvent'
+import { detectarEventos } from './detectarEventos'
+
 export interface SalesHistorySyncReport {
   salesChecked: number
   pagesFetched: number
@@ -52,6 +55,10 @@ export interface SalesHistorySyncReport {
   updated: number
   withSales: number
   withoutSales: number
+  /** Compras que não estavam no espelho antes desta corrida. */
+  eventosCompra: number
+  /** Vendas que passaram a REFUNDED ou CHARGEBACK desde a última leitura. */
+  eventosReembolso: number
   errors: Array<{ email: string; error: string }>
 }
 
@@ -499,6 +506,52 @@ export async function resolveOgiProduct(): Promise<{ hotmartProductId: string; o
  * `emails` (opcional) restringe a sync a uma lista (ex: para testar
  * ou re-sincronizar alguém específico sem correr tudo).
  */
+/**
+ * Grava na fila o que mudou para este aluno.
+ *
+ * Falhar aqui não pode deitar abaixo o sync do espelho: o espelho é a base
+ * de tudo o resto, e vale mais tê-lo fresco sem fila do que não o ter. Um
+ * evento perdido reaparece na noite seguinte se a venda ainda for nova, e
+ * se não for, é porque já ninguém precisava dele.
+ */
+async function registarEventos(
+  userId: unknown,
+  email: string,
+  anteriores: any[],
+  actuais: any[],
+  report: SalesHistorySyncReport
+): Promise<void> {
+  let eventos: ReturnType<typeof detectarEventos>
+  try {
+    eventos = detectarEventos(anteriores, actuais)
+  } catch {
+    return
+  }
+
+  for (const evento of eventos) {
+    try {
+      await (RenewalEvent as any).create({
+        userId,
+        email,
+        tipo: evento.tipo,
+        transacao: evento.transacao,
+        data: evento.data,
+        produtoId: evento.produtoId,
+        detectadoEm: new Date(),
+        tratado: { expiracao: null, tagTurma: null, reembolso: null },
+        chave: chaveDoEvento(evento.tipo, String(userId), evento.transacao, evento.data)
+      })
+      if (evento.tipo === 'compra') report.eventosCompra += 1
+      else report.eventosReembolso += 1
+    } catch (error: any) {
+      // 11000 é o mesmo evento outra vez — a chave única fez o seu trabalho.
+      if (error?.code !== 11000) {
+        report.errors.push({ email, error: `fila de eventos: ${error?.message ?? 'erro'}` })
+      }
+    }
+  }
+}
+
 export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<SalesHistorySyncReport> {
   const accessToken = await getHotmartAccessToken()
   const { hotmartProductId, objectId: ogiObjectId } = await resolveOgiProduct()
@@ -539,6 +592,8 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
     totalActiveStudents: users.length,
     processed: 0,
     updated: 0,
+    eventosCompra: 0,
+    eventosReembolso: 0,
     withSales: 0,
     withoutSales: 0,
     errors: []
@@ -551,6 +606,14 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
       pedidos += requests
       vendasVistas += sales.length
       const latest = sales[0] || null
+
+      // O espelho é substituído por inteiro. Se não lermos o que lá estava
+      // agora, perdemos para sempre a única forma de saber o que é novo.
+      const anterior = await (HotmartSaleHistory as any)
+        .findOne({ userId: user._id, hotmartProductId })
+        .select('sales')
+        .lean()
+        .exec() as { sales?: any[] } | null
 
       await HotmartSaleHistory.updateOne(
         { userId: user._id, hotmartProductId },
@@ -575,6 +638,8 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
       report.pagesFetched = pedidos
       if (sales.length > 0) report.withSales += 1
       else report.withoutSales += 1
+
+      await registarEventos(user._id, user.email, anterior?.sales ?? [], sales, report)
     } catch (error: any) {
       const message = error?.message || 'Erro desconhecido ao gravar histórico'
       report.errors.push({ email: user.email, error: message })

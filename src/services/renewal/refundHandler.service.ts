@@ -46,6 +46,16 @@ export function deveTratarReembolso(candidate: RefundCandidate):
 export interface RefundHandlerOptions {
   dryRun?: boolean
   emails?: string[]
+  /**
+   * Só estas transacções são tratadas. É como o nocturno lhe passa os
+   * reembolsos que o espelho acabou de detectar; os antigos ficam como
+   * estão, por decisão de 09/09/2026.
+   *
+   * Ausente = trata todos os reembolsos do espelho, de qualquer data. É o
+   * que a corrida manual quer, e o que o pipeline nunca deve fazer — há um
+   * teste que o garante.
+   */
+  transacoes?: string[]
 }
 
 export interface RefundHandlerReport {
@@ -60,6 +70,8 @@ export interface RefundHandlerReport {
   semUserProduct: number
   /** Candidatas recusadas pelo portão: não são tags de turma. */
   foraDaAllowlist: number
+  /** Reembolsos postos de lado por serem anteriores ao detector. */
+  semEvento: number
   erros: Array<{ email: string; error: string }>
 }
 
@@ -131,6 +143,7 @@ function temRecompraNoMesmoPeriodo(timeline: TimelineDoc | undefined, ciclo: any
 /** Processa os eventos que já estão no espelho; não consulta a Hotmart. */
 export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<RefundHandlerReport> {
   const dryRun = opcoes.dryRun !== false
+  const soEstas = opcoes.transacoes?.length ? new Set(opcoes.transacoes.map(String)) : null
   const filtro = opcoes.emails?.length
     ? { email: { $in: opcoes.emails.map((email) => email.toLowerCase().trim()) } }
     : {}
@@ -145,6 +158,7 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
     semTag: 0,
     semUserProduct: 0,
     foraDaAllowlist: 0,
+    semEvento: 0,
     erros: []
   }
 
@@ -162,6 +176,10 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
     for (const refund of vendas.filter((venda) => REFUND_STATUSES.has(String(venda.transactionStatus ?? '').toUpperCase()))) {
       const refundDate = dataDaVenda(refund)
       if (!refundDate) continue
+      if (soEstas && !soEstas.has(String(refund.transaction ?? ''))) {
+        report.semEvento += 1
+        continue
+      }
       report.reembolsos += 1
       const timeline = timelinePorUser.get(String(historia.userId))
       const ciclo = (timeline?.ciclos ?? []).find((item: any) =>
