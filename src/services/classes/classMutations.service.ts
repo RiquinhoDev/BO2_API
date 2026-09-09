@@ -33,8 +33,23 @@ export interface ClassSummary {
   [key: string]: unknown
 }
 
+export interface PropagacaoDeNome {
+  matriculas: number
+  historico: number
+}
+
 export interface ClassMutationsWriter {
   upsert(input: ClassInput): Promise<UpsertResult>
+  /**
+   * Reescreve o nome da turma onde ele ficou copiado: nas matrículas dos
+   * alunos e nos registos de mudança de turma.
+   *
+   * A Hotmart só devolve ids; o nome é escrito à mão no backoffice para
+   * bater com o que lá se vê. Mas as matrículas e o histórico guardam uma
+   * CÓPIA do nome no instante em que foram criados, e ninguém volta lá —
+   * uma turma renomeada deixava para trás registos com o nome antigo.
+   */
+  propagarNome(classId: string, nome: string): Promise<PropagacaoDeNome>
   classSummary(classId: string): Promise<ClassSummary | null>
   remove(classId: string): Promise<void>
 }
@@ -50,9 +65,14 @@ export class ClassMutationsService {
     private readonly clock: Clock,
   ) {}
 
-  async upsert(input: ClassInput): Promise<UpsertResult & { timestamp: string }> {
+  async upsert(input: ClassInput): Promise<UpsertResult & { timestamp: string; propagado: PropagacaoDeNome }> {
     const result = await this.writer.upsert(input)
-    return { ...result, timestamp: this.clock.now().toISOString() }
+    // A turma passa a chamar-se isto em todo o lado, não só na tabela das
+    // turmas. Falhar aqui não pode desfazer a edição que já foi gravada.
+    const propagado = await this.writer
+      .propagarNome(input.classId.trim(), input.name.trim())
+      .catch(() => ({ matriculas: 0, historico: 0 }))
+    return { ...result, timestamp: this.clock.now().toISOString(), propagado }
   }
 
   async remove(classId: string): Promise<RemoveResult> {

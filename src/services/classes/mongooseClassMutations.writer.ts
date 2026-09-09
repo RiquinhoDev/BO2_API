@@ -3,10 +3,12 @@
 // verbatim from the retired ClassesService (addOrEditClass/getClassById/deleteClass).
 import { Class, validateClassId, normalizeClassName } from '../../models/Class'
 import User from '../../models/user'
+import StudentClassHistory from '../../models/StudentClassHistory'
 import type {
   ClassInput,
   ClassMutationsWriter,
   ClassSummary,
+  PropagacaoDeNome,
   UpsertResult,
 } from './classMutations.service'
 
@@ -53,6 +55,26 @@ export class MongooseClassMutationsWriter implements ClassMutationsWriter {
     }
 
     return { class: existingClass, isNew }
+  }
+
+  async propagarNome(classId: string, nome: string): Promise<PropagacaoDeNome> {
+    const normalizado = normalizeClassName(nome)
+    if (!classId || normalizado.length < 3) return { matriculas: 0, historico: 0 }
+
+    const matriculas = await User.updateMany(
+      { 'hotmart.enrolledClasses': { $elemMatch: { classId, className: { $ne: normalizado } } } },
+      { $set: { 'hotmart.enrolledClasses.$[el].className': normalizado } },
+      { arrayFilters: [{ 'el.classId': classId }] }
+    )
+    const historico = await (StudentClassHistory as any).updateMany(
+      { classId, className: { $ne: normalizado } },
+      { $set: { className: normalizado } }
+    )
+
+    return {
+      matriculas: matriculas.modifiedCount ?? 0,
+      historico: historico.modifiedCount ?? 0,
+    }
   }
 
   async classSummary(classId: string): Promise<ClassSummary | null> {
