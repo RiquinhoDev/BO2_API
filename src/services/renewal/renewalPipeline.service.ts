@@ -29,7 +29,6 @@ import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmart
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
 import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
 import { syncAcExpirationDates, AcExpirationSyncReport } from './acExpirationSync.service'
-import { reconcilePurchaseDates, ReconcileReport } from './acPurchaseDateReconcile.service'
 import { syncTurmaTags, TurmaTagSyncReport } from './acTurmaTagSync.service'
 import { handleRefunds, RefundHandlerReport } from './refundHandler.service'
 import { gerarTimelinesEmLote, TimelineSyncReport } from './renewalTimeline.service'
@@ -56,7 +55,6 @@ export interface RenewalPipelineReport {
   acRefunds: RenewalPipelineStepResult<RefundHandlerReport>
   timelines: RenewalPipelineStepResult<TimelineSyncReport>
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
-  acPurchaseDate: RenewalPipelineStepResult<ReconcileReport>
   success: boolean
 }
 
@@ -70,7 +68,6 @@ export interface RenewalPipelineDependencies {
   handleRefunds: typeof handleRefunds
   runDiscordRolesSyncJob: typeof runDiscordRolesSyncJob
   gerarTimelinesEmLote: typeof gerarTimelinesEmLote
-  reconcilePurchaseDates: typeof reconcilePurchaseDates
 }
 
 type CronJobConfigReadModel = { findOne: (...args: any[]) => any }
@@ -150,13 +147,6 @@ export async function runRenewalPipelineComDependencias(
   const discordRoles = await runStep('Discord Roles', () => dependencias.runDiscordRolesSyncJob())
   // Só faz sentido depois de os três espelhos estarem frescos.
   const timelines = await runStep('Timelines de renovação', () => dependencias.gerarTimelinesEmLote())
-  // Compensação final: corrige o 334 depois de todas as leituras/timelines.
-  const acPurchaseDate = await runGatedStep(
-    'AC Data de compra (reconciliação)',
-    AC_EXPIRATION_SYNC_JOB_NAME,
-    () => dependencias.reconcilePurchaseDates({ dryRun: false }),
-    dependencias.isJobSwitchEnabled
-  )
 
   return {
     hotmartSales,
@@ -167,7 +157,6 @@ export async function runRenewalPipelineComDependencias(
     acRefunds,
     timelines,
     discordRoles,
-    acPurchaseDate,
     success:
       hotmartSales.success &&
       acRenewalData.success &&
@@ -176,8 +165,7 @@ export async function runRenewalPipelineComDependencias(
       acTurmaTags.success &&
       acRefunds.success &&
       timelines.success &&
-      discordRoles.success &&
-      acPurchaseDate.success
+      discordRoles.success
   }
 }
 
@@ -192,7 +180,6 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
     handleRefunds,
     runDiscordRolesSyncJob,
     gerarTimelinesEmLote,
-    reconcilePurchaseDates
   })
 }
 
