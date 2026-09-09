@@ -1,5 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { eNomeDeTagDeTurma } from '../tagsObrigatorias'
 import { deveTratarReembolso, type RefundCandidate } from '../refundHandler.service'
 import { handleRefunds } from '../refundHandler.service'
 import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
@@ -264,4 +267,48 @@ test('dry-run por omissão não remove tag nem marca UserProduct', async () => {
     ;(AcWriteLog as any).create = originals.log
     activeCampaignService.removeTag = originals.remove
   }
+})
+
+// ── O portão da allowlist ───────────────────────────────────────────
+// A pergunta do João a 09/09/2026: como garantimos que não apagamos as
+// outras tags que o aluno já tem? Estas três respondem-lhe.
+
+test('o reembolso nunca retira uma tag que não seja de turma', () => {
+  const podem = [
+    'Aluno OGI 2608 - Renovação Turma 10',
+    'Aluno OGI L2409 - Turma 11',
+    'Aluno OGI 2505 - Renovação Turma 10 [2anos]'
+  ]
+  const naoPodem = [
+    'Alunos OGI Ativos',
+    'OGI - Aluno ou Ex-Aluno',
+    'Aluno OGI Antigo',
+    'OGI Renovação Genérica - Compra Reembolsada',
+    'OGI Renovação Antigos Alunos - Compra Reembolsada',
+    'Renovação',
+    'CLAREZA - Ativo 7d'
+  ]
+  for (const nome of podem) {
+    assert.equal(eNomeDeTagDeTurma(nome), true, `devia poder sair: ${nome}`)
+  }
+  for (const nome of naoPodem) {
+    assert.equal(eNomeDeTagDeTurma(nome), false, `NUNCA pode sair: ${nome}`)
+  }
+})
+
+test('o serviço que aplica tags de turma não sabe remover nenhuma', () => {
+  const fonte = fs.readFileSync(
+    path.join(__dirname, '..', 'acTurmaTagSync.service.ts'),
+    'utf8'
+  )
+  assert.equal(/removeTag|\.delete\(/.test(fonte), false)
+})
+
+test('o reembolso é o único sítio do domínio que remove uma tag', () => {
+  const dir = path.join(__dirname, '..')
+  const ficheiros = fs.readdirSync(dir).filter((f) => f.endsWith('.service.ts'))
+  const removem = ficheiros.filter((f) =>
+    /activeCampaignService\s*\.\s*removeTag/.test(fs.readFileSync(path.join(dir, f), 'utf8'))
+  )
+  assert.deepEqual(removem, ['refundHandler.service.ts'])
 })

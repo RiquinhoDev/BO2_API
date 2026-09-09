@@ -79,3 +79,23 @@ export function nomeDaTagObrigatoria(tagId: string | number | null | undefined):
     null
   )
 }
+
+/**
+ * Uma tag de turma tem SEMPRE duas coisas: um período de quatro dígitos e a
+ * palavra turma ou renovação. `Aluno OGI 2605 - Renovação Turma 14`,
+ * `Aluno OGI L2409 - Turma 11`, `Aluno OGI 2606 - Renovação`.
+ *
+ * É o mesmo crivo que a timeline usa para separar as tags de percurso das de
+ * estado, e é o que garante que nenhuma tag obrigatória lhe passa: nem a
+ * `Alunos OGI Ativos`, nem a `OGI - Aluno ou Ex-Aluno`, nem a `Aluno OGI
+ * Antigo` têm dígitos no nome.
+ *
+ * Serve de último portão antes de uma remoção. Não é uma allowlist de nomes
+ * exactos de propósito — a equipa cria as tags à mão e nem sempre segue a
+ * convenção, e uma lista fechada recusaria tags legítimas. O que não pode
+ * acontecer é sair uma tag de nome fixo, e disso este crivo trata.
+ */
+export function eNomeDeTagDeTurma(nome: string | null | undefined): boolean {
+  if (!nome) return false
+  return /\bL?\d{4}\b/.test(nome) && /turma|renova(ç|c)(ã|a)o/i.test(nome)
+}

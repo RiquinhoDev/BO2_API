@@ -8,8 +8,27 @@ import ACStudentTag from '../../models/ACStudentTag'
 import StudentRenewalTimeline from '../../models/StudentRenewalTimeline'
 import AcWriteLog from '../../models/renewal/AcWriteLog'
 import activeCampaignService from '../activeCampaign/activeCampaignService'
+import { eNomeDeTagDeTurma } from './tagsObrigatorias'
 
 const REFUND_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
+
+/**
+ * Último portão antes de tirar uma tag a alguém.
+ *
+ * O conjunto de candidatas já vem estreito: são as tags das coortes do ciclo
+ * reembolsado mais a tag que a turma pede, e uma tag só chega a coorte se
+ * tiver período de quatro dígitos E falar de turma ou renovação. Nem a
+ * `Alunos OGI Ativos` nem a `OGI - Aluno ou Ex-Aluno` nem a `Aluno OGI
+ * Antigo` passam nesse crivo.
+ *
+ * Mas essa garantia vive noutro ficheiro e depende de um predicado que já
+ * mudou uma vez. Esta é a segunda barreira, no sítio onde a remoção
+ * acontece: se o nome não for o de uma tag de turma, não sai. As tags de
+ * nome fixo são da AC, nunca nossas.
+ */
+function podeSerRemovida(nome: string): boolean {
+  return eNomeDeTagDeTurma(nome)
+}
 
 export interface RefundCandidate {
   refundDate: Date
@@ -39,6 +58,8 @@ export interface RefundHandlerReport {
   removidas: number
   semTag: number
   semUserProduct: number
+  /** Candidatas recusadas pelo portão: não são tags de turma. */
+  foraDaAllowlist: number
   erros: Array<{ email: string; error: string }>
 }
 
@@ -123,6 +144,7 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
     removidas: 0,
     semTag: 0,
     semUserProduct: 0,
+    foraDaAllowlist: 0,
     erros: []
   }
 
@@ -189,6 +211,10 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
         continue
       }
       for (const tag of turmaTags) {
+        if (!podeSerRemovida(tag.nome)) {
+          report.foraDaAllowlist += 1
+          continue
+        }
         report.aRemover += 1
         try {
           await logRemocao(email, tag, refund, dryRun)
