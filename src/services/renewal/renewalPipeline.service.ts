@@ -26,6 +26,8 @@
 
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import RenewalEvent from '../../models/renewal/RenewalEvent'
+import { abrirEsperasDeTurma, type EsperaDeTurmaReport } from './esperaDeTurma'
+import User from '../../models/user'
 import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmartSalesHistory.service'
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
 import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
@@ -61,9 +63,35 @@ interface FilaDeEventos {
 
 const FILA_VAZIA: FilaDeEventos = { compras: [], reembolsos: [] }
 
+/**
+ * Abre um evento por cada aluno que está na sala de espera.
+ *
+ * A genérica não é um destino: sair dela é o acontecimento que torna a tag
+ * devida, e essa saída não gera venda nenhuma. Sem isto, quem comprou antes
+ * de o detector existir ficava lá para sempre sem tag.
+ */
+async function abrirEsperas(): Promise<EsperaDeTurmaReport> {
+  const users = await (User as any)
+    .find({ 'hotmart.enrolledClasses.0': { $exists: true }, 'combined.status': 'ACTIVE' })
+    .select('_id email hotmart.enrolledClasses')
+    .lean()
+    .exec() as Array<{ _id: unknown; email: string; hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> } }>
+
+  const alunos = users.map((u) => {
+    const turmas = u.hotmart?.enrolledClasses ?? []
+    const activas = turmas.filter((x) => x?.className && x.isActive !== false)
+    const escolhida = activas.at(-1) ?? turmas.filter((x) => x?.className).at(-1)
+    return { userId: u._id, email: u.email, turma: escolhida?.className ?? null }
+  })
+
+  return abrirEsperasDeTurma(alunos)
+}
+
 async function lerFila(): Promise<FilaDeEventos> {
   const [compras, reembolsos] = await Promise.all([
-    (RenewalEvent as any).find({ tipo: 'compra', 'tratado.tagTurma': null })
+    // 'espera-turma' anda com as compras porque pede a mesma coisa: a tag
+    // da turma onde o aluno está. A diferença é só a origem.
+    (RenewalEvent as any).find({ tipo: { $in: ['compra', 'espera-turma'] }, 'tratado.tagTurma': null })
       .select('_id userId').lean().exec(),
     (RenewalEvent as any).find({ tipo: 'reembolso', 'tratado.reembolso': null })
       .select('_id transacao').lean().exec()
@@ -94,6 +122,8 @@ export interface RenewalPipelineReport {
   timelines: RenewalPipelineStepResult<TimelineSyncReport>
   /** Quantos acontecimentos o espelho trouxe para esta corrida. */
   fila: { compras: number; reembolsos: number }
+  /** Alunos na sala de espera, e quantos entraram na fila agora. */
+  esperas: EsperaDeTurmaReport
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
   success: boolean
 }
@@ -108,6 +138,7 @@ export interface RenewalPipelineDependencies {
   handleRefunds: typeof handleRefunds
   runDiscordRolesSyncJob: typeof runDiscordRolesSyncJob
   gerarTimelinesEmLote: typeof gerarTimelinesEmLote
+  abrirEsperas: typeof abrirEsperas
   lerFila: typeof lerFila
   marcarTratado: typeof marcarTratado
 }
@@ -168,6 +199,12 @@ export async function runRenewalPipelineComDependencias(
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => dependencias.syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => dependencias.syncActiveStudentAcRenewalData())
   const acStudentTags = await runStep('Sync AC (tags)', () => dependencias.syncAcStudentTags())
+  // Antes de ler a fila: quem está na genérica tem tag pendente e entra
+  // nela, tenha ou não uma compra em aberto.
+  const esperas = await dependencias.abrirEsperas().catch(() => ({
+    naGenerica: 0, jaTinhamEvento: 0, criados: 0, erros: 0
+  }))
+
   // Depois dos espelhos, porque é o sync das vendas que enche a fila.
   const fila = await dependencias.lerFila().catch(() => FILA_VAZIA)
 
@@ -222,6 +259,7 @@ export async function runRenewalPipelineComDependencias(
     timelines,
     discordRoles,
     fila: { compras: fila.compras.length, reembolsos: fila.reembolsos.length },
+    esperas,
     success:
       hotmartSales.success &&
       acRenewalData.success &&
@@ -245,6 +283,7 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
     handleRefunds,
     runDiscordRolesSyncJob,
     gerarTimelinesEmLote,
+    abrirEsperas,
     lerFila,
     marcarTratado
   })

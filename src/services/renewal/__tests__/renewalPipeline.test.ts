@@ -26,6 +26,7 @@ function dependencias(
     opcoesReembolsos,
     marcados,
     valor: {
+      abrirEsperas: async () => { ordem.push('esperas'); return { naGenerica: 0, jaTinhamEvento: 0, criados: 0, erros: 0 } },
       lerFila: async () => { ordem.push('fila'); return fila },
       marcarTratado: async (ids: unknown[], campo: string) => { marcados.push([ids, campo]) },
       isJobSwitchEnabled: async (jobName: string) => {
@@ -56,7 +57,7 @@ test('o pipeline nunca escreve a data de compra', async () => {
   const report = await executarPipeline(fixtures.valor)
 
   assert.deepEqual(fixtures.gates, ['AcExpirationSync', 'AcTurmaTagSync', 'AcRefundHandler'])
-  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'fila', 'expiracao', 'turmaTags', 'reembolsos', 'discord', 'timeline'])
+  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'esperas', 'fila', 'expiracao', 'turmaTags', 'reembolsos', 'discord', 'timeline'])
   assert.deepEqual(fixtures.opcoesCompra, [], 'o campo 334 é informativo: o nocturno lê-o, não o escreve')
   assert.deepEqual(fixtures.opcoesTags, [{ dryRun: false, userIds: [] }])
   assert.deepEqual(fixtures.opcoesReembolsos, [{ dryRun: false, transacoes: [] }])
@@ -83,7 +84,7 @@ test('os interruptores de tags e reembolsos são independentes', async () => {
 
   const report = await executarPipeline(fixtures.valor)
 
-  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'fila', 'turmaTags', 'discord', 'timeline'])
+  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'esperas', 'fila', 'turmaTags', 'discord', 'timeline'])
   assert.equal(report.acTurmaTags.skipped ?? false, false)
   assert.equal(report.acRefunds.skipped, true)
   assert.equal(report.acExpiration.skipped, true)

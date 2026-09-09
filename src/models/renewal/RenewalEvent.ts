@@ -10,13 +10,22 @@
 // O evento nasce no `hotmartSalesHistory.service`, no momento em
 // que o espelho é gravado: uma transacção que não existia é uma
 // compra; uma que passou a REFUNDED/CHARGEBACK é um reembolso.
-// Nada mais cria eventos — em particular, "faltar uma tag" não é
-// um evento, é um estado, e estados antigos ficam como estão.
+//
+// Há um terceiro, `espera-turma`, e é a excepção que confirma a
+// regra: quem está na Turma Renovação Genérica tem uma tag pendente
+// por definição — a genérica é uma sala de espera, não um destino.
+// Sair dela é o acontecimento, e não gera venda nenhuma. Sem isto,
+// quem comprou antes de o detector existir ficava lá para sempre:
+// medido a 09/09/2026, 16 alunos, um deles há 370 dias.
+//
+// Fora estes três, nada cria eventos — em particular, "faltar uma
+// tag" não é um evento, é um estado, e estados antigos ficam como
+// estão.
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Document, Schema } from 'mongoose'
 
-export type TipoEventoRenovacao = 'compra' | 'reembolso'
+export type TipoEventoRenovacao = 'compra' | 'reembolso' | 'espera-turma'
 
 /**
  * As peças que consomem a fila. Cada uma marca a sua parte, para que
@@ -53,7 +62,7 @@ const renewalEventSchema = new Schema<IRenewalEvent>(
   {
     userId: { type: Schema.Types.ObjectId, required: true, index: true },
     email: { type: String, required: true, index: true },
-    tipo: { type: String, enum: ['compra', 'reembolso'], required: true },
+    tipo: { type: String, enum: ['compra', 'reembolso', 'espera-turma'], required: true },
     transacao: { type: String, default: null },
     data: { type: Date, default: null },
     produtoId: { type: String, default: null },

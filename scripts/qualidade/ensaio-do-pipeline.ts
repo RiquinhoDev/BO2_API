@@ -58,9 +58,11 @@ async function main() {
     syncAcStudentTags: saltar('espelho: tags AC'),
     runDiscordRolesSyncJob: saltar('Discord (está ligado a sério)'),
 
+    // As esperas ja foram abertas; o ensaio nao as reabre.
+    abrirEsperas: async () => ({ naGenerica: 0, jaTinhamEvento: 0, criados: 0, erros: 0 }),
     lerFila: async () => {
       const [compras, reembolsos] = await Promise.all([
-        (RenewalEvent as any).find({ tipo: 'compra', 'tratado.tagTurma': null }).select('_id userId').lean().exec(),
+        (RenewalEvent as any).find({ tipo: { $in: ['compra', 'espera-turma'] }, 'tratado.tagTurma': null }).select('_id userId').lean().exec(),
         (RenewalEvent as any).find({ tipo: 'reembolso', 'tratado.reembolso': null }).select('_id transacao').lean().exec()
       ])
       return { compras: compras ?? [], reembolsos: reembolsos ?? [] }
