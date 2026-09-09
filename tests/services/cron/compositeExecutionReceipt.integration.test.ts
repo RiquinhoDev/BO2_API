@@ -2,6 +2,10 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 
 const mockFetchHotmartDataForSync = jest.fn()
+jest.mock('../../../src/utils/logger', () => ({
+  __esModule: true,
+  default: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}))
 
 jest.mock('../../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter', () => ({
   __esModule: true,
@@ -21,6 +25,7 @@ import { DAILY_PIPELINE_MAX_ITEMS, getProductsConfig } from '../../../src/servic
 import type { DailyPipelineResult } from '../../../src/types/cron.types'
 import { runCleanupManually } from '../../../src/jobs/cronExecutionCleanup.job'
 import { runMainParityExecution } from '../../../src/services/renewal/mainParityExecution'
+import logger from '../../../src/utils/logger'
 
 jest.setTimeout(30_000)
 
@@ -59,6 +64,23 @@ afterAll(async () => {
 beforeEach(async () => {
   await CompositeExecutionReceipt.deleteMany({})
   mockFetchHotmartDataForSync.mockReset()
+})
+
+test('records the original execution failure before returning indeterminate', async () => {
+  const log = jest.spyOn(logger, 'error').mockImplementation(() => undefined as never)
+  const failure = new Error('sales provider timeout')
+  try {
+    await expect(executeCompositeExecutionReceipt(options('diagnostic-sales', async context => {
+      context.provider.begin()
+      throw failure
+    }))).resolves.toEqual({ kind: 'indeterminate' })
+    expect(log).toHaveBeenCalledWith('Composite execution failed', expect.objectContaining({
+      operation: 'sync-pipeline', identity: 'daily-pipeline', requestId: 'diagnostic-sales',
+      error: failure,
+    }))
+  } finally {
+    log.mockRestore()
+  }
 })
 
 test.each(['indeterminate', 'expired', 'missing-lease', 'running'])(

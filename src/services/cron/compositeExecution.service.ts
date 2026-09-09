@@ -12,6 +12,7 @@ import {
   type ActiveCampaignExecutionLease,
 } from '../activeCampaign/activeCampaignExecution.service'
 import { HttpError } from '../../security/errorHandling'
+import logger from '../../utils/logger'
 
 export const COMPOSITE_EXECUTION_LEASE_MS = 180_000
 
@@ -311,6 +312,12 @@ export async function executeCompositeExecutionReceipt<T>(
     try {
       result = await lease.run(() => options.run({ lease, provider, localMutation }))
     } catch (error: unknown) {
+      logger.error('Composite execution failed', {
+        operation: options.operation,
+        identity: options.identity,
+        requestId: options.requestId,
+        error: error instanceof Error ? error : new Error('Unknown execution failure'),
+      })
       const providerStatus: CompositeProviderStatus = !providerAttempted
         ? 'not-started'
         : providerSucceeded() ? 'succeeded' : 'unknown'
