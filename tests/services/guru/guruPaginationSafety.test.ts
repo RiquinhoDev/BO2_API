@@ -62,6 +62,51 @@ describe('Guru pagination safety', () => {
     expect(mockGuruGet).toHaveBeenCalledTimes(2)
   })
 
+  test('uses the first-page total when a later page omits it', async () => {
+    mockGuruGet
+      .mockResolvedValueOnce({
+        data: { data: [{ id: 'one' }], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: 'cursor-a' },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: [{ id: 'two' }],
+          has_more_pages: 0,
+          on_last_page: 1,
+          next_cursor: null,
+        },
+      })
+
+    await expect(fetchAllSubscriptionsPaginated()).resolves.toEqual([{ id: 'one' }, { id: 'two' }])
+    expect(mockGuruGet).toHaveBeenCalledTimes(2)
+  })
+
+  test.each([
+    ['null', null, 'GURU_PAGINATION_ENVELOPE_INVALID'],
+    ['string', '2', 'GURU_PAGINATION_ENVELOPE_INVALID'],
+    ['negative', -1, 'GURU_PAGINATION_ENVELOPE_INVALID'],
+    ['changed', 3, 'GURU_PAGINATION_TOTAL_MISMATCH'],
+  ])('rejects a %s total supplied after the first page', async (_name, laterTotal, expectedError) => {
+    mockGuruGet
+      .mockResolvedValueOnce({
+        data: { data: [{ id: 'one' }], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: 'cursor-a' },
+      })
+      .mockResolvedValueOnce({
+        data: { data: [{ id: 'two' }], total_rows: laterTotal, has_more_pages: 0, on_last_page: 1 },
+      })
+
+    await expect(fetchAllSubscriptionsPaginated()).rejects.toThrow(expectedError)
+    expect(mockGuruGet).toHaveBeenCalledTimes(2)
+  })
+
+  test('rejects a null cursor before the terminal page', async () => {
+    mockGuruGet.mockResolvedValueOnce({
+      data: { data: [{ id: 'one' }], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: null },
+    })
+
+    await expect(fetchAllSubscriptionsPaginated()).rejects.toThrow('GURU_PAGINATION_NON_PROGRESS')
+    expect(mockGuruGet).toHaveBeenCalledTimes(1)
+  })
+
   test('does not report a provider page succeeded before cursor validation', async () => {
     mockGuruGet
       .mockResolvedValueOnce({
@@ -101,6 +146,7 @@ describe('Guru pagination safety', () => {
     ['null data', { data: null, total_rows: 0, has_more_pages: 0, on_last_page: 1 }],
     ['missing total', { data: [], has_more_pages: 0, on_last_page: 1 }],
     ['contradictory flags', { data: [], total_rows: 0, has_more_pages: 1, on_last_page: 1, next_cursor: 'x' }],
+    ['nonempty terminal cursor', { data: [], total_rows: 0, has_more_pages: 0, on_last_page: 1, next_cursor: 'x' }],
     ['final count mismatch', { data: [], total_rows: 1, has_more_pages: 0, on_last_page: 1 }],
   ])('rejects strict provider envelope: %s', async (_name, envelope) => {
     mockGuruGet.mockResolvedValueOnce({ data: envelope })

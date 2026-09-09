@@ -116,7 +116,7 @@ export type GuruStatus = NonNullable<IUser['guru']>['status']
 interface GuruListResponse {
   data?: GuruSubscription[]
   has_more_pages?: number
-  next_cursor?: string
+  next_cursor?: string | null
   total_rows?: number
   on_last_page?: number
 }
@@ -318,27 +318,34 @@ export async function fetchAllSubscriptionsPaginated(
       if (!Array.isArray(data)
         || typeof hasMoreRaw !== 'number' || !Number.isInteger(hasMoreRaw) || ![0, 1].includes(hasMoreRaw)
         || typeof onLastRaw !== 'number' || !Number.isInteger(onLastRaw) || ![0, 1].includes(onLastRaw)
-        || typeof totalRows !== 'number' || !Number.isInteger(totalRows) || totalRows < 0
-        || (nextCursorRaw !== undefined && (typeof nextCursorRaw !== 'string' || !nextCursorRaw.trim()))) {
+        || (nextCursorRaw !== undefined && nextCursorRaw !== null
+          && (typeof nextCursorRaw !== 'string' || !nextCursorRaw.trim()))) {
         throw new Error('GURU_PAGINATION_ENVELOPE_INVALID')
       }
       const hasMorePages = hasMoreRaw === 1
       const onLastPage = onLastRaw === 1
-      const nextCursor = nextCursorRaw as string | undefined
+      const nextCursor = typeof nextCursorRaw === 'string' ? nextCursorRaw : undefined
       if (hasMorePages === onLastPage || (!hasMorePages && nextCursor !== undefined)) {
         throw new Error('GURU_PAGINATION_ENVELOPE_CONTRADICTORY')
-      }
-      if (pageNumber > 1 && totalRows !== totalExpected) {
-        throw new Error('GURU_PAGINATION_TOTAL_MISMATCH')
-      }
-      if (pageNumber === 1 && (totalRows as number) > maxItems) {
-        throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${totalRows}:${maxItems}`)
       }
 
       // Guardar total na primeira página
       if (pageNumber === 1) {
-        totalExpected = totalRows as number
+        if (typeof totalRows !== 'number' || !Number.isInteger(totalRows) || totalRows < 0) {
+          throw new Error('GURU_PAGINATION_ENVELOPE_INVALID')
+        }
+        if (totalRows > maxItems) {
+          throw new Error(`GURU_PAGINATION_ITEM_LIMIT_EXCEEDED:${totalRows}:${maxItems}`)
+        }
+        totalExpected = totalRows
         logger.info(`📊 [GURU SYNC] Total esperado: ${totalRows} subscrições`)
+      } else if (totalRows !== undefined) {
+        if (typeof totalRows !== 'number' || !Number.isInteger(totalRows) || totalRows < 0) {
+          throw new Error('GURU_PAGINATION_ENVELOPE_INVALID')
+        }
+        if (totalRows !== totalExpected) {
+          throw new Error('GURU_PAGINATION_TOTAL_MISMATCH')
+        }
       }
 
       logger.info(`📄 [GURU SYNC] Página ${pageNumber}: ${data.length} subscrições | has_more=${hasMorePages} | on_last=${onLastPage} | acumulado=${allSubscriptions.length + data.length}/${totalExpected || '?'}`)
