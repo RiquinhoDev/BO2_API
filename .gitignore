@@ -67,3 +67,6 @@ Thumbs.db
 *.bak
 *.tgz
 *.zip
+
+# Ensaios e fotografias do antes das escritas — ficam fora do repo
+scratchpad/
