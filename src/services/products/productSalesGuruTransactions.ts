@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { getOptionalGuruUserToken } from '../requestDrivenRuntimeConfig'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { withGuruRateLimitRetry } from '../guru/guruRateLimitRetry'
 import { assertMainParityOwnership, mainParityProviderStarted, mainParityProviderSucceeded } from '../renewal/mainParityExecution'
 
 export interface GuruTransaction {
@@ -18,27 +19,18 @@ interface TransactionPage {
 }
 
 const guruApi = axios.create({ baseURL: 'https://digitalmanager.guru/api/v2', timeout: 20_000 })
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
 async function requestPage(id: string, cursor?: string): Promise<TransactionPage> {
   const token = getOptionalGuruUserToken()
   if (!token) throw new IntegrationUnavailableError('guru')
-  for (let attempt = 0; ; attempt++) {
-    assertMainParityOwnership()
-    mainParityProviderStarted()
-    try {
-      const response = await guruApi.get<TransactionPage>(`/subscriptions/${encodeURIComponent(id)}/transactions`, {
+  assertMainParityOwnership()
+  mainParityProviderStarted()
+  const response = await withGuruRateLimitRetry(() =>
+    guruApi.get<TransactionPage>(`/subscriptions/${encodeURIComponent(id)}/transactions`, {
         headers: { Authorization: `Bearer ${token}` }, params: { per_page: 50, ...(cursor ? { cursor } : {}) },
-      })
-      mainParityProviderSucceeded()
-      return response.data
-    } catch (error: unknown) {
-      if (!axios.isAxiosError(error) || error.response?.status !== 429 || attempt >= 5) throw error
-      const seconds = Number(error.response.headers?.['retry-after'])
-      const delay = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 30_000) : 500 * 2 ** attempt
-      await sleep(delay)
-    }
-  }
+    }), assertMainParityOwnership)
+  mainParityProviderSucceeded()
+  return response.data
 }
 
 export async function fetchSubscriptionTransactions(id: string): Promise<GuruTransaction[]> {

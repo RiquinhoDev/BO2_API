@@ -3,6 +3,7 @@ import axios from 'axios'
 import type { IUser } from '../../../models/user'
 import type { CrossReferenceResult } from '../crossReference.service'
 import { getGuruUserToken } from '../../requestDrivenRuntimeConfig'
+import { withGuruRateLimitRetry } from '../guruRateLimitRetry'
 
 const GURU_SUBSCRIPTIONS_API_URL = 'https://digitalmanager.guru/api/v2'
 
@@ -300,10 +301,9 @@ export async function fetchAllSubscriptionsPaginated(
 
       logger.info(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)
 
-      limits.beforeRequest?.()
-      const response = await guruApi.get<GuruListResponse>('/subscriptions', {
+      const response = await withGuruRateLimitRetry(() => guruApi.get<GuruListResponse>('/subscriptions', {
         params: requestParams
-      })
+      }), limits.beforeRequest)
 
       const rawEnvelope: unknown = response.data
       if (!rawEnvelope || typeof rawEnvelope !== 'object' || Array.isArray(rawEnvelope)) {

@@ -7,7 +7,7 @@ jest.mock('axios', () => ({
       get: mockGuruGet,
       interceptors: { request: { use: jest.fn() } },
     })),
-    isAxiosError: jest.fn(() => false),
+    isAxiosError: (error: { isAxiosError?: boolean }) => error?.isAxiosError === true,
   },
 }))
 
@@ -31,6 +31,16 @@ describe('Guru pagination safety', () => {
 
   beforeEach(() => {
     mockGuruGet.mockReset()
+  })
+
+  test('retries the same cursor after a rate limit without skipping or duplicating subscriptions', async () => {
+    mockGuruGet
+      .mockResolvedValueOnce({ data: { data: [{ id: 'one' }], total_rows: 2, has_more_pages: 1, on_last_page: 0, next_cursor: 'page-two' } })
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 429, headers: { 'retry-after': '75' } } })
+      .mockResolvedValueOnce({ data: { data: [{ id: 'two' }], total_rows: 2, has_more_pages: 0, on_last_page: 1 } })
+    await expect(fetchAllSubscriptionsPaginated()).resolves.toEqual([{ id: 'one' }, { id: 'two' }])
+    expect(mockGuruGet.mock.calls[1][1].params.cursor).toBe('page-two')
+    expect(mockGuruGet.mock.calls[2][1].params.cursor).toBe('page-two')
   })
 
   test('rejects before accumulation when the item cap is exceeded', async () => {
