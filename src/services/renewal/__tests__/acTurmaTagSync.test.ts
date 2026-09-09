@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { decidirTurmaTag } from '../acTurmaTagSync.service'
+import { decidirTurmaTag, eTurmaGenerica } from '../acTurmaTagSync.service'
 import { syncTurmaTags } from '../acTurmaTagSync.service'
 import StudentRenewalTimeline from '../../../models/StudentRenewalTimeline'
 import TurmaTagMap from '../../../models/TurmaTagMap'
@@ -53,10 +53,15 @@ test('turma fora do mapa é recusa explícita', () => {
   assert.equal(r.motivo, 'semMapeamento')
 })
 
-test('turma genérica fica sem mapeamento, não é tag inventada', () => {
+test('turma genérica não leva tag inventada — fica à espera de turma', () => {
+  // O motivo era `semMapeamento`, que a confundia com um nome que ninguem
+  // sabe resolver. Sao coisas diferentes: a generica resolve-se sozinha
+  // quando o aluno for movido, e o nocturno precisa de saber isso para nao
+  // fechar o acontecimento da compra.
   const r = decidirTurmaTag({ turmaNome: 'Turma Renovação Genérica', mapa: null, tags: [], contactId: 'c1' })
   assert.equal(r.acao, 'ignorar')
-  assert.equal(r.motivo, 'semMapeamento')
+  assert.equal(r.motivo, 'aEsperaDeTurma')
+  assert.equal(r.tagNome, null)
 })
 
 test('sem contacto não tenta chamar a AC', () => {
@@ -278,6 +283,71 @@ test('userIds vazio nao trata ninguem; ausente trata toda a gente', async () => 
     const ausente: any = await syncTurmaTags({ dryRun: true })
     assert.equal(ausente.candidatos, 1, 'sem lista, varre - e o que a corrida manual quer')
     assert.equal(ausente.semEvento, 0)
+  } finally {
+    ;(StudentRenewalTimeline as any).find = originals.timeline
+    ;(TurmaTagMap as any).find = originals.mapa
+    ;(ACStudentTag as any).find = originals.tags
+    ;(User as any).find = originals.users
+    ;(AcWriteLog as any).create = originals.log
+  }
+})
+
+
+// -- A sala de espera ------------------------------------------------
+// Quem compra uma renovacao entra na Generica e so e movido para a turma
+// verdadeira semanas depois. Essa mudanca NAO gera venda nova, logo nao
+// gera acontecimento: se o acontecimento da compra fechar enquanto ele
+// esta na Generica, o aluno fica sem tag para sempre.
+
+test('a generica tem motivo proprio, e nao semMapeamento', () => {
+  const r = decidirTurmaTag({
+    turmaNome: 'Turma Renovação Genérica',
+    resolucao: null,
+    tags: [],
+    contactId: 'c1',
+    temCompraValida: true
+  } as any)
+  assert.equal(r.acao, 'ignorar')
+  assert.equal(r.motivo, 'aEsperaDeTurma', 'e uma espera, nao uma recusa definitiva')
+  assert.equal(r.tagNome, null)
+})
+
+test('eTurmaGenerica apanha as escritas que aparecem nos dados', () => {
+  for (const nome of ['Turma Renovação Genérica', 'Turma Renovacao Generica', 'GENERICA']) {
+    assert.equal(eTurmaGenerica(nome), true, nome)
+  }
+  for (const nome of ['Turma Renovação | 2606', 'Turma 18 | 2605', 'Equipa', null, '']) {
+    assert.equal(eTurmaGenerica(nome as any), false, String(nome))
+  }
+})
+
+test('o relatorio devolve quem fica a espera, para o nocturno nao fechar o evento', async () => {
+  const originals = {
+    timeline: (StudentRenewalTimeline as any).find,
+    mapa: (TurmaTagMap as any).find,
+    tags: (ACStudentTag as any).find,
+    users: (User as any).find,
+    log: (AcWriteLog as any).create
+  }
+  const query = (rows: any[]) => ({ select: () => ({ lean: () => ({ exec: async () => rows }) }) })
+  ;(StudentRenewalTimeline as any).find = () => query([
+    { userId: 'espera', email: 'espera@example.com', ciclos: [{ turma: { nome: 'Turma Renovação Genérica' }, compras: [{ reembolsada: false }] }] },
+    { userId: 'movido', email: 'movido@example.com', ciclos: [{ turma: { nome: 'Turma Renovação | 2606' }, compras: [{ reembolsada: false }] }] }
+  ])
+  ;(TurmaTagMap as any).find = () => query([])
+  ;(ACStudentTag as any).find = () => query([
+    { email: 'espera@example.com', contactId: 'c1', tags: [] },
+    { email: 'movido@example.com', contactId: 'c2', tags: [] }
+  ])
+  ;(User as any).find = () => query([
+    { _id: 'espera', email: 'espera@example.com', combined: { status: 'ACTIVE' } },
+    { _id: 'movido', email: 'movido@example.com', combined: { status: 'ACTIVE' } }
+  ])
+  ;(AcWriteLog as any).create = async () => ({})
+  try {
+    const r: any = await syncTurmaTags({ dryRun: true, userIds: ['espera', 'movido'] })
+    assert.equal(r.aEsperaDeTurma, 1)
+    assert.deepEqual(r.aindaAEsperar, ['espera'], 'so o da generica fica em aberto')
   } finally {
     ;(StudentRenewalTimeline as any).find = originals.timeline
     ;(TurmaTagMap as any).find = originals.mapa

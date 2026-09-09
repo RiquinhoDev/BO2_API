@@ -195,8 +195,14 @@ export async function runRenewalPipelineComDependencias(
     }),
     dependencias.isJobSwitchEnabled
   )
-  if (acTurmaTags.success && !acTurmaTags.skipped && fila.compras.length) {
-    await dependencias.marcarTratado(fila.compras.map((e) => e._id), 'tagTurma').catch(() => undefined)
+  // Quem está na genérica ainda vai receber tag quando for movido para a
+  // turma verdadeira, semanas depois da compra. Fechar-lhe o acontecimento
+  // agora deixava-o sem tag para sempre: a mudança de turma não gera venda
+  // nova, logo não gera acontecimento nenhum.
+  const aEsperar = new Set((acTurmaTags.report?.aindaAEsperar ?? []).map(String))
+  const comprasAFechar = fila.compras.filter((evento) => !aEsperar.has(String(evento.userId)))
+  if (acTurmaTags.success && !acTurmaTags.skipped && comprasAFechar.length) {
+    await dependencias.marcarTratado(comprasAFechar.map((e) => e._id), 'tagTurma').catch(() => undefined)
   }
   if (acRefunds.success && !acRefunds.skipped && fila.reembolsos.length) {
     await dependencias.marcarTratado(fila.reembolsos.map((e) => e._id), 'reembolso').catch(() => undefined)

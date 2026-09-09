@@ -33,8 +33,22 @@ export interface TurmaTagInput {
   tagIdConfirmado?: string | null
 }
 
+/**
+ * A sala de espera das renovações. Não tem período no nome, e dar-lhe a tag
+ * da coorte anterior seria mentir — mas também não é uma recusa definitiva:
+ * o aluno sai dela no fim do mês e aí a tag passa a fazer sentido.
+ */
+export function eTurmaGenerica(nome: string | null | undefined): boolean {
+  return !!nome && /gener|genér/i.test(nome)
+}
+
 export function decidirTurmaTag(input: TurmaTagInput): TurmaTagDecision {
   const parsed = parseTurmaName(input.turmaNome)
+  // Antes do teste do período, porque a genérica também não tem período e
+  // a diferença entre as duas é o que decide se o acontecimento fica aberto.
+  if (eTurmaGenerica(input.turmaNome)) {
+    return { acao: 'ignorar', motivo: 'aEsperaDeTurma', tagNome: null, tagId: null }
+  }
   if (!parsed.periodYYMM) {
     return { acao: 'ignorar', motivo: 'semMapeamento', tagNome: null, tagId: null }
   }
@@ -94,6 +108,12 @@ export interface TurmaTagSyncReport {
   recusas: Array<{ email: string; turma: string; motivo: TurmaTagMotivo }>
   /** Alunos postos de lado por não estarem na lista de quem comprou. */
   semEvento: number
+  /**
+   * Quem está na genérica e ainda vai receber tag quando for movido.
+   * O nocturno usa esta lista para NÃO fechar o acontecimento: a compra
+   * fica por tratar até o aluno sair da sala de espera.
+   */
+  aindaAEsperar: string[]
 }
 
 type TimelineDoc = {
@@ -167,7 +187,8 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
     inactivos: 0,
     erros: [],
     recusas: [],
-    semEvento: 0
+    semEvento: 0,
+    aindaAEsperar: []
   }
 
   const [timelines, mapas, tags] = await Promise.all([
@@ -226,7 +247,10 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
       }
       if (decision.motivo === 'jaTem') report.jaTem += 1
       if (decision.motivo === 'semMapeamento') report.semMapeamento += 1
-      if (decision.motivo === 'aEsperaDeTurma') report.aEsperaDeTurma += 1
+      if (decision.motivo === 'aEsperaDeTurma') {
+        report.aEsperaDeTurma += 1
+        if (timeline.userId) report.aindaAEsperar.push(String(timeline.userId))
+      }
       if (decision.motivo === 'semContacto') report.semContacto += 1
       if (decision.motivo === 'semCompraValida') report.semCompraValida += 1
       if (decision.motivo === 'tagInexistente') report.tagInexistente += 1
