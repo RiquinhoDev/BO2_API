@@ -11,10 +11,13 @@ import { MongooseCoreTop10CompanionStore } from './coreTop10CompanionStore'
 import { CORE_TOP10_REVISION, CORE_TOP10_SELECTIONS } from './coreTop10Selection'
 import { normalizeQueryKey, normalizeSymbolKey, withCoreCache } from './coreReadCache'
 
-// Mesmos TTLs que já declarávamos em Cache-Control nestes endpoints
-// (src/controllers/clarezaCore.controller.ts): o Redis nunca promete menos
-// frescura do que o browser já aceitava.
-const READ_TTL_SECONDS = 60 * 60
+// Os dados só mudam uma vez por dia (publicação das 03h). Um TTL de 1h
+// obrigava a ir à Mongo dezenas de vezes por dia para buscar o mesmo; 26h
+// faz com que um aquecimento noturno cubra o dia todo com 2h de margem, e
+// se o aquecimento falhar numa noite ficam os valores de ontem em vez de
+// expirarem para uma corrida à Mongo. O Cache-Control da resposta continua
+// em 1h — o browser repergunta, mas nós servimos do Redis.
+const READ_TTL_SECONDS = 26 * 60 * 60
 const SEARCH_TTL_SECONDS = 10 * 60
 
 const runtime = createCorePublishedRuntime({

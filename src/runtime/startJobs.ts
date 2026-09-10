@@ -3,6 +3,7 @@ import { cacheService } from '../services/cache.service'
 import syncSchedulerService from '../services/cron/scheduler'
 import { buildDashboardStats } from '../services/dashboardStatsBuilder.service'
 import systemMonitor from '../services/systemMonitor.service'
+import { warmPublishedReadsCache } from '../services/clareza/core/coreCacheWarmup.runtime'
 import { warmUpCache } from '../services/syncUtilizadoresServices/dualReadService'
 import logger from '../utils/logger'
 import { createCronSeedProvisioner } from './cronSeeds'
@@ -49,6 +50,10 @@ function startWarmups(): Promise<void> {
     runWarmup(
       () => analyticsCacheService.warmUpCache(),
       'Erro ao aquecer cache de analytics',
+    ),
+    runWarmup(
+      () => warmPublishedReadsCache(),
+      'Erro ao aquecer cache do Clareza',
     ),
   ]
 

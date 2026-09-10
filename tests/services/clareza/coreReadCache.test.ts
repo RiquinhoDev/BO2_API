@@ -5,12 +5,14 @@ import {
   withCoreCache,
 } from '../../../src/services/clareza/core/coreReadCache'
 
+const STABLE_TTL = 7 * 24 * 60 * 60
+
 afterEach(() => {
   jest.restoreAllMocks()
 })
 
 describe('withCoreCache', () => {
-  it('computes and stores on a miss, under the prefixed key', async () => {
+  it('computes and stores on a miss, under the prefixed key and a last-good key', async () => {
     jest.spyOn(cacheService, 'get').mockResolvedValue(null)
     const setSpy = jest.spyOn(cacheService, 'set').mockResolvedValue(undefined)
     const compute = jest.fn(async () => ({ generationId: 'g1' }))
@@ -20,6 +22,11 @@ describe('withCoreCache', () => {
 
     expect(compute).toHaveBeenCalledTimes(1)
     expect(setSpy).toHaveBeenCalledWith('clareza:core:radar:all', { generationId: 'g1' }, 3600)
+    expect(setSpy).toHaveBeenCalledWith(
+      'clareza:core:radar:all:last-good',
+      { generationId: 'g1' },
+      STABLE_TTL,
+    )
   })
 
   it('returns the cached value on a hit and never calls compute', async () => {
@@ -34,13 +41,26 @@ describe('withCoreCache', () => {
     expect(setSpy).not.toHaveBeenCalled()
   })
 
-  it('lets a compute failure propagate without caching it', async () => {
+  it('propagates a compute failure when there is no last-good copy to fall back on', async () => {
     jest.spyOn(cacheService, 'get').mockResolvedValue(null)
     const setSpy = jest.spyOn(cacheService, 'set').mockResolvedValue(undefined)
     const compute = jest.fn(async () => { throw new RangeError('ticker nao encontrado') })
 
     const wrapped = withCoreCache('raiox', 3600, normalizeSymbolKey, compute)
     await expect(wrapped('AAPL')).rejects.toThrow('ticker nao encontrado')
+
+    expect(setSpy).not.toHaveBeenCalled()
+  })
+
+  it('serves the last-good copy when compute rejects and one exists', async () => {
+    jest.spyOn(cacheService, 'get').mockImplementation(async (key: string) => (
+      key.endsWith(':last-good') ? { ticker: 'AAPL', stale: true } : null
+    ))
+    const setSpy = jest.spyOn(cacheService, 'set').mockResolvedValue(undefined)
+    const compute = jest.fn(async () => { throw new Error('Mongo em baixo') })
+
+    const wrapped = withCoreCache('raiox', 3600, normalizeSymbolKey, compute)
+    await expect(wrapped('AAPL')).resolves.toEqual({ ticker: 'AAPL', stale: true })
 
     expect(setSpy).not.toHaveBeenCalled()
   })
@@ -54,8 +74,28 @@ describe('withCoreCache', () => {
     await wrapped('aapl')
     await wrapped('NVDA')
 
-    expect(setSpy).toHaveBeenNthCalledWith(1, 'clareza:core:raiox:AAPL', { ticker: 'aapl' }, 3600)
-    expect(setSpy).toHaveBeenNthCalledWith(2, 'clareza:core:raiox:NVDA', { ticker: 'NVDA' }, 3600)
+    expect(setSpy).toHaveBeenCalledWith('clareza:core:raiox:AAPL', { ticker: 'aapl' }, 3600)
+    expect(setSpy).toHaveBeenCalledWith('clareza:core:raiox:NVDA', { ticker: 'NVDA' }, 3600)
+  })
+
+  describe('refresh', () => {
+    it('recomputes and overwrites both keys without reading the cache first', async () => {
+      const getSpy = jest.spyOn(cacheService, 'get').mockResolvedValue({ generationId: 'stale' })
+      const setSpy = jest.spyOn(cacheService, 'set').mockResolvedValue(undefined)
+      const compute = jest.fn(async () => ({ generationId: 'g2' }))
+
+      const wrapped = withCoreCache('raiox', 3600, normalizeSymbolKey, compute)
+      await expect(wrapped.refresh('MSFT')).resolves.toEqual({ generationId: 'g2' })
+
+      expect(getSpy).not.toHaveBeenCalled()
+      expect(compute).toHaveBeenCalledWith('MSFT')
+      expect(setSpy).toHaveBeenCalledWith('clareza:core:raiox:MSFT', { generationId: 'g2' }, 3600)
+      expect(setSpy).toHaveBeenCalledWith(
+        'clareza:core:raiox:MSFT:last-good',
+        { generationId: 'g2' },
+        STABLE_TTL,
+      )
+    })
   })
 })
 

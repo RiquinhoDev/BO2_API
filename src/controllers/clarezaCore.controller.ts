@@ -18,18 +18,23 @@ import { analyzePublishedCarteira } from '../services/clareza/core/coreCarteiraA
 import { CoreRaioxAssetUnavailableError } from '../services/clareza/core/coreRaioxComposition'
 import { CoreComparadorRequestError } from '../services/clareza/core/coreComparadorProjection'
 
+// The controller only ever calls these; it never warms them. Take just the
+// call signature so a plain function (or a jest.fn) satisfies the contract —
+// the cached reads carry an extra `.refresh` that only the warmup needs.
+type PublishedRead<F> = F extends (...args: infer A) => infer R ? (...args: A) => R : never
+
 interface ClarezaCoreControllerDependencies {
-  readonly radar: typeof getPublishedRadar
-  readonly legacyMarketData: typeof getPublishedLegacyMarketData
-  readonly carteira: typeof getPublishedCarteira
-  readonly portfolioAnalysis: typeof analyzePublishedCarteira
-  readonly search: typeof searchPublishedCarteira
-  readonly raiox: typeof getPublishedRaiox
-  readonly raioxSearch: typeof searchPublishedRaiox
-  readonly comparador: typeof getPublishedComparador
-  readonly comparadorSearch: typeof searchPublishedComparador
-  readonly earnings: typeof getPublishedEarnings
-  readonly top10: typeof getPublishedTop10
+  readonly radar: PublishedRead<typeof getPublishedRadar>
+  readonly legacyMarketData: PublishedRead<typeof getPublishedLegacyMarketData>
+  readonly carteira: PublishedRead<typeof getPublishedCarteira>
+  readonly portfolioAnalysis: PublishedRead<typeof analyzePublishedCarteira>
+  readonly search: PublishedRead<typeof searchPublishedCarteira>
+  readonly raiox: PublishedRead<typeof getPublishedRaiox>
+  readonly raioxSearch: PublishedRead<typeof searchPublishedRaiox>
+  readonly comparador: PublishedRead<typeof getPublishedComparador>
+  readonly comparadorSearch: PublishedRead<typeof searchPublishedComparador>
+  readonly earnings: PublishedRead<typeof getPublishedEarnings>
+  readonly top10: PublishedRead<typeof getPublishedTop10>
 }
 
 const unavailable = (res: Response) => res.status(503).json({

@@ -1,28 +1,92 @@
 import { cacheService } from '../../cache.service'
+import logger from '../../../utils/logger'
 
-// Cache-aside em Redis à frente das leituras públicas do Clareza. Sem isto,
-// cada pedido ia sempre à Mongo — e um soluço do Atlas (visto em produção a
-// meio desta sessão: um findOne indexado num documento de 2 registos a
-// demorar 15-20s) derruba estes endpoints por igual, mesmo com os dados já
-// publicados e corretos na BD. O TTL espelha o Cache-Control já devolvido
-// nestes endpoints: o Redis nunca fica "mais desatualizado" do que o browser
-// já aceitava ficar. Se o Redis estiver em baixo, cacheService.get/set
-// falham em silêncio (ver cache.service.ts) — a leitura cai sempre para a
-// Mongo, nunca fica presa à espera do cache.
+// Quanto tempo um leitor espera pela Mongo antes de desistir e servir o
+// ultimo valor bom. So conta no caminho de cache-miss; um hit nao passa por
+// aqui. Curto de proposito: o objectivo e o utilizador nunca sentir a Mongo.
+const COMPUTE_BUDGET_MS = 8_000
+
+// A copia "ultimo valor bom" sobrevive a uma semana de aquecimentos noturnos
+// falhados. O aquecimento reescreve-a todas as noites; a expiracao so existe
+// para nao acumular lixo de simbolos que sairam do universo.
+const STABLE_TTL_SECONDS = 7 * 24 * 60 * 60
+
+function raceBudget<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`clareza cache: compute excedeu ${ms}ms`)),
+      ms,
+    )
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error) => { clearTimeout(timer); reject(error) },
+    )
+  })
+}
+
+export interface CoreCachedRead<Args extends readonly unknown[], Result> {
+  (...args: Args): Promise<Result>
+  /**
+   * Recalcula e reescreve a cache (chave normal + ultimo-valor-bom),
+   * ignorando o que la esteja. E o que o aquecimento noturno usa: com o TTL
+   * longo, um `get` simples devolveria o valor de ontem e a geracao nova
+   * nunca entrava.
+   */
+  refresh(...args: Args): Promise<Result>
+}
+
+// Cache-aside em Redis a frente das leituras publicas do Clareza. Os dados
+// mudam uma vez por dia (publicacao das 03h); o TTL longo + aquecimento
+// garante que, durante o dia, um leitor nunca toca na Mongo. Se ainda assim
+// houver um miss e a Mongo estiver lenta/em baixo, servimos o ultimo valor
+// bom em vez de bloquear o leitor. So o escritor noturno depende da Mongo.
 export function withCoreCache<Args extends readonly unknown[], Result>(
   keyPrefix: string,
   ttlSeconds: number,
   keyOf: (...args: Args) => string,
   compute: (...args: Args) => Promise<Result>,
-): (...args: Args) => Promise<Result> {
-  return async (...args: Args): Promise<Result> => {
-    const key = `clareza:core:${keyPrefix}:${keyOf(...args)}`
-    const cached = await cacheService.get<Result>(key)
+): CoreCachedRead<Args, Result> {
+  const keyFor = (args: Args): string => `clareza:core:${keyPrefix}:${keyOf(...args)}`
+  const stableKeyFor = (args: Args): string => `${keyFor(args)}:last-good`
+
+  const store = async (args: Args, value: Result): Promise<void> => {
+    await cacheService.set(keyFor(args), value, ttlSeconds).catch(() => {})
+    await cacheService.set(stableKeyFor(args), value, STABLE_TTL_SECONDS).catch(() => {})
+  }
+
+  const read = (async (...args: Args): Promise<Result> => {
+    const cached = await cacheService.get<Result>(keyFor(args))
     if (cached !== null) return cached
+
+    // Uma vez iniciado, o compute corre ate ao fim e escreve a cache, mesmo
+    // que o leitor ja tenha desistido para o ultimo valor bom.
+    const fresh = compute(...args).then(async (value) => {
+      await store(args, value)
+      return value
+    })
+    fresh.catch(() => {})
+
+    try {
+      return await raceBudget(fresh, COMPUTE_BUDGET_MS)
+    } catch {
+      const stale = await cacheService.get<Result>(stableKeyFor(args))
+      if (stale !== null) {
+        logger.warn(`clareza cache ${keyFor(args)}: fonte lenta, a servir ultimo valor bom`)
+        return stale
+      }
+      // Sem nada para servir (primeiro arranque durante uma falha): esperar
+      // pelo valor real e melhor do que devolver erro.
+      return await fresh
+    }
+  }) as CoreCachedRead<Args, Result>
+
+  read.refresh = async (...args: Args): Promise<Result> => {
     const value = await compute(...args)
-    await cacheService.set(key, value, ttlSeconds)
+    await store(args, value)
     return value
   }
+
+  return read
 }
 
 export function normalizeSymbolKey(raw: string): string {
