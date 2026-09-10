@@ -1169,13 +1169,13 @@ git push origin remake
 - Consumes: all Task 1-5 deliverables.
 - Produces: independently reviewable offline evidence for the foundation; no provider or operational claim.
 
-- [ ] **Step 1: Run targeted tests**
+- [x] **Step 1: Run targeted tests**
 
 Run: `npm.cmd run test:unit -- --runInBand tests/services/analytics/productScoring tests/models/productScoringModels.test.ts`
 
 Expected: all targeted suites PASS with exact suite/test totals recorded in this plan.
 
-- [ ] **Step 2: Run repository gates**
+- [x] **Step 2: Run repository gates**
 
 Run: `npm.cmd run types:check`
 
@@ -1193,7 +1193,7 @@ Run: `npm.cmd run build`
 
 Expected: exit 0.
 
-- [ ] **Step 3: Run repository and contract checks**
+- [x] **Step 3: Run repository and contract checks**
 
 Run: `npm.cmd run routes:catalog:check`
 
@@ -1211,7 +1211,7 @@ Run: `git diff --check`
 
 Expected: no output.
 
-- [ ] **Step 4: Review stop conditions**
+- [x] **Step 4: Review stop conditions**
 
 Confirm from tests and diff:
 
@@ -1225,7 +1225,30 @@ Confirm from tests and diff:
 
 Any failure stops the ticket and is reported to the user with evidence. Do not infer a solution where the spec requires a user decision.
 
-- [ ] **Step 5: Commit evidence and push the completed ticket**
+#### Acceptance evidence — 2026-09-10
+
+- Targeted foundation: `npm.cmd run test:unit -- --runInBand tests/services/analytics/productScoring tests/models/productScoringModels.test.ts` — **5 suites passed, 33 tests passed**, exit 0.
+- Type gate: `npm.cmd run types:check` — exit 0.
+- Lint gate: `npm.cmd run lint` — exit 0, no ESLint warnings.
+- Full test gate: `npm.cmd test -- --runInBand` — **585 suites passed, 3926 tests passed**, 2 Jest projects (`unit`, `integration`), exit 0, 630.042s.
+- Build gate: `npm.cmd run build` — exit 0.
+- Route catalog: `npm.cmd run routes:catalog:check` — `Route catalog is current (438 runtime identities).`
+- Response contracts: `$env:RESPONSE_CONTRACT_FRONT_ROOT='C:\Users\User\Documents\GitHub\Riquinho\api\Front\Front'; npm.cmd run contracts:responses:check` — `Response catalog is current (438 decisions; 227 Front calls; 204 consumers).`
+- Scalability: `npm.cmd run scalability:reads:check` — `SCALE-01 inventory OK: 40 complete / 0 pending; SCALE-02 11 complete / 0 pending; SCALE-03 24 complete / 0 pending; main parity 59 adjudicated (55 complete / 0 pending / 4 excluded); 442 Mongoose list sites (AST v2)`.
+- Diff hygiene: `git diff --check` — no output.
+
+Stop-condition review:
+
+- No provider call, cron registration, HTTP route, Front change, or legacy endpoint change was added. Task 6 changed only this plan document.
+- `ProviderKey` and the Mongoose provider enum contain only `hotmart`, `curseduca`, and `guru`; Discord is absent.
+- Targeted tests preserve observed zero as distinct from missing/null evidence; missing evidence does not become zero.
+- Score definitions and snapshots remain experimental; definitions remain disabled and rank/action output remains non-definitive.
+- Observation and weekly snapshot idempotency remains keyed by observation identity or learner/product/week/version; rerun test passes.
+- Runner diagnostics expose provider/status/count/duration and a fixed failure category; raw errors, native values, credentials, and payloads are not returned.
+
+The full test run emitted existing Mongoose warnings for duplicate indexes and reserved `errors` paths. They are outside Tasks 1–5 and were not changed.
+
+- [x] **Step 5: Commit evidence and push the completed ticket**
 
 ```bash
 git add docs/superpowers/plans/2026-09-10-canonical-product-scoring-foundation.md
