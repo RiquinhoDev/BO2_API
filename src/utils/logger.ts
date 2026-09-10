@@ -35,10 +35,45 @@ const redactFormat = winston.format((info) => {
 // which crash-looped the whole container the moment console logging turned
 // on in production -- every route 502'd, including /health, which does no
 // I/O at all. Plain text is worth losing the color to never repeat that.
-const consoleFormat = winston.format.combine(
+/**
+ * JSON.stringify que nunca rebenta.
+ *
+ * O CursEducaSync falhou 18 noites em 252 com "Converting circular structure
+ * to JSON ... property 'res' -> ... property 'req' closes the circle". Não era
+ * um erro do sync: era este formato. Quando a API devolve um erro, alguém
+ * regista o erro do axios, que traz um `req`/`res` a apontarem um para o
+ * outro, e o `JSON.stringify` cru atirava um TypeError de dentro da chamada ao
+ * log. A excepção subia e matava quem estava a escrever, substituindo o erro
+ * verdadeiro pelo do logger.
+ *
+ * O formato de ficheiro nunca teve este problema porque usa
+ * `winston.format.json()`, que já lida com ciclos. Era só a consola, feita à
+ * mão — e a consola está ligada em produção.
+ *
+ * Um registo perdido é um aborrecimento. Um logger que derruba quem o chama
+ * esconde a avaria verdadeira, que é bem pior.
+ */
+function serializarSeguro(valor: unknown): string {
+  const vistos = new WeakSet<object>()
+  try {
+    return JSON.stringify(valor, (_chave, v) => {
+      if (typeof v !== 'object' || v === null) return v
+      if (vistos.has(v)) return '[circular]'
+      vistos.add(v)
+      return v
+    }) ?? '[sem valor]'
+  } catch {
+    // Getters que atiram, BigInt, Proxies hostis. Nada disto pode calar o
+    // resto da linha de log.
+    return '[metadados ilegíveis]'
+  }
+}
+
+/** Exportado para os testes poderem exercitar o formato verdadeiro, e nao uma copia. */
+export const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'HH:mm:ss' }),
   winston.format.printf(({ timestamp, level, message, ...metadata }) => {
-    const suffix = Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : ''
+    const suffix = Object.keys(metadata).length > 0 ? ` ${serializarSeguro(metadata)}` : ''
     return `${timestamp} [${level}]: ${message}${suffix}`
   }),
 )
