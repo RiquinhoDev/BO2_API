@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 import User from '../../models/user'
+import StudentRenewalTimeline from '../../models/StudentRenewalTimeline'
 import { verifyStudentAccessToken } from '../../security/jwt'
 import { getStudentSummaryToken } from '../requestDrivenRuntimeConfig'
 import { resolveAccessEnd } from '../renewal/turmaParser'
@@ -54,6 +55,46 @@ export function getActiveHotmartClassName(user: StudentAccessSource): string | u
   return activeClass?.className
 }
 
+function toValidDate(value: unknown): Date | null {
+  if (!value) return null
+  const d = value instanceof Date ? value : new Date(value as string)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Fim de acesso canónico do último ciclo da StudentRenewalTimeline — o mesmo
+ * valor que alimenta o ActiveCampaign, consciente de renovações em vários
+ * ciclos de compra. Devolve null quando ainda não há timeline gerada.
+ */
+export async function getTimelineAccessEnd(email: string): Promise<Date | null> {
+  const doc = await StudentRenewalTimeline.findOne({ email: normalizeStudentEmail(email) })
+    .select('ciclos.acessoAte')
+    .lean<{ ciclos?: Array<{ acessoAte?: Date }> }>()
+    .exec()
+  const ultimo = doc?.ciclos?.[doc.ciclos.length - 1]
+  return toValidDate(ultimo?.acessoAte)
+}
+
+/**
+ * Data de expiração do aluno para o countdown e o gate de login.
+ *   1. Timeline (acessoAte do último ciclo) — regra completa, aware de ciclos
+ *   2. resolveAccessEnd (compra + nome da turma) — rede de segurança
+ * Usa a MAIS TARDIA das duas: nunca encurta o acesso por causa de uma
+ * fonte em atraso.
+ */
+export async function resolveStudentAccessEnd(
+  email: string,
+  purchaseDate: Date | null | undefined,
+  className: string | null | undefined
+): Promise<Date | null> {
+  const candidates = [
+    await getTimelineAccessEnd(email),
+    resolveAccessEnd(purchaseDate, className)
+  ].filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+  if (candidates.length === 0) return null
+  return new Date(Math.max(...candidates.map((d) => d.getTime())))
+}
+
 export async function getStudentAccess(email: string): Promise<StudentAccessResult | null> {
   const user = await User.findOne({ email: normalizeStudentEmail(email) })
     .select('name email hotmart.enrolledClasses hotmart.purchaseDate hotmart.signupDate inactivation')
@@ -64,7 +105,7 @@ export async function getStudentAccess(email: string): Promise<StudentAccessResu
 
   const activeClassName = getActiveHotmartClassName(user)
   const purchaseDate = user.hotmart?.purchaseDate ?? user.hotmart?.signupDate ?? null
-  const expiresAt = resolveAccessEnd(purchaseDate, activeClassName)
+  const expiresAt = await resolveStudentAccessEnd(user.email, purchaseDate, activeClassName)
   const manuallyInactivated = Boolean(user.inactivation?.isManuallyInactivated)
   const dateValid = Boolean(expiresAt && expiresAt.getTime() >= Date.now())
 

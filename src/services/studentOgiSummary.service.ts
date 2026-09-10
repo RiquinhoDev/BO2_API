@@ -9,8 +9,8 @@ import { recordDailyActivity } from './achievements/streakCalculator'
 import { findRenewalOffer } from './renewal/renewalMatcher.service'
 import { buildCheckoutLink } from './renewal/renewalSync.service'
 import { GENERIC_RENEWAL_OFFER_CODE } from './renewal/renewalConstants'
-import { parseTurmaName, resolveAccessEnd } from './renewal/turmaParser'
-import { getActiveHotmartClassName, normalizeStudentEmail } from './studentOgiSummary/access'
+import { parseTurmaName } from './renewal/turmaParser'
+import { getActiveHotmartClassName, normalizeStudentEmail, resolveStudentAccessEnd } from './studentOgiSummary/access'
 
 export {
   getStudentAccess,
@@ -37,7 +37,7 @@ interface OgiModuleSummary {
   completed: boolean
 }
 
-type ContinueLessonStatus = 'next' | 'resume' | 'start'
+type ContinueLessonStatus = 'next' | 'resume' | 'start' | 'completed'
 
 interface OgiContinueLesson {
   pageId: string
@@ -272,13 +272,17 @@ async function buildStudentOgiSummary(
   const percentage = getProgressPercentage(user, userProduct, completedLessons, totalLessons)
   const purchaseDate = userProduct?.metadata?.purchaseDate || user.hotmart?.purchaseDate
   const enrolledAt = userProduct?.enrolledAt || user.hotmart?.signupDate
-  const continueLesson = await buildContinueLesson(userProduct)
+  const continueLesson = await buildContinueLesson(user, userProduct)
   const activeClassName = getActiveHotmartClassName(user)
   const parsedTurma = activeClassName ? parseTurmaName(activeClassName) : null
   const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
-  const expiresAt = resolveAccessEnd(purchaseDate || enrolledAt, activeClassName)
+  const expiresAt = await resolveStudentAccessEnd(user.email, purchaseDate || enrolledAt, activeClassName)
     || fallbackExpiresAt
-  const renewalOffer = await findRenewalOffer(parsedTurma?.turmaNumber, user._id)
+  // Link de renovação: "Turma 1 ..." / "Turma 2 ..." (singular) na turma actual
+  // OU alguma vez no histórico → oferta própria dessa turma (a identidade é
+  // permanente, sobrevive ao balde genérico entre ciclos). Tudo o resto,
+  // incluindo turmas fundidas "Turmas ...", recebe a genérica.
+  const renewalOffer = await findRenewalOffer(activeClassName, user._id)
 
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
 
@@ -314,7 +318,12 @@ async function buildStudentOgiSummary(
   }
 }
 
-async function buildContinueLesson(userProduct: UserProductLean | null): Promise<OgiContinueLesson | undefined> {
+async function buildContinueLesson(
+  user: StudentWithAchievements,
+  userProduct: UserProductLean | null
+): Promise<OgiContinueLesson | undefined> {
+  // Catálogo do curso (courselessons): dá o url e o nome do módulo por pageId.
+  // É opcional — só enriquece. A posição do aluno vem do lessonsData dele.
   const catalog = await CourseLessonReadModel.find({
     isActive: true,
     courseCode: /^OGI/i
@@ -324,20 +333,76 @@ async function buildContinueLesson(userProduct: UserProductLean | null): Promise
     .lean()
     .exec() as unknown as CourseLessonLean[]
 
+  const meta = new Map<string, { url?: string; moduleName?: string }>(
+    catalog.map((l) => [l.pageId, { url: l.url, moduleName: l.moduleName }])
+  )
+
+  // ── Fonte primária: user.hotmart.progress.lessonsData ──────────────────
+  // Lista das lições do aluno, com "completado" e a DATA de conclusão por
+  // lição. NOTA: este array NÃO está garantidamente em ordem de curso — por
+  // isso só o usamos para achar a ÚLTIMA lição concluída (por data). A lição
+  // "seguinte" só é fiável com o catálogo courselessons (que tem a ordem real).
+  const lessonsData = user.hotmart?.progress?.lessonsData || []
+  if (lessonsData.length > 0) {
+    const toContinue = (
+      entry: { lessonId: string; title: string },
+      status: ContinueLessonStatus
+    ): OgiContinueLesson => {
+      const m = meta.get(entry.lessonId)
+      return {
+        pageId: entry.lessonId,
+        pageName: entry.title,
+        moduleName: m?.moduleName || '',
+        url: m?.url || '',
+        status
+      }
+    }
+
+    const completedCount = lessonsData.filter((l) => l.completed).length
+    if (completedCount === 0) {
+      return toContinue(catalog[0] ? { lessonId: catalog[0].pageId, title: catalog[0].pageName } : lessonsData[0], 'start')
+    }
+    if (completedCount === lessonsData.length) {
+      return toContinue(lessonsData[lessonsData.length - 1], 'completed')
+    }
+
+    // última lição concluída, pela DATA de conclusão = onde o aluno parou
+    let lastCompleted = lessonsData.find((l) => l.completed)!
+    let bestTime = lastCompleted.completedAt ? new Date(lastCompleted.completedAt).getTime() : -Infinity
+    for (const l of lessonsData) {
+      if (!l.completed || !l.completedAt) continue
+      const t = new Date(l.completedAt).getTime()
+      if (Number.isFinite(t) && t >= bestTime) { bestTime = t; lastCompleted = l }
+    }
+
+    // Se o catálogo courselessons existe, sabemos a ordem real → dar a PRÓXIMA.
+    if (catalog.length > 0) {
+      const catIndex = catalog.findIndex((c) => c.pageId === lastCompleted.lessonId)
+      if (catIndex >= 0 && catIndex + 1 < catalog.length) {
+        return toContinueLesson(catalog[catIndex + 1], 'next')
+      }
+      if (catIndex === catalog.length - 1) {
+        return toContinueLesson(catalog[catalog.length - 1], 'resume')
+      }
+    }
+
+    // Sem catálogo: mostra a última lição concluída (o aluno retoma o curso daí).
+    return toContinue(lastCompleted, 'resume')
+  }
+
+  // ── Fallback: userProduct.progress.lessonsCompleted + catálogo ──────────
   if (catalog.length === 0) return undefined
 
   const completedPageIds = new Set(userProduct?.progress?.lessonsCompleted || [])
-  const hasStarted = completedPageIds.size > 0
+  if (completedPageIds.size === 0) return toContinueLesson(catalog[0], 'start')
 
-  if (!hasStarted) {
-    return toContinueLesson(catalog[0], 'start')
-  }
+  let furthestCompletedIndex = -1
+  catalog.forEach((lesson, index) => {
+    if (completedPageIds.has(lesson.pageId)) furthestCompletedIndex = index
+  })
 
-  const firstIncomplete = catalog.find((lesson) => !completedPageIds.has(lesson.pageId))
-  if (firstIncomplete) {
-    return toContinueLesson(firstIncomplete, 'next')
-  }
-
+  const nextIndex = furthestCompletedIndex + 1
+  if (nextIndex < catalog.length) return toContinueLesson(catalog[nextIndex], 'next')
   return toContinueLesson(catalog[catalog.length - 1], 'resume')
 }
 

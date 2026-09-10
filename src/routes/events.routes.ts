@@ -267,7 +267,7 @@ router.post('/seed', async (_req: Request, res: Response, next: NextFunction) =>
         links: [
           { name: 'Zoom', url: 'https://zoom.us/j/example-portfolio' },
         ],
-        coverImage: '/assets/events/portfolio-cover.png',
+        coverImage: 'portfolio',
         status: 'published',
         isPublic: true,
         interestedCount: 19,
@@ -328,7 +328,7 @@ router.post('/seed', async (_req: Request, res: Response, next: NextFunction) =>
         links: [
           { name: 'Zoom', url: 'https://zoom.us/j/example-portfolio-jul' },
         ],
-        coverImage: '/assets/events/portfolio-cover.png',
+        coverImage: 'portfolio',
         status: 'published',
         isPublic: true,
         interestedCount: 17,

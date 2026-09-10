@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import HotmartSaleHistory from '../../models/HotmartSaleHistory'
+import StudentClassHistory from '../../models/StudentClassHistory'
 import RenewalOffer, { IRenewalOffer } from '../../models/RenewalOffer'
 import {
   GENERIC_RENEWAL_OFFER_CODE,
@@ -7,59 +7,62 @@ import {
   TURMA_2_RENEWAL_OFFER_CODE
 } from './renewalConstants'
 
-// Só 3 links são mesmo enviados: turma 1 e turma 2 têm preço fixo próprio
-// (offer code nunca muda, só o nome da turma muda a cada ciclo de renovação);
-// todas as outras turmas recebem sempre o link genérico. Regra fixa em
-// código — não depende de estado editável no Backoffice (turmaNumbers
-// atribuídos a ofertas antigas já não são usados para decidir isto).
-const FIXED_TURMA_OFFER_CODES: Record<number, string> = {
-  1: TURMA_1_RENEWAL_OFFER_CODE,
-  2: TURMA_2_RENEWAL_OFFER_CODE
+// A Turma 1 e a Turma 2 têm oferta de renovação própria (preço fixo). Ser
+// "da Turma 1/2" é permanente — não muda quando o aluno passa por um balde
+// genérico entre ciclos ("Turma Renovação | AAMM") ou fica sem turma à espera
+// de ser movido para a "[5a renov]". Por isso o link decide-se assim:
+//
+//   1. A turma ACTUAL é "Turma 1 ..." / "Turma 2 ..." (singular)  -> oferta fixa
+//   2. Senão, o aluno JÁ ESTEVE alguma vez numa "Turma 1 ..." /
+//      "Turma 2 ..." (histórico de turmas)                        -> oferta fixa
+//   3. Senão                                                      -> genérica
+//
+// SÓ o singular conta. Ficam de fora (→ genérica): "Turmas 1 a 5" /
+// "Turmas 1, 2 e 3" (fundidas), "Turma 11 ..." (o \s*[|[] logo a seguir ao
+// 1/2 garante isso) e "Turma Renovação | AAMM".
+const SOLO_TURMA_1 = /^\s*turma\s+0*1\s*[|[]/i
+const SOLO_TURMA_2 = /^\s*turma\s+0*2\s*[|[]/i
+
+function soloTurmaOfferCode(className: string): string | null {
+  if (SOLO_TURMA_1.test(className)) return TURMA_1_RENEWAL_OFFER_CODE
+  if (SOLO_TURMA_2.test(className)) return TURMA_2_RENEWAL_OFFER_CODE
+  return null
 }
 
-type HotmartSaleHistoryReadModel = { findOne: (...args: any[]) => any }
-const HotmartSaleHistoryModel = HotmartSaleHistory as unknown as HotmartSaleHistoryReadModel
-
-/**
- * Turma 1/2 deixam de se chamar "Turma 1 [...]" a partir do momento em
- * que renovam — o novo esquema agrupa toda a gente que renovou num
- * ciclo numa turma só ("Turma Renovação | AAMM"), independente da turma
- * de origem. Nessa altura o nome já não tem o número, então caímos para
- * o histórico de compras: se algum dia comprou pelo offer code fixo de
- * turma 1/2, continua a ser turma 1/2 para sempre — sobrevive à mudança
- * de nome porque o offer code (ao contrário do nome) nunca muda.
- */
 async function resolveFixedTurmaOfferCode(
-  turmaNumber: number | null | undefined,
+  activeClassName: string | null | undefined,
   userId: mongoose.Types.ObjectId | string | null | undefined
 ): Promise<string | null> {
-  if (turmaNumber && FIXED_TURMA_OFFER_CODES[turmaNumber]) {
-    return FIXED_TURMA_OFFER_CODES[turmaNumber]
-  }
+  // 1. turma actual
+  const fromActive = soloTurmaOfferCode(activeClassName || '')
+  if (fromActive) return fromActive
 
+  // 2. histórico de turmas (identidade permanente da turma 1/2)
   if (!userId) return null
 
-  const history = await HotmartSaleHistoryModel.findOne({ userId })
-    .select('sales.offerCode')
+  const classHistory = await StudentClassHistory.find({ studentId: userId })
+    .select('className')
     .lean()
-    .exec() as { sales?: Array<{ offerCode: string | null }> } | null
+    .exec() as Array<{ className?: string }>
 
-  const offerCodesUsed = new Set((history?.sales || []).map((s) => s.offerCode))
-  if (offerCodesUsed.has(TURMA_1_RENEWAL_OFFER_CODE)) return TURMA_1_RENEWAL_OFFER_CODE
-  if (offerCodesUsed.has(TURMA_2_RENEWAL_OFFER_CODE)) return TURMA_2_RENEWAL_OFFER_CODE
+  for (const h of classHistory) {
+    const code = soloTurmaOfferCode(h.className || '')
+    if (code) return code
+  }
+
   return null
 }
 
 export async function findRenewalOffer(
-  turmaNumber?: number | null,
+  activeClassName?: string | null,
   userId?: mongoose.Types.ObjectId | string | null
 ): Promise<IRenewalOffer | null> {
-  const fixedCode = await resolveFixedTurmaOfferCode(turmaNumber, userId)
+  const fixedCode = await resolveFixedTurmaOfferCode(activeClassName, userId)
 
   if (fixedCode) {
     const fixed = await RenewalOffer.findOne({ offerCode: fixedCode, isActive: true }).exec()
     if (fixed) return fixed
-    // oferta fixa não encontrada/inativa na BD — cai para o genérico em vez de nada
+    // oferta fixa não encontrada/inativa na BD — cai para a genérica em vez de nada
   }
 
   return RenewalOffer.findOne({
