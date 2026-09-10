@@ -17,9 +17,27 @@ interface ClarezaRefreshResult {
   readonly errors: number
 }
 
-interface ClarezaDailyResult extends ClarezaRefreshResult {
+/**
+ * O que o dia devolve.
+ *
+ * `errors` é o que faz a noite falhar: uma peça da cadeia que rebentou. O
+ * dispatcher lê-o e faz `success && errors === 0`, portanto um único erro
+ * pinta tudo de vermelho — e é por isso que só pode lá estar o que é mesmo
+ * falha nossa.
+ *
+ * `semDados` é outra coisa: tickers para os quais o fornecedor não tem
+ * dados. É uma medida de cobertura, não um erro. Quem decide se a cobertura
+ * chega é a trava de publicação, que exige 90%; se não chegar, a geração não
+ * é publicada e aí sim o dia falha.
+ */
+export interface ClarezaDiaResult {
   readonly success: boolean
+  readonly total: number
+  readonly errors: number
+  readonly semDados: number
 }
+
+type ClarezaDailyResult = ClarezaDiaResult
 
 type ClarezaRefresh = (generationId: string) => Promise<ClarezaRefreshResult>
 
@@ -95,18 +113,21 @@ async function warmBestEffort(
 
 export function createClarezaJob(dependencies: ClarezaJobDependencies) {
   return {
-    async run(startedAt = new Date().toISOString()): Promise<{ success: boolean; total: number; errors: number }> {
+    async run(startedAt = new Date().toISOString()): Promise<ClarezaDiaResult> {
       try {
         dependencies.assertRefreshEnabled()
         const core = await dependencies.refreshCore(startedAt)
-        const coreErrors = core.missingAssets + core.failedAssets
+        const semDados = core.missingAssets + core.failedAssets
         if (core.status !== 'published') {
-          const errors = Math.max(1, coreErrors)
+          // A trava de publicação recusou. AQUI a cobertura vira erro, porque
+          // foi ela que derrubou o dia — e nunca menos de um, para o dia nunca
+          // passar por bom quando não há geração publicada.
+          const errors = Math.max(1, semDados)
           dependencies.logger.error('Clareza canonical core refresh not published', {
             total: core.collectedAssets,
             errors,
           })
-          return { success: false, total: core.collectedAssets, errors }
+          return { success: false, total: core.collectedAssets, errors, semDados }
         }
 
         if (dependencies.retention) await pruneBestEffort(dependencies.retention, dependencies.logger)
@@ -122,14 +143,26 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
 
         if (dependencies.warmCache) await warmBestEffort(dependencies.warmCache, dependencies.logger)
 
+        // Publicada: a cobertura passou na trava e fica como medida, fora da
+        // conta dos erros. Quatro tickers que o fornecedor não serve — medidos
+        // a 10/09/2026, sempre os mesmos — não são uma noite falhada.
+        if (semDados > 0) {
+          dependencies.logger.info('Clareza core sem dados do fornecedor', {
+            total: core.collectedAssets,
+            errors: 0,
+            semDados,
+          })
+        }
+
         return {
           success: true,
           total: core.collectedAssets,
-          errors: coreErrors + companionErrors.reduce((sum, value) => sum + value, 0) + top10Errors,
+          errors: companionErrors.reduce((sum, value) => sum + value, 0) + top10Errors,
+          semDados,
         }
       } catch {
         dependencies.logger.error('Clareza canonical daily refresh failed', { total: 0, errors: 1 })
-        return { success: false, total: 0, errors: 1 }
+        return { success: false, total: 0, errors: 1, semDados: 0 }
       }
     },
   }
@@ -166,11 +199,11 @@ const coordinator = new RefreshJobCoordinator<ClarezaDailyResult>(
 )
 
 export default {
-  async run(): Promise<{ success: boolean; total: number; errors: number }> {
+  async run(): Promise<ClarezaDiaResult> {
     try {
       return await coordinator.execute()
     } catch {
-      return { success: false, total: 0, errors: 1 }
+      return { success: false, total: 0, errors: 1, semDados: 0 }
     }
   },
 }
