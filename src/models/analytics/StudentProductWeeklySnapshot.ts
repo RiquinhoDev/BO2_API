@@ -29,8 +29,22 @@ const studentProductWeeklySnapshotSchema = new Schema<IStudentProductWeeklySnaps
   dimensions: { type: Schema.Types.Mixed, required: true },
   coverage: { type: Number, min: 0, max: 100, required: true },
   freshness: { type: String, enum: ['fresh', 'stale', 'partial'], required: true },
-  experimental: { type: Boolean, enum: [true] as unknown as (string | number | null)[], required: true },
-  eligibleForRank: { type: Boolean, enum: [false] as unknown as (string | number | null)[], required: true },
+  experimental: {
+    type: Boolean,
+    required: true,
+    validate: {
+      validator: (value: boolean) => value === true,
+      message: 'experimental must be true',
+    },
+  },
+  eligibleForRank: {
+    type: Boolean,
+    required: true,
+    validate: {
+      validator: (value: boolean) => value === false,
+      message: 'eligibleForRank must be false',
+    },
+  },
   actionState: { type: String, enum: ['indeterminate'], required: true },
   reasons: { type: [String], default: [] },
   missingSignals: { type: [String], default: [] },

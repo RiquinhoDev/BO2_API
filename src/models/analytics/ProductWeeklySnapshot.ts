@@ -25,7 +25,14 @@ const productWeeklySnapshotSchema = new Schema<IProductWeeklySnapshot>({
   eligibleLearnerCount: { type: Number, min: 0, required: true },
   coverage: { type: Number, min: 0, max: 100, required: true },
   distribution: { type: Schema.Types.Mixed, required: true },
-  experimental: { type: Boolean, enum: [true] as unknown as (string | number | null)[], required: true },
+  experimental: {
+    type: Boolean,
+    required: true,
+    validate: {
+      validator: (value: boolean) => value === true,
+      message: 'experimental must be true',
+    },
+  },
 }, { timestamps: true })
 
 productWeeklySnapshotSchema.index(

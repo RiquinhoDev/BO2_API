@@ -14,8 +14,22 @@ export interface IScoreDefinition extends Document {
 const scoreDefinitionSchema = new Schema<IScoreDefinition>({
   profileKey: { type: String, required: true },
   version: { type: String, required: true },
-  experimental: { type: Boolean, enum: [true] as unknown as (string | number | null)[], required: true },
-  enabled: { type: Boolean, enum: [false] as unknown as (string | number | null)[], required: true },
+  experimental: {
+    type: Boolean,
+    required: true,
+    validate: {
+      validator: (value: boolean) => value === true,
+      message: 'experimental must be true',
+    },
+  },
+  enabled: {
+    type: Boolean,
+    required: true,
+    validate: {
+      validator: (value: boolean) => value === false,
+      message: 'enabled must be false',
+    },
+  },
   minimumCoverage: { type: Number, min: 0, max: 100, required: true },
   dimensions: { type: Schema.Types.Mixed, required: true },
 }, { timestamps: true })

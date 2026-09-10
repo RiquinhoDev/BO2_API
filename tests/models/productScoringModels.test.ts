@@ -77,4 +77,86 @@ describe('product scoring model topology', () => {
     })
     await expect(invalidMissing.validate()).rejects.toThrow('observation quality/value mismatch')
   })
+
+  test('rejects a non-experimental product snapshot', async () => {
+    const invalidSnapshot = new ProductWeeklySnapshot({
+      productId: new mongoose.Types.ObjectId(),
+      isoWeek: '2026-W37',
+      scoreVersion: '1.0-experimental',
+      profileKey: 'product-health',
+      score: null,
+      learnerCount: 0,
+      eligibleLearnerCount: 0,
+      coverage: 0,
+      distribution: {},
+      experimental: false,
+    })
+
+    await expect(invalidSnapshot.validate()).rejects.toMatchObject({
+      errors: { experimental: { message: 'experimental must be true' } },
+    })
+  })
+
+  test('rejects non-experimental or rank-eligible learner snapshots', async () => {
+    const baseSnapshot = {
+      learnerId: new mongoose.Types.ObjectId(),
+      productId: new mongoose.Types.ObjectId(),
+      isoWeek: '2026-W37',
+      scoreVersion: '1.0-experimental',
+      profileKey: 'learner-course',
+      score: null,
+      dimensions: {},
+      coverage: 0,
+      freshness: 'fresh' as const,
+      reasons: [],
+      missingSignals: [],
+    }
+
+    const nonExperimental = new StudentProductWeeklySnapshot({
+      ...baseSnapshot,
+      experimental: false,
+      eligibleForRank: false,
+      actionState: 'indeterminate',
+    })
+    await expect(nonExperimental.validate()).rejects.toMatchObject({
+      errors: { experimental: { message: 'experimental must be true' } },
+    })
+
+    const rankEligible = new StudentProductWeeklySnapshot({
+      ...baseSnapshot,
+      experimental: true,
+      eligibleForRank: true,
+      actionState: 'indeterminate',
+    })
+    await expect(rankEligible.validate()).rejects.toMatchObject({
+      errors: { eligibleForRank: { message: 'eligibleForRank must be false' } },
+    })
+  })
+
+  test('rejects an enabled or non-experimental score definition', async () => {
+    const baseDefinition = {
+      profileKey: 'learner-course',
+      version: '1.0-experimental',
+      minimumCoverage: 70,
+      dimensions: [],
+    }
+
+    const nonExperimental = new ScoreDefinition({
+      ...baseDefinition,
+      experimental: false,
+      enabled: false,
+    })
+    await expect(nonExperimental.validate()).rejects.toMatchObject({
+      errors: { experimental: { message: 'experimental must be true' } },
+    })
+
+    const enabled = new ScoreDefinition({
+      ...baseDefinition,
+      experimental: true,
+      enabled: true,
+    })
+    await expect(enabled.validate()).rejects.toMatchObject({
+      errors: { enabled: { message: 'enabled must be false' } },
+    })
+  })
 })
