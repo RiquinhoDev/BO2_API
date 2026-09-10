@@ -1,5 +1,6 @@
 import ClarezaCoreGeneration from '../../../models/ClarezaCoreGeneration'
 import ClarezaCorePublication from '../../../models/ClarezaCorePublication'
+import { cacheService } from '../../cache.service'
 import type {
   CoreGenerationCandidate,
   CoreGenerationStore,
@@ -9,6 +10,18 @@ import type {
 
 const POINTER_KEY = 'core'
 const MAX_CANDIDATE_RETENTION = 20
+
+// A geração publicada (~1,3MB) é a mesma para todos os leitores e só muda na
+// publicação das 03h. Sem isto, cada cache-miss de qualquer ferramenta —
+// e cada um dos ~350 símbolos no aquecimento — relê-a da Mongo. Com um TTL
+// de segurança e invalidação explícita na publicação/rollback, o Mongo só é
+// tocado uma vez a cada poucas horas.
+const PUBLISHED_CACHE_KEY = 'clareza:core:published-generation'
+const PUBLISHED_CACHE_TTL_SECONDS = 6 * 60 * 60
+
+async function invalidatePublishedCache(): Promise<void> {
+  await cacheService.del(PUBLISHED_CACHE_KEY).catch(() => {})
+}
 
 type ErrorWithCode = { readonly code?: unknown }
 
@@ -64,8 +77,16 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
   }
 
   async readPublished(): Promise<CoreGenerationCandidate | null> {
+    const cached = await cacheService.get<CoreGenerationCandidate>(PUBLISHED_CACHE_KEY)
+    if (cached !== null) return cached
+
     const pointer = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).maxTimeMS(5_000).lean()
-    return pointer ? this.readCandidate(pointer.currentGenerationId) : null
+    if (!pointer) return null
+    const candidate = await this.readCandidate(pointer.currentGenerationId)
+    if (candidate) {
+      await cacheService.set(PUBLISHED_CACHE_KEY, candidate, PUBLISHED_CACHE_TTL_SECONDS).catch(() => {})
+    }
+    return candidate
   }
 
   async publishCandidate(
@@ -93,6 +114,7 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
           revision: 1,
           updatedAt: new Date(),
         })
+        await invalidatePublishedCache()
         return publishedResult(created)
       } catch (error: unknown) {
         if (isDuplicateKey(error)) return { status: 'conflict' }
@@ -113,6 +135,7 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
       $inc: { revision: 1 },
     }, { new: true }).lean()
 
+    if (updated) await invalidatePublishedCache()
     return updated ? publishedResult(updated) : { status: 'conflict' }
   }
 
@@ -134,6 +157,7 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
       $inc: { revision: 1 },
     }, { new: true }).lean()
 
+    if (updated) await invalidatePublishedCache()
     return updated ? publishedResult(updated) : { status: 'conflict' }
   }
 
