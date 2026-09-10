@@ -48,6 +48,12 @@ import './acTags/ACContactState'
 // ===== DASHBOARD STATS: MATERIALIZED VIEW =====
 import './DashboardStats'
 
+// ===== CANONICAL PRODUCT SCORING =====
+import './analytics/MetricObservation'
+import './analytics/StudentProductWeeklySnapshot'
+import './analytics/ProductWeeklySnapshot'
+import './analytics/ScoreDefinition'
+
 // Exportar models para uso direto
 export { default as User } from './user'
 export { default as Admin } from './Admin'
@@ -90,6 +96,12 @@ export { default as ACContactState } from './acTags/ACContactState'
 
 // ===== DASHBOARD STATS: MATERIALIZED VIEW =====
 export { DashboardStats } from './DashboardStats'
+
+// ===== CANONICAL PRODUCT SCORING =====
+export { default as MetricObservation } from './analytics/MetricObservation'
+export { default as StudentProductWeeklySnapshot } from './analytics/StudentProductWeeklySnapshot'
+export { default as ProductWeeklySnapshot } from './analytics/ProductWeeklySnapshot'
+export { default as ScoreDefinition } from './analytics/ScoreDefinition'
 
 // Função para verificar se um modelo está disponível
 function ensureModel(modelName: string): boolean {
