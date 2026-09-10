@@ -143,7 +143,9 @@ export function createWeeklySnapshotRunner(dependencies: WeeklySnapshotDependenc
         to: request.to,
       })
       const partial = providerResults.some(result => result.status === 'rejected')
-      const studentSnapshots = calculateStudentSnapshots(persistedObservations, definition, request, partial ? 'partial' : 'fresh')
+      const stale = persistedObservations.some(item => item.learnerId !== null && item.quality === 'stale')
+      const freshness: ScoreResult['freshness'] = partial ? 'partial' : stale ? 'stale' : 'fresh'
+      const studentSnapshots = calculateStudentSnapshots(persistedObservations, definition, request, freshness)
       await dependencies.repository.upsertStudentSnapshots(studentSnapshots)
       const productSnapshot = calculateExperimentalProductSnapshot(studentSnapshots, request)
       await dependencies.repository.upsertProductSnapshot(productSnapshot)

@@ -29,7 +29,7 @@ const definition = (minimumCoverage = 70): ScoreDefinitionContract => ({
   }],
 })
 
-const observation = (quality: 'observed' | 'missing' = 'observed'): MetricObservation => ({
+const observation = (quality: 'observed' | 'missing' | 'stale' = 'observed'): MetricObservation => ({
   observationKey: `hotmart:user-1:ogi:access-count:2026-W37:${quality}`,
   learnerId: '507f1f77bcf86cd799439011',
   productId: request.productId,
@@ -99,6 +99,18 @@ test('scores the canonical observations read after an empty provider collection'
     to: request.to,
   })
   expect(result.studentSnapshots[0]).toMatchObject({ learnerId: observation().learnerId, score: 80 })
+})
+
+test('marks the score stale when persisted canonical evidence is stale', async () => {
+  const emptyAdapter: ProviderMetricsAdapter = {
+    provider: 'hotmart',
+    async collect() {
+      return { provider: 'hotmart', observations: [], durationMs: 10 }
+    },
+  }
+  const result = await createWeeklySnapshotRunner(dependencies([emptyAdapter], 70, [observation('stale')])).run(request)
+
+  expect(result.studentSnapshots[0]).toMatchObject({ freshness: 'stale', score: null })
 })
 
 test('isolates one adapter failure and marks the run partial', async () => {
