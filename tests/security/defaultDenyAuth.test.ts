@@ -89,7 +89,7 @@ test('token SUPER_ADMIN valido atravessa todas as rotas authenticated', async ()
   const app = buildCatalogProbe()
   const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'SUPER_ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
-  expect(authenticated).toHaveLength(388)
+  expect(authenticated).toHaveLength(383)
 
   for (const route of authenticated) {
     const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'

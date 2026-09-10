@@ -70,6 +70,7 @@ test('a superficie excecional fica curta e explicita', () => {
   const routesWith = (access: string) => catalog.filter((route) => route.access === access).map(key).sort()
 
   expect(routesWith('public')).toEqual([
+    'GET /api/achievements/definitions',
     'GET /api/clareza/carteira/analysis',
     'GET /api/clareza/carteira/data',
     'GET /api/clareza/carteira/search',
@@ -79,17 +80,21 @@ test('a superficie excecional fica curta e explicita', () => {
     'GET /api/clareza/radar',
     'GET /api/clareza/raiox',
     'GET /api/clareza/top10',
+    'GET /api/events/upcoming',
     'GET /api/health',
     'POST /api/auth/login',
     'POST /api/clareza/suggestions',
   ])
   expect(routesWith('signature')).toEqual([
+    'GET /api/student/ogi/access',
+    'GET /api/student/ogi/summary',
+    'POST /api/achievements/mark-seen',
     'POST /api/guru/webhook',
     'POST /api/webhooks/ac/email-opened',
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(388)
+  expect(routesWith('authenticated')).toHaveLength(383)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**

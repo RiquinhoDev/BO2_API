@@ -196,11 +196,6 @@
   },
   {
     "method": "POST",
-    "path": "/api/achievements/mark-seen",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
     "path": "/api/activecampaign/product-tags/apply",
     "policy": "PG:activecampaign"
   },

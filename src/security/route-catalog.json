@@ -182,11 +182,11 @@
   {
     "method": "GET",
     "path": "/api/achievements/definitions",
-    "access": "authenticated",
-    "consumer": "desconhecido",
+    "access": "public",
+    "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:19"
+    "evidence": "public: catalogo estatico de conquistas sem PII; consumidor Comunidade_login; rota em src/routes/achievements.routes.ts:19"
   },
   {
     "method": "GET",
@@ -1101,11 +1101,11 @@
   {
     "method": "GET",
     "path": "/api/events/upcoming",
-    "access": "authenticated",
-    "consumer": "desconhecido",
+    "access": "public",
+    "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:22"
+    "evidence": "public: lista de proximos eventos sem credenciais; consumidor Comunidade_login; rota em src/routes/events.routes.ts:22"
   },
   {
     "method": "GET",
@@ -1632,20 +1632,20 @@
   {
     "method": "GET",
     "path": "/api/student/ogi/access",
-    "access": "authenticated",
-    "consumer": "desconhecido",
+    "access": "signature",
+    "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/studentOgiSummary.routes.ts:7"
+    "evidence": "consumer front (Comunidade_login) + API legacy via x-student-summary-token; autenticacao validada no handler; rota em src/routes/studentOgiSummary.routes.ts:7"
   },
   {
     "method": "GET",
     "path": "/api/student/ogi/summary",
-    "access": "authenticated",
-    "consumer": "desconhecido",
+    "access": "signature",
+    "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/studentOgiSummary.routes.ts:6"
+    "evidence": "consumer front (Comunidade_login); autenticacao por token JWT de aluno validado no handler; rota em src/routes/studentOgiSummary.routes.ts:6"
   },
   {
     "method": "GET",
@@ -2405,11 +2405,11 @@
   {
     "method": "POST",
     "path": "/api/achievements/mark-seen",
-    "access": "authenticated",
-    "consumer": "desconhecido",
+    "access": "signature",
+    "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:68"
+    "evidence": "consumer front (Comunidade_login); autenticacao por token JWT de aluno validado no handler; rota em src/routes/achievements.routes.ts:68"
   },
   {
     "method": "POST",
