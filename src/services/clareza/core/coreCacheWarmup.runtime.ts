@@ -25,11 +25,16 @@ const WARM_READS: readonly (readonly [string, () => Promise<unknown>])[] = [
 ]
 
 // O Raio-X da Ação é por símbolo (~350 chaves), nunca cabia numa leitura
-// agregada. Aquece-se cada uma. Em lotes para não abrir 350 ligações à
-// Mongo de uma vez; 12 de cada vez chega e é um job de fundo, ninguém
-// espera. (Optimização futura: cada asset() volta a ler a coleção inteira
-// de companions — dava para carregar uma vez e reaproveitar.)
+// agregada. Aquece-se cada uma. Em lotes para não abrir centenas de
+// ligações à Mongo de uma vez; é um job de fundo, ninguém espera.
+// (Optimização futura: cada asset() volta a ler a coleção inteira de
+// companions — dava para carregar uma vez e reaproveitar.)
 const RAIOX_WARM_BATCH = 12
+// Quando o Atlas está lento, uma leitura passa do maxTimeMS e falha. Não
+// vale a pena deixar o símbolo frio até à próxima noite: repete-se, mais
+// devagar, os que faltaram — os soluços do Atlas são intermitentes.
+const RAIOX_RETRY_BATCH = 4
+const RAIOX_RETRY_PASSES = 3
 
 async function warmInBatches<T>(
   items: readonly T[],
@@ -41,18 +46,35 @@ async function warmInBatches<T>(
   }
 }
 
-async function warmRaioxSymbols(): Promise<void> {
-  const tickers = selectRaioxUniverse().map((asset) => asset.ticker)
-  let failed = 0
-  await warmInBatches(tickers, RAIOX_WARM_BATCH, async (ticker) => {
+async function warmPass(
+  tickers: readonly string[],
+  batch: number,
+): Promise<string[]> {
+  const failures: string[] = []
+  await warmInBatches(tickers, batch, async (ticker) => {
     try {
       await getPublishedRaiox.refresh(ticker)
     } catch {
-      failed += 1
+      failures.push(ticker)
     }
   })
-  if (failed > 0) {
-    logger.warn(`Clareza cache warmup: raiox falhou em ${failed}/${tickers.length} símbolos`)
+  return failures
+}
+
+async function warmRaioxSymbols(): Promise<void> {
+  const total = selectRaioxUniverse().length
+  let pending = selectRaioxUniverse().map((asset) => asset.ticker)
+
+  pending = await warmPass(pending, RAIOX_WARM_BATCH)
+  for (let pass = 0; pass < RAIOX_RETRY_PASSES && pending.length > 0; pass += 1) {
+    pending = await warmPass(pending, RAIOX_RETRY_BATCH)
+  }
+
+  if (pending.length > 0) {
+    logger.warn(
+      `Clareza cache warmup: raiox ficou frio em ${pending.length}/${total} símbolos ` +
+        `após ${RAIOX_RETRY_PASSES + 1} passagens`,
+    )
   }
 }
 
