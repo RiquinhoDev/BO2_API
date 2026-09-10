@@ -101,11 +101,13 @@ export function createMongooseScoringRepository(models: ScoringModels): ScoringR
       return { inserted: result.upsertedCount, updated: result.modifiedCount }
     },
     async readObservations({ productId, from, to }) {
-      return models.MetricObservation.find({ productId, sourceEventAt: { $gte: from, $lt: to } })
+      const observations = await models.MetricObservation.find({ productId, sourceEventAt: { $gte: from, $lt: to } })
         .select('-nativeValue')
-        .limit(20_000)
+        .limit(20_001)
         .lean()
         .exec()
+      assertScoringCapacity(observations.length)
+      return observations
     },
     async readExperimentalDefinition(profileKey, version) {
       const definition = await models.ScoreDefinition.findOne({ profileKey, version }).lean().exec()

@@ -81,8 +81,23 @@ test('bounds reads by product and source-event window without selecting nativeVa
     sourceEventAt: { $gte: from, $lt: to },
   })
   expect(select).toHaveBeenCalledWith('-nativeValue')
-  expect(limit).toHaveBeenCalledWith(20_000)
+  expect(limit).toHaveBeenCalledWith(20_001)
   expect(exec).toHaveBeenCalledTimes(1)
+})
+
+test('rejects reads beyond capacity instead of returning truncated data', async () => {
+  const rows = Array.from({ length: 20_001 }, observationFixture)
+  const exec = jest.fn().mockResolvedValue(rows)
+  const limit = jest.fn(() => ({ lean: jest.fn(() => ({ exec })) }))
+  const select = jest.fn(() => ({ limit }))
+  const find = jest.fn(() => ({ select }))
+  const repository = createMongooseScoringRepository(fakeModels({ observationFind: find }))
+
+  await expect(repository.readObservations({
+    productId: '507f191e810c19729de860ea',
+    from: new Date('2026-09-07T00:00:00.000Z'),
+    to: new Date('2026-09-14T00:00:00.000Z'),
+  })).rejects.toThrow('SCORING_CAPACITY_EXCEEDED:20001')
 })
 
 test('does not call Mongoose for empty observation or student snapshot batches', async () => {
