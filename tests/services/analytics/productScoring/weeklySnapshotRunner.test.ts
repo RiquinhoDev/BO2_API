@@ -59,11 +59,16 @@ const adapter = (
 const dependencies = (
   adapters: ProviderMetricsAdapter[],
   minimumCoverage = 70,
+  persistedObservations: MetricObservation[] = [],
 ): WeeklySnapshotDependencies & { storedStudentSnapshots: Map<string, StudentSnapshotPersistence> } => {
   const storedStudentSnapshots = new Map<string, StudentSnapshotPersistence>()
+  const storedObservations = new Map(persistedObservations.map(row => [row.observationKey, row]))
   const repository: ScoringRepository = {
-    upsertObservations: jest.fn(async rows => ({ inserted: rows.length, updated: 0 })),
-    readObservations: jest.fn(async () => []),
+    upsertObservations: jest.fn(async rows => {
+      rows.forEach(row => storedObservations.set(row.observationKey, row))
+      return { inserted: rows.length, updated: 0 }
+    }),
+    readObservations: jest.fn(async () => [...storedObservations.values()]),
     readExperimentalDefinition: jest.fn(async () => definition(minimumCoverage)),
     upsertStudentSnapshots: jest.fn(async rows => {
       rows.forEach(row => storedStudentSnapshots.set(
@@ -77,6 +82,25 @@ const dependencies = (
   return { adapters, repository, clock: { now: () => new Date('2026-09-14T01:00:00.000Z') }, storedStudentSnapshots }
 }
 
+test('scores the canonical observations read after an empty provider collection', async () => {
+  const emptyAdapter: ProviderMetricsAdapter = {
+    provider: 'hotmart',
+    async collect() {
+      return { provider: 'hotmart', observations: [], durationMs: 10 }
+    },
+  }
+  const deps = dependencies([emptyAdapter], 70, [observation()])
+
+  const result = await createWeeklySnapshotRunner(deps).run(request)
+
+  expect(deps.repository.readObservations).toHaveBeenCalledWith({
+    productId: request.productId,
+    from: request.from,
+    to: request.to,
+  })
+  expect(result.studentSnapshots[0]).toMatchObject({ learnerId: observation().learnerId, score: 80 })
+})
+
 test('isolates one adapter failure and marks the run partial', async () => {
   const runner = createWeeklySnapshotRunner(dependencies([
     adapter('hotmart', 'success'), adapter('curseduca', 'failure'),
@@ -89,6 +113,7 @@ test('isolates one adapter failure and marks the run partial', async () => {
     expect.objectContaining({ provider: 'curseduca', status: 'failed' }),
   ])
   expect(result.providers[1]).not.toHaveProperty('error')
+  expect(result.studentSnapshots[0]).toMatchObject({ freshness: 'partial' })
 })
 
 test('reruns the same week and version through idempotent upserts', async () => {

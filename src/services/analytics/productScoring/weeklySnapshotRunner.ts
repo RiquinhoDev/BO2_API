@@ -137,8 +137,13 @@ export function createWeeklySnapshotRunner(dependencies: WeeklySnapshotDependenc
       )
       const observations = providerResults.flatMap(result => result.status === 'fulfilled' ? result.value.observations : [])
       await dependencies.repository.upsertObservations(observations)
+      const persistedObservations = await dependencies.repository.readObservations({
+        productId: request.productId,
+        from: request.from,
+        to: request.to,
+      })
       const partial = providerResults.some(result => result.status === 'rejected')
-      const studentSnapshots = calculateStudentSnapshots(observations, definition, request, partial ? 'partial' : 'fresh')
+      const studentSnapshots = calculateStudentSnapshots(persistedObservations, definition, request, partial ? 'partial' : 'fresh')
       await dependencies.repository.upsertStudentSnapshots(studentSnapshots)
       const productSnapshot = calculateExperimentalProductSnapshot(studentSnapshots, request)
       await dependencies.repository.upsertProductSnapshot(productSnapshot)
