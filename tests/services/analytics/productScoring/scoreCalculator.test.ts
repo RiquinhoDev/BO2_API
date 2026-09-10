@@ -80,6 +80,14 @@ test('keeps a real observed zero in the weighted score', () => {
   expect(result).toMatchObject({ score: 0, coverage: 100 })
 })
 
+test('does not use an observation from another dimension', () => {
+  const result = calculateDimensionScore({
+    expectedSignals: [{ metricKey: 'access_count', dimension: 'engagement', weight: 100, reliability: 1 }],
+    observations: [{ ...observed('access_count', 80), dimension: 'journey' }],
+  })
+  expect(result).toMatchObject({ score: null, coverage: 0, missingSignals: ['access_count'] })
+})
+
 test('withholds the internal score below minimum coverage', () => {
   const result = calculateScore(fixtureInput({ minimumCoverage: 70, observedCoverage: 60 }))
   expect(result).toMatchObject({ score: null, eligibleForRank: false, actionState: 'indeterminate', experimental: true })

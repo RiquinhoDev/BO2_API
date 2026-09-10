@@ -19,11 +19,13 @@ export interface ScoreCalculationInput {
   freshness: ScoreResult['freshness']
 }
 
+const signalKey = (dimension: DimensionKey, metricKey: string): string => `${dimension}:${metricKey}`
+
 export function calculateDimensionScore(input: DimensionCalculationInput): DimensionScore {
   const expectedWeight = input.expectedSignals.reduce((sum, signal) => sum + signal.weight, 0)
-  const byMetric = new Map(input.observations.map(item => [item.metricKey, item]))
+  const bySignal = new Map(input.observations.map(item => [signalKey(item.dimension, item.metricKey), item]))
   const observed = input.expectedSignals.flatMap(signal => {
-    const observation = byMetric.get(signal.metricKey)
+    const observation = bySignal.get(signalKey(signal.dimension, signal.metricKey))
     return observation?.quality === 'observed' && observation.normalizedValue !== null
       ? [{ signal, value: observation.normalizedValue }]
       : []
