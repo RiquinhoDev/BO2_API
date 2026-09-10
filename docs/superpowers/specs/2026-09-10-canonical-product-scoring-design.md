@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-10
 
-**Status:** Approved in chat; pending user review of this written specification
+**Status:** Approved by the user
 
 **Owner:** BO2_API remake
 
@@ -322,3 +322,11 @@ Stop the rollout when:
 - a new score cannot be reproduced from its stored version and inputs.
 
 No stable promotion, provider execution, Mongo mutation, Discord integration, or legacy removal is authorized by this specification alone.
+
+## 13. Ambiguity and user-decision rule
+
+The team must not silently assume an answer when uncertainty can change metric meaning, provider ownership, identity matching, product mapping, score composition, weights, thresholds, operational cadence, external integration behaviour, or the user-visible interpretation of a result.
+
+In those cases, work stops at the safe evidence checkpoint. The reviewer or Operator must present the confirmed facts, the unresolved question, and the material options to the user, then wait for the user's decision before continuing. Low-impact implementation details that cannot change behaviour or meaning remain normal engineering choices.
+
+Discord requires a mandatory user decision checkpoint before any design or implementation. That checkpoint must identify and inspect the separate bot API, confirm its interface and ownership, determine available history, permissions and intents, validate Discord-to-user and guild-to-product identity mapping, and agree which community signals are legitimate. No Discord capability may be inferred from legacy BO2_API fields or from Discord platform documentation alone.
