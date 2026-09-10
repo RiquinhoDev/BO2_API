@@ -10,6 +10,7 @@ import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import { boundedQueryLimit } from '../../utils/queryBounds'
 import Course from '../../models/Course'
+import { normalizeProductPublicName } from '../../services/products/productPublicName'
 
 // ─────────────────────────────────────────────────────────────
 // GET ALL PRODUCTS
@@ -43,7 +44,7 @@ export const getAllProducts = async (req: Request, res: Response, next: NextFunc
         })
 
         return {
-          ...product.toObject(),
+          ...normalizeProductPublicName(product.toObject()),
           studentCount
         }
       })
@@ -88,7 +89,7 @@ export const getProductById = async (req: Request, res: Response, next: NextFunc
       }
     ])
 
-    res.json(successResponse({ product, stats }))
+    res.json(successResponse({ product: normalizeProductPublicName(product.toObject()), stats }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produto', 'PRODUCT_READ_FAILED', error))
@@ -387,7 +388,7 @@ export const getProductAnalytics = async (req: Request, res: Response, next: Nex
       product: {
         id: product._id,
         code: product.code,
-        name: product.name
+        name: normalizeProductPublicName(product.toObject()).name
       },
       analytics: analytics[0]
     }))
