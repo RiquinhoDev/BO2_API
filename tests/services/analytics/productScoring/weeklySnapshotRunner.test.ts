@@ -29,9 +29,12 @@ const definition = (minimumCoverage = 70): ScoreDefinitionContract => ({
   }],
 })
 
-const observation = (quality: 'observed' | 'missing' | 'stale' = 'observed'): MetricObservation => ({
-  observationKey: `hotmart:user-1:ogi:access-count:2026-W37:${quality}`,
-  learnerId: '507f1f77bcf86cd799439011',
+const observation = (
+  quality: 'observed' | 'missing' | 'stale' = 'observed',
+  learnerId = '507f1f77bcf86cd799439011',
+): MetricObservation => ({
+  observationKey: `hotmart:${learnerId}:ogi:access-count:2026-W37:${quality}`,
+  learnerId,
   productId: request.productId,
   provider: 'hotmart',
   metricKey: 'access_count',
@@ -111,6 +114,26 @@ test('marks the score stale when persisted canonical evidence is stale', async (
   const result = await createWeeklySnapshotRunner(dependencies([emptyAdapter], 70, [observation('stale')])).run(request)
 
   expect(result.studentSnapshots[0]).toMatchObject({ freshness: 'stale', score: null })
+})
+
+test('scopes freshness to each learner observation set', async () => {
+  const emptyAdapter: ProviderMetricsAdapter = {
+    provider: 'hotmart',
+    async collect() {
+      return { provider: 'hotmart', observations: [], durationMs: 10 }
+    },
+  }
+  const freshLearnerId = '507f1f77bcf86cd799439011'
+  const staleLearnerId = '507f1f77bcf86cd799439012'
+  const result = await createWeeklySnapshotRunner(dependencies([emptyAdapter], 70, [
+    observation('observed', freshLearnerId),
+    observation('stale', staleLearnerId),
+  ])).run(request)
+
+  expect(result.studentSnapshots).toEqual(expect.arrayContaining([
+    expect.objectContaining({ learnerId: freshLearnerId, freshness: 'fresh', score: 80 }),
+    expect.objectContaining({ learnerId: staleLearnerId, freshness: 'stale', score: null }),
+  ]))
 })
 
 test('isolates one adapter failure and marks the run partial', async () => {

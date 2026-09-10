@@ -67,7 +67,7 @@ const calculateStudentSnapshots = (
   observations: readonly MetricObservation[],
   definition: ScoreDefinitionContract,
   request: WeeklySnapshotRequest,
-  freshness: ScoreResult['freshness'],
+  partial: boolean,
 ): StudentSnapshotPersistence[] => {
   const byLearner = new Map<string, MetricObservation[]>()
   observations.filter(item => item.learnerId !== null).forEach(item => {
@@ -84,6 +84,8 @@ const calculateStudentSnapshots = (
       + item.signals.filter(signal => learnerObservations.some(observation => observation.metricKey === signal.metricKey
         && observation.dimension === signal.dimension
         && observation.quality === 'observed')).reduce((signalSum, signal) => signalSum + signal.weight, 0), 0)
+    const stale = learnerObservations.some(item => item.quality === 'stale')
+    const freshness: ScoreResult['freshness'] = partial ? 'partial' : stale ? 'stale' : 'fresh'
     const result = calculateScore({
       definition,
       dimensions,
@@ -143,9 +145,7 @@ export function createWeeklySnapshotRunner(dependencies: WeeklySnapshotDependenc
         to: request.to,
       })
       const partial = providerResults.some(result => result.status === 'rejected')
-      const stale = persistedObservations.some(item => item.learnerId !== null && item.quality === 'stale')
-      const freshness: ScoreResult['freshness'] = partial ? 'partial' : stale ? 'stale' : 'fresh'
-      const studentSnapshots = calculateStudentSnapshots(persistedObservations, definition, request, freshness)
+      const studentSnapshots = calculateStudentSnapshots(persistedObservations, definition, request, partial)
       await dependencies.repository.upsertStudentSnapshots(studentSnapshots)
       const productSnapshot = calculateExperimentalProductSnapshot(studentSnapshots, request)
       await dependencies.repository.upsertProductSnapshot(productSnapshot)
