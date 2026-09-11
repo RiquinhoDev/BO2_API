@@ -26,6 +26,7 @@ const PROTECTED_JOB_NAMES = new Set(['ClarezaDailyRefresh'])
 // IN-MEMORY SCHEDULER REGISTRY
 // ─────────────────────────────────────────────────────────────
 
+const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
 const registry = new SchedulerRegistry()
 const notificationPort = createLoggingCronNotification(logger)
 const defaultCronJobExecutor = new CronJobExecutor({
@@ -306,6 +307,16 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
+    // O RenewalPipeline nao tem cron proprio de proposito: corre EM CIMA do
+    // "1o" (HotmartSync), encadeado no fim dele — ver jobDispatcher. E o "1o"
+    // que actualiza as turmas dos alunos, e as renovacoes leem-nas para
+    // decidir a tag; a horas fixas comecavam a meio e liam turmas
+    // incompletas. O `schedule.enabled` dele e so o interruptor.
+    if (job.name === RENEWAL_PIPELINE_JOB_NAME) {
+      logger.info(`🔗 ${job.name}: sem cron proprio — corre no fim do "1o" quando o interruptor esta ligado`)
+      return
+    }
+
     if (!job.schedule.enabled || !job.isActive) {
       logger.info(`⏸️ Job não agendado (disabled): ${job.name}`)
       return

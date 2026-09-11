@@ -1,4 +1,4 @@
-import { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
+import CronJobConfig, { ILastRunStats, SyncType } from '../../../models/SyncModels/CronJobConfig'
 import { UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import logger from '../../../utils/logger'
 import { executeDailyPipeline } from '../dailyPipeline.service'
@@ -40,6 +40,9 @@ export interface CronDispatchDependencies {
   refreshHotmartOgiProgress: UnknownRunner
   evaluateAchievements: UnknownRunner
   executeDailyPipeline: UnknownRunner
+  /** O interruptor do RenewalPipeline, lido no fim do "1º". */
+  isRenewalPipelineEnabled: () => Promise<boolean>
+  runRenewalPipeline: UnknownRunner
   fetchHotmart(): Promise<UniversalSourceItem[]>
   fetchCurseduca(): Promise<UniversalSourceItem[]>
   executeUniversalSync(request: UniversalSyncRequest): Promise<unknown>
@@ -145,6 +148,15 @@ const defaultDependencies: CronDispatchDependencies = {
     (await import('../hotmartOgiProgressRefresh.service')).runHotmartOgiProgressRefresh(),
   evaluateAchievements: async () => evaluateAllAchievements({ backfillUnlockedAsSeen: true }),
   executeDailyPipeline,
+  isRenewalPipelineEnabled: async () => {
+    const doc = await CronJobConfig.findOne({ name: 'RenewalPipeline' })
+      .select('schedule.enabled')
+      .lean()
+      .exec() as { schedule?: { enabled?: boolean } } | null
+    return !!doc?.schedule?.enabled
+  },
+  runRenewalPipeline: async () =>
+    (await import('../../renewal/renewalPipeline.service')).runRenewalPipeline(),
   fetchHotmart: () =>
     hotmartAdapter.fetchHotmartDataForSync({
       includeProgress: true,
@@ -339,9 +351,46 @@ export class CronJobDispatcher {
         sourceData
       })
     )
-    return {
+    const saida: CronDispatchResult = {
       success: booleanOf(result, 'success') === true,
       stats: this.readStats(result)
+    }
+
+    // As renovações correm EM CIMA do "1º" (HotmartSync), quando ele acaba.
+    //
+    // Encadeadas e não a horas fixas de propósito: é o "1º" que actualiza as
+    // turmas dos alunos em `enrolledClasses`, e as renovações lêem-nas para
+    // decidir a tag. Um cron próprio teria de adivinhar quanto tempo o "1º"
+    // demora — e não é previsível: entre 09 e 11/09/2026 variou de 22 a 109
+    // minutos. Começar a meio era ler turmas incompletas.
+    //
+    // Só depois de um sync bem sucedido, e só com o interruptor
+    // `RenewalPipeline` ligado. Falhar aqui não derruba o "1º": o espelho já
+    // está gravado e é isso que interessa ao resto do sistema.
+    if (syncType === 'hotmart' && saida.success) {
+      await this.correrRenovacoes()
+    }
+
+    return saida
+  }
+
+  /**
+   * A cadeia das renovações, a seguir ao "1º".
+   *
+   * O interruptor é lido aqui, não no arranque: assim liga-se e desliga-se
+   * sem reiniciar a aplicação, e o que vale é o estado da noite em que corre.
+   */
+  private async correrRenovacoes(): Promise<void> {
+    try {
+      if (!await this.dependencies.isRenewalPipelineEnabled()) {
+        logger.info('🔗 RenewalPipeline desligado — o "1º" acabou e fica por aqui')
+        return
+      }
+      logger.info('🔗 RenewalPipeline ligado — a correr a seguir ao "1º"')
+      const report = recordOf(await this.dependencies.runRenewalPipeline())
+      logger.info(`🔗 RenewalPipeline concluído (success: ${booleanOf(report, 'success')})`)
+    } catch (error) {
+      logger.error(`⚠️ RenewalPipeline falhou (não afecta o "1º"): ${errorMessageOf(error)}`)
     }
   }
 
