@@ -2,6 +2,8 @@ import { ILastRunStats } from '../../../models/SyncModels/CronJobConfig'
 import { CronExecutionResult } from '../../../types/cron.types'
 import { CronDispatchJob, CronDispatchResult } from './jobDispatcher'
 import { CronNotificationJob } from './notificationPort'
+import { countUsage, observeUsage } from '../../../observability/usage/usageMeter'
+import { USAGE_METRICS } from '../../../observability/usage/usageMetrics'
 
 export type CronTrigger = 'CRON' | 'MANUAL'
 
@@ -56,6 +58,16 @@ const messageOf = (error: unknown): string =>
 export class CronJobExecutor {
   constructor(private readonly dependencies: CronExecutionDependencies) {}
 
+  // Os jobs sao a maior fatia de CPU que pagamos ao Railway e a maior fonte de
+  // chamadas a fornecedores. Medimos aqui, no unico sitio por onde todos passam.
+  private recordUsage(jobName: string, success: boolean, elapsedMs: number): void {
+    countUsage(USAGE_METRICS.jobRuns, {
+      job: jobName,
+      outcome: success ? 'ok' : 'error',
+    })
+    observeUsage(USAGE_METRICS.jobDuration, elapsedMs, { job: jobName })
+  }
+
   async execute(
     job: CronExecutionJob,
     context: CronExecutionContext
@@ -65,6 +77,7 @@ export class CronJobExecutor {
     try {
       const result = await this.dependencies.dispatch(job)
       const duration = this.durationSince(startedAt)
+      this.recordUsage(job.name, result.success, this.dependencies.now() - startedAt)
 
       await this.record(
         job,
@@ -89,6 +102,7 @@ export class CronJobExecutor {
     } catch (error) {
       const duration = this.durationSince(startedAt)
       const errorMessage = messageOf(error)
+      this.recordUsage(job.name, false, this.dependencies.now() - startedAt)
 
       await this.record(
         job,

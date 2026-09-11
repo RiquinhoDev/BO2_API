@@ -35,6 +35,7 @@ import renewalTimelineRoutes from './renewalTimeline.routes'
 import acTagWatchRoutes from './acTagWatch.routes'
 import discordRenewalRoutes from './discordRenewal.routes'
 import productSalesPerformanceRoutes from './productSalesPerformance.routes'
+import opsRoutes from './ops.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -92,6 +93,9 @@ router.use("/tag-rules", tagRuleRoutes)
 
 router.use("/product-profiles", productProfileRoutes)
 router.use("/discovery", discoveryRoutes)
+
+// 🧭 CAPACIDADE — Consumo, tetos e projeção de escala
+router.use('/ops', opsRoutes)
 
 // 📈 CLAREZA — Tremómetro de Ações
 router.use('/clareza', clarezaRoutes)

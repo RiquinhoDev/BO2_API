@@ -1,5 +1,10 @@
 import { executeFmpRequest } from './fmpRequestPolicy'
 import {
+  defaultFmpUsageObserver,
+  fmpEndpointLabel,
+  type FmpUsageObserver,
+} from './fmpUsageObserver'
+import {
   FmpInFlightDeduplicator,
   type FmpRequestDeduplicator,
 } from './fmpRequestDeduplicator'
@@ -27,6 +32,8 @@ export interface FmpJsonClientDependencies {
   readonly throttle: (signal?: AbortSignal) => Promise<void>
   readonly sleep: (milliseconds: number) => Promise<void>
   readonly deduplicator?: FmpRequestDeduplicator
+  /** Onde se regista o consumo de quota. Injectavel para os testes nao medirem. */
+  readonly observe?: FmpUsageObserver
 }
 
 export interface FmpJsonRequest {
@@ -68,9 +75,11 @@ function requestIdentity(
 
 export class FmpJsonClient {
   private readonly deduplicator: FmpRequestDeduplicator
+  private readonly observer: FmpUsageObserver
 
   constructor(private readonly dependencies: FmpJsonClientDependencies) {
     this.deduplicator = dependencies.deduplicator ?? new FmpInFlightDeduplicator()
+    this.observer = dependencies.observe ?? defaultFmpUsageObserver
   }
 
   async get(request: FmpJsonRequest): Promise<unknown | null> {
@@ -96,21 +105,48 @@ export class FmpJsonClient {
     if (!apiKey) return null
     const requestParams = withoutApiKey(request.params ?? {})
 
+    const endpoint = fmpEndpointLabel(request.path)
+
     return async () => {
-      const execute = () => executeFmpRequest({
-        request: () => this.dependencies.http.get(url, {
-          params: { ...requestParams, apikey: apiKey },
-          timeout,
-          ...(request.signal ? { signal: request.signal } : {}),
-        }),
-        throttle: this.dependencies.throttle,
-        sleep: this.dependencies.sleep,
-        signal: request.signal,
-      })
-      const response = request.signal
-        ? await execute()
-        : await this.deduplicator.run(requestIdentity(url, requestParams, timeout), execute)
-      return response.data
+      // `reachedNetwork` distingue uma chamada que saiu mesmo para a FMP de uma
+      // que apanhou boleia de outra ja em curso. A diferenca entre as duas e
+      // quota poupada, e e isso que o painel mostra.
+      let reachedNetwork = false
+      const execute = () => {
+        reachedNetwork = true
+        return executeFmpRequest({
+          request: () => this.dependencies.http.get(url, {
+            params: { ...requestParams, apikey: apiKey },
+            timeout,
+            ...(request.signal ? { signal: request.signal } : {}),
+          }),
+          throttle: this.dependencies.throttle,
+          sleep: this.dependencies.sleep,
+          signal: request.signal,
+        })
+      }
+
+      const startedAt = Date.now()
+      try {
+        const response = request.signal
+          ? await execute()
+          : await this.deduplicator.run(requestIdentity(url, requestParams, timeout), execute)
+        if (reachedNetwork) {
+          this.observer.onCall({ endpoint, outcome: 'ok', durationMs: Date.now() - startedAt })
+        } else {
+          this.observer.onDeduplicated({ endpoint })
+        }
+        return response.data
+      } catch (error) {
+        if (reachedNetwork) {
+          this.observer.onCall({
+            endpoint,
+            outcome: this.observer.classify(error),
+            durationMs: Date.now() - startedAt,
+          })
+        }
+        throw error
+      }
     }
   }
 }

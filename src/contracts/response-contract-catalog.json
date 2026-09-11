@@ -1947,6 +1947,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/ops/capacity",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/ops/capacity.controller.ts:26",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity/live",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/ops/capacity.controller.ts:41",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts"
+  },
+  {
+    "method": "GET",
     "path": "/api/product-profiles",
     "family": "success-data",
     "shapeKeys": [

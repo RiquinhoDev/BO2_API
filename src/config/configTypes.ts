@@ -55,6 +55,11 @@ export interface FmpIntegration {
   readonly apiKey: string
 }
 
+export interface RailwayIntegration {
+  readonly token: string
+  readonly projectId: string
+}
+
 export interface HotmartIntegration {
   readonly clientId: string
   readonly clientSecret: string
@@ -95,6 +100,7 @@ export interface LegacyApiIntegration {
 export interface IntegrationConfigs {
   readonly activeCampaign: IntegrationConfig<ActiveCampaignIntegration>
   readonly fmp: IntegrationConfig<FmpIntegration>
+  readonly railway: IntegrationConfig<RailwayIntegration>
   readonly hotmart: IntegrationConfig<HotmartIntegration>
   readonly curseduca: IntegrationConfig<CurseducaIntegration>
   readonly guru: IntegrationConfig<GuruIntegration>

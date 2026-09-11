@@ -7,6 +7,7 @@ import {
   createRedisRateLimitStoreFactory,
   type RateLimitStoreFactory,
 } from '../security/redisRateLimitStore'
+import { attachMongoCommandInstrumentation } from '../observability/usage/mongoCommandInstrumentation'
 
 export class InfrastructureCleanupError extends Error {
   readonly errors: readonly unknown[]
@@ -20,7 +21,10 @@ export class InfrastructureCleanupError extends Error {
 
 export const infrastructure: Infrastructure = {
   async connectMongo(config: AppConfig): Promise<void> {
-    await mongoose.connect(config.mongoUri)
+    // `monitorCommands` e o que faz o driver emitir commandStarted/Succeeded.
+    // Sem isto nao ha forma de saber que coleccoes estao a receber carga.
+    await mongoose.connect(config.mongoUri, { monitorCommands: true })
+    attachMongoCommandInstrumentation(mongoose.connection)
     logger.info('✅ Ligado ao MongoDB')
   },
   async connectRedis(config: AppConfig): Promise<RateLimitStoreFactory | undefined> {

@@ -3,6 +3,8 @@ import { getRequestRouteTemplate } from './requestRoute'
 import { redactSensitiveData } from './redaction'
 import logger from '../utils/logger'
 import routeCatalog from '../security/route-catalog.json'
+import { countUsage, observeUsage } from './usage/usageMeter'
+import { statusClass, USAGE_METRICS } from './usage/usageMetrics'
 
 type CatalogRoute = {
   method: string
@@ -125,6 +127,12 @@ export function createRouteUsageInstrumentation(
   const log = options.log ?? logger
 
   const handler: RequestHandler = (req, res, next) => {
+    const startedAt = process.hrtime.bigint()
+    // Bytes ja escritos nesta ligacao antes do pedido. A diferenca no fim mede
+    // o que saiu mesmo pela rede — depois da compressao, que e o que o Railway
+    // factura. Content-Length nao serve: com compressao a resposta vai em
+    // chunks e o cabecalho nem existe.
+    const socketBytesAtStart = req.socket?.bytesWritten ?? null
     const catalogRoute = matchCatalogRoute(req)
     if (catalogRoute?.deprecated) {
       res.setHeader('Deprecation', 'true')
@@ -135,11 +143,28 @@ export function createRouteUsageInstrumentation(
     }
 
     res.once('finish', () => {
+      const route = catalogRoute
+        ? observableTemplate(catalogRoute.path)
+        : getRequestRouteTemplate(req)
+      const method = req.method.toUpperCase()
+      const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
+
+      countUsage(USAGE_METRICS.httpRequests, {
+        route,
+        method,
+        status: statusClass(res.statusCode),
+      })
+      observeUsage(USAGE_METRICS.httpLatency, elapsedMs, { route, method })
+
+      const socketBytesAtEnd = req.socket?.bytesWritten ?? null
+      if (socketBytesAtStart !== null && socketBytesAtEnd !== null) {
+        const written = socketBytesAtEnd - socketBytesAtStart
+        if (written > 0) countUsage(USAGE_METRICS.httpResponseBytes, { route }, written)
+      }
+
       const event: RouteUsageLogEvent = {
         method: req.method,
-        route: catalogRoute
-          ? observableTemplate(catalogRoute.path)
-          : getRequestRouteTemplate(req),
+        route,
         authenticated: Boolean(req.user),
         ...(catalogRoute?.deprecated
           ? { mount: catalogMount(catalogRoute.path) }

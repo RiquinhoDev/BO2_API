@@ -665,6 +665,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/ops/capacity"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity/live"
+  },
+  {
+    "method": "GET",
     "path": "/api/product-profiles"
   },
   {

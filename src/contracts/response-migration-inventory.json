@@ -1328,6 +1328,22 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/ops/capacity",
+    "owner": "src/controllers/ops/capacity.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ops/capacity/live",
+    "owner": "src/controllers/ops/capacity.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts",
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/product-profiles",
     "owner": "src/controllers/products/productProfile.controller.ts",
     "currentFamily": "success-data",

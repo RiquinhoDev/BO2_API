@@ -13,6 +13,7 @@ export interface ShutdownRegistrar {
 export interface ShutdownDependencies {
   signals: ProcessSignalPort
   stopSystemMonitor: () => void
+  stopUsageMeasurement?: () => void
   stopScheduler: () => void
   stopCache: () => Promise<void>
   exit: (code: number) => void
@@ -38,6 +39,11 @@ export function createShutdownRegistrar(
       dependencies.stopScheduler()
     } catch (error) {
       dependencies.logError('Erro ao parar scheduler', error)
+    }
+    try {
+      dependencies.stopUsageMeasurement?.()
+    } catch (error) {
+      dependencies.logError('Erro ao parar medicao de consumo', error)
     }
     try {
       await dependencies.waitForWarmups?.()

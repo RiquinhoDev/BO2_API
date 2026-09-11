@@ -1366,7 +1366,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:115"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:119"
   },
   {
     "method": "GET",
@@ -1438,7 +1438,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:163"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:167"
   },
   {
     "method": "GET",
@@ -1502,6 +1502,24 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:16"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/ops/capacidade/useCapacityReport.ts>; rota em src/routes/ops.routes.ts:13"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity/live",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/ops/capacidade/useCapacityReport.ts>; rota em src/routes/ops.routes.ts:16"
   },
   {
     "method": "GET",
@@ -1933,7 +1951,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:91"
   },
   {
     "method": "GET",
@@ -3311,7 +3329,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:89"
   },
   {
     "method": "POST",
@@ -3320,7 +3338,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:89"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
   },
   {
     "method": "POST",

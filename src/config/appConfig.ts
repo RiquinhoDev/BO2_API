@@ -13,6 +13,7 @@ import type {
   LegacyApiIntegration,
   NodeEnvironment,
   ObservabilityConfig,
+  RailwayIntegration,
   OperationalControlsConfig,
   RedisConfig,
   RenewalConfig,
@@ -80,6 +81,18 @@ function parseActiveCampaign(
 function parseFmp(env: NodeJS.ProcessEnv): IntegrationConfig<FmpIntegration> {
   const apiKey = readOptionalString(env, 'FMP_API_KEY')
   return apiKey ? { configured: true, value: { apiKey } } : { configured: false }
+}
+
+// O token do Railway e de conta/equipa: da acesso a leitura de consumo e custo
+// do projecto inteiro. Fica so no backend e nunca atravessa para o Front.
+function parseRailway(env: NodeJS.ProcessEnv): IntegrationConfig<RailwayIntegration> {
+  const names = ['RAILWAY_API_TOKEN', 'RAILWAY_PROJECT_ID'] as const
+  if (!hasAnyValue(env, names)) return { configured: false }
+
+  return configuredCredentialGroup(env, names, (values) => ({
+    token: values.RAILWAY_API_TOKEN,
+    projectId: values.RAILWAY_PROJECT_ID,
+  }))
 }
 
 function parseHotmart(env: NodeJS.ProcessEnv): IntegrationConfig<HotmartIntegration> {
@@ -206,6 +219,7 @@ function parseIntegrations(
   return {
     activeCampaign: parseActiveCampaign(env, webhookSecret),
     fmp: parseFmp(env),
+    railway: parseRailway(env),
     hotmart: parseHotmart(env),
     curseduca: parseCurseduca(env),
     guru: parseGuru(env),
