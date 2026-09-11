@@ -22,7 +22,25 @@ export interface RetentionPolicy {
    * depende de encontrar o registo de INACTIVATION pelo seu id.
    */
   readonly platformUpdateDays: number | null
+  /**
+   * Dias a guardar os registos de primeira observação: `PLATFORM_UPDATE` sem
+   * campo identificado e com valor anterior nulo. Dizem "não havia nada, agora
+   * há isto" — são o rasto das cargas em massa, e não descrevem mudança
+   * nenhuma. É o corte mais conservador que existe nesta colecção.
+   */
+  readonly firstObservationDays: number | null
 }
+
+/**
+ * O filtro que apanha só primeiras observações. Exige as três condições ao
+ * mesmo tempo de propósito: um registo sem campo mas com valor anterior
+ * descreve uma mudança real — não sabemos de quê, mas houve — e esse fica.
+ */
+export const FIRST_OBSERVATION_FILTER = {
+  changeType: 'PLATFORM_UPDATE',
+  $or: [{ field: null }, { field: { $exists: false } }],
+  'previousValue.value': null,
+} as const
 
 function optionalDays(env: NodeJS.ProcessEnv, name: string): number | null {
   const raw = env[name]
@@ -37,6 +55,7 @@ export function loadRetentionPolicy(
 ): RetentionPolicy {
   return {
     platformUpdateDays: optionalDays(env, 'USER_HISTORY_PLATFORM_UPDATE_DAYS'),
+    firstObservationDays: optionalDays(env, 'USER_HISTORY_FIRST_OBSERVATION_DAYS'),
   }
 }
 

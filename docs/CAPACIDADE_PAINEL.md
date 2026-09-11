@@ -126,6 +126,29 @@ planos partilhados — tal como `serverStatus`, `connPoolStats` e `hostInfo`. Nu
 dedicado passam a estar disponíveis, e valem a pena: os índices deste cluster são dezenas
 de megabytes.
 
+## Retenção de histórico
+
+Duas políticas, ambas **desligadas por omissão**. Ver antes de mexer:
+
+```
+npm run retention:plan     # simula, não altera nada
+npm run retention:apply    # executa
+```
+
+| Variável | O que apanha |
+|---|---|
+| `USER_HISTORY_FIRST_OBSERVATION_DAYS` | Só primeiras observações: `PLATFORM_UPDATE` sem campo identificado **e** com valor anterior nulo. Descrevem "não havia nada, agora há isto" — são o rasto das cargas em massa. O corte mais conservador. |
+| `USER_HISTORY_PLATFORM_UPDATE_DAYS` | Todo o ruído de sincronização acima dessa idade, incluindo mudanças reais de progresso e engagement. |
+| `USER_SNAPSHOT_DAYS` | Retenção dos snapshots de utilizador. Só o mais recente de cada aluno é lido. |
+
+**Nunca expiram, e não há variável que os faça expirar:** `INACTIVATION`,
+`CLASS_CHANGE`, `STATUS_CHANGE`, `EMAIL_CHANGE`, `MANUAL_EDIT`. São o percurso do aluno, e
+a reactivação de uma inactivação depende de encontrar o registo pelo seu id.
+
+A implementação é por presença de campo: só os registos abrangidos recebem `expiresAt`, e
+o TTL do Mongo ignora documentos sem esse campo. O que fica protegido, fica protegido por
+construção e não por configuração.
+
 ## Como ler os sinais
 
 - **Chaves despejadas no Redis acima de zero** — a cache está a ser deitada fora antes de expirar.

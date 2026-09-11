@@ -17,7 +17,10 @@
  */
 
 import mongoose from 'mongoose'
-import { loadRetentionPolicy } from '../../src/services/ops/retentionPolicy'
+import {
+  FIRST_OBSERVATION_FILTER,
+  loadRetentionPolicy,
+} from '../../src/services/ops/retentionPolicy'
 
 const DAY_MS = 24 * 60 * 60 * 1_000
 const APPLY = process.argv.includes('--apply')
@@ -84,6 +87,31 @@ async function main(): Promise<void> {
     if (APPLY && affected > 0) {
       // Data no passado: o TTL apaga-os na passagem seguinte, sem precisarmos
       // de mandar um deleteMany de cento e tal mil documentos a um M0.
+      const result = await history.updateMany(filter, { $set: { expiresAt: new Date(now - 1_000) } })
+      line(`  carimbados: ${result.modifiedCount} (o TTL apaga-os dentro de um minuto)`)
+    }
+  }
+
+  // Primeiras observações: o corte mais estreito, e por isso o primeiro a ser
+  // oferecido. Corre antes do corte largo para que a contagem deste não inclua
+  // registos que aquele já levaria.
+  if (policy.firstObservationDays === null) {
+    line('  Primeiras observações: sem política definida.')
+    line('  Para definir: USER_HISTORY_FIRST_OBSERVATION_DAYS=180')
+  } else {
+    const cutoff = new Date(now - policy.firstObservationDays * DAY_MS)
+    const filter = {
+      ...FIRST_OBSERVATION_FILTER,
+      createdAt: { $lt: cutoff },
+      expiresAt: { $in: [null, undefined] },
+    }
+    const affected = await history.countDocuments(filter)
+    line(
+      `  primeiras observações com mais de ${policy.firstObservationDays} dias: ${affected}`,
+    )
+    line(`  espaço estimado a recuperar: ${megabytes(affected * bytesPerDocument)}`)
+
+    if (APPLY && affected > 0) {
       const result = await history.updateMany(filter, { $set: { expiresAt: new Date(now - 1_000) } })
       line(`  carimbados: ${result.modifiedCount} (o TTL apaga-os dentro de um minuto)`)
     }
