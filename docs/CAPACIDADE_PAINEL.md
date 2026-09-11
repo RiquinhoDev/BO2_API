@@ -106,6 +106,26 @@ Duas coisas que o painel **não** cobre e valem uma decisão à parte:
 - O serviço no Railway não tem `healthcheckPath` configurado. Um processo pendurado que
   não saia não é detectado nem reiniciado.
 
+## Dados mortos
+
+Secção própria no painel, alimentada pelo snapshot detalhado diário. Responde a três
+perguntas separadas, porque a acção que cada uma pede também é diferente:
+
+- **Colecções paradas** — ocupam espaço e não receberam um único comando na janela medida.
+  Sai do cruzamento entre o tamanho por colecção e o contador `mongo.commands{collection}`
+  que já existia; não custa uma query nova. *Parado não é o mesmo que descartável*: uma
+  colecção lida uma vez por trimestre aparece aqui.
+- **Sem modelo no código** — existem na base e nenhum modelo do mongoose as referencia.
+  São restos de versões antigas. Confirmar antes de apagar.
+- **Histórico antigo nas que pesam** — quanto de cada colecção tem mais de 90 e de 180
+  dias, e quanto foi escrito ontem. Uma percentagem alta na coluna dos 90 dias é o sítio
+  óbvio para um TTL.
+
+**Índices nunca usados ficam de fora.** Precisam de `$indexStats`, que o Atlas bloqueia nos
+planos partilhados — tal como `serverStatus`, `connPoolStats` e `hostInfo`. Num plano
+dedicado passam a estar disponíveis, e valem a pena: os índices deste cluster são dezenas
+de megabytes.
+
 ## Como ler os sinais
 
 - **Chaves despejadas no Redis acima de zero** — a cache está a ser deitada fora antes de expirar.

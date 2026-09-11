@@ -101,6 +101,22 @@ export interface IUsageSnapshot extends Document {
     measurements?: Array<{ measurement: string; value: number }>
   }
 
+  /** Só no snapshot detalhado: onde é que há espaço ocupado sem uso. */
+  deadData?: {
+    orphanCollections: string[]
+    emptyCollections: string[]
+    indexUsageAvailable: boolean
+    ageProfiles: Array<{
+      name: string
+      documents: number
+      dateField: string | null
+      oldest: Date | null
+      olderThan90Days: number | null
+      olderThan180Days: number | null
+      writtenLastDay: number | null
+    }>
+  }
+
   business?: {
     students: number
     activeStudents: number | null
@@ -140,6 +156,7 @@ const UsageSnapshotSchema = new Schema<IUsageSnapshot>(
     redis: { type: Schema.Types.Mixed },
     process: { type: Schema.Types.Mixed },
     railway: { type: Schema.Types.Mixed },
+    deadData: { type: Schema.Types.Mixed },
     business: { type: Schema.Types.Mixed },
   },
   { timestamps: true, collection: 'usagesnapshots' },

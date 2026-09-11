@@ -23,6 +23,11 @@ import { probeRedis, probeRedisPrefixes } from './probes/redisProbe'
 import { probeProcess } from './probes/processProbe'
 import { probeRailway, type RailwayProbeResult } from './probes/railwayProbe'
 import {
+  createDeadDataProbePort,
+  probeDeadData,
+  type DeadDataReport,
+} from './probes/deadDataProbe'
+import {
   createBusinessProbePort,
   probeBusinessScale,
   type BusinessProbePort,
@@ -104,6 +109,17 @@ export async function captureUsageSnapshot(
     ? await attempt('mongo collStats', () => probeMongoCollections(mongoPort))
     : null
 
+  // Só faz sentido perguntar "isto é lixo?" às colecções que pesam. Perfilar as
+  // noventa e seis, incluindo as vazias, custava sem devolver nada.
+  const deadData: DeadDataReport | null = deep && topCollections
+    ? await attempt('dados mortos', () =>
+        probeDeadData(
+          createDeadDataProbePort(mongoPort),
+          topCollections.slice(0, 10).map((collection) => collection.name),
+          now,
+        ))
+    : null
+
   const redisUsage = diagnostics
     ? await attempt('redis INFO', () => probeRedis(diagnostics))
     : null
@@ -156,6 +172,7 @@ export async function captureUsageSnapshot(
             : { available: false, reason: railway.reason },
         }
       : {}),
+    ...(deadData ? { deadData } : {}),
     ...(business
       ? {
           business: {

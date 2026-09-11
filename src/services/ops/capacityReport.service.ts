@@ -44,6 +44,25 @@ export interface CapacityBreakdownRow {
   readonly value: number
 }
 
+/** Uma colecção que ocupa espaço e que ninguém tocou na janela medida. */
+export interface IdleCollection {
+  readonly name: string
+  readonly sizeBytes: number
+  readonly documents: number
+  /** Verdadeiro quando nem sequer existe modelo no código a apontar para ela. */
+  readonly orphan: boolean
+}
+
+export interface DeadDataSummary {
+  readonly idleCollections: readonly IdleCollection[]
+  readonly orphanCollections: readonly string[]
+  readonly emptyCollections: readonly string[]
+  readonly ageProfiles: NonNullable<IUsageSnapshot['deadData']>['ageProfiles']
+  readonly indexUsageAvailable: boolean
+  /** Espaço somado das colecções paradas — o que se recupera se forem lixo. */
+  readonly idleBytes: number
+}
+
 export interface CapacityReport {
   readonly generatedAt: Date
   readonly range: { readonly fromDay: string; readonly toDay: string; readonly days: number }
@@ -84,6 +103,8 @@ export interface CapacityReport {
     readonly railway: IUsageSnapshot['railway'] | null
     readonly business: IUsageSnapshot['business'] | null
   }
+  /** Só existe depois do primeiro snapshot detalhado do dia. */
+  readonly deadData: DeadDataSummary | null
   readonly unitEconomics: {
     readonly activeStudents: number | null
     readonly fmpCallsPerStudentPerDay: number | null
@@ -119,6 +140,47 @@ function ratio(numerator: number | null, denominator: number | null): number | n
 
 function toRows(entries: ReadonlyArray<{ key: string; value: number }>, limit: number) {
   return entries.slice(0, limit)
+}
+
+/**
+ * Cruza o tamanho de cada colecção com os comandos que ela recebeu. Uma
+ * colecção que pesa e que não recebeu um único comando na janela medida é a
+ * definição prática de dados que ninguém consome — e a instrumentação que já
+ * temos responde à pergunta sem uma query nova.
+ */
+function buildDeadDataSummary(
+  latestDeep: IUsageSnapshot | null,
+  snapshots: readonly IUsageSnapshot[],
+): DeadDataSummary | null {
+  const deadData = latestDeep?.deadData
+  const collections = latestDeep?.mongo?.topCollections
+  if (!deadData || !collections) return null
+
+  const touched = new Set(
+    groupCounter(snapshots, USAGE_METRICS.mongoCommands, 'collection')
+      .filter((row) => row.value > 0)
+      .map((row) => row.key),
+  )
+  const orphans = new Set(deadData.orphanCollections)
+
+  const idleCollections = collections
+    .filter((collection) => collection.documents > 0 && !touched.has(collection.name))
+    .map((collection) => ({
+      name: collection.name,
+      sizeBytes: collection.dataSizeBytes + collection.indexSizeBytes,
+      documents: collection.documents,
+      orphan: orphans.has(collection.name),
+    }))
+    .sort((left, right) => right.sizeBytes - left.sizeBytes)
+
+  return {
+    idleCollections,
+    orphanCollections: deadData.orphanCollections,
+    emptyCollections: deadData.emptyCollections,
+    ageProfiles: deadData.ageProfiles,
+    indexUsageAvailable: deadData.indexUsageAvailable,
+    idleBytes: idleCollections.reduce((sum, entry) => sum + entry.sizeBytes, 0),
+  }
 }
 
 export interface CapacityReportOptions {
@@ -357,6 +419,7 @@ export async function buildCapacityReport(
         15,
       ),
     },
+    deadData: buildDeadDataSummary(latestDeep, snapshots),
     current: {
       capturedAt: latest?.capturedAt ?? null,
       mongo: latestDeep?.mongo ?? latest?.mongo ?? null,
