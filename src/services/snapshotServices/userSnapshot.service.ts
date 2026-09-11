@@ -7,6 +7,7 @@ import logger from '../../utils/logger'
 import mongoose from 'mongoose'
 import UserSnapshot, { type IUserSnapshot, type IProductSnapshot } from '../../models/UserSnapshot'
 import UserHistory from '../../models/UserHistory'
+import { platformUpdateExpiry } from '../ops/retentionPolicy'
 import type { IUser } from '../../models/user'
 import type { IUserProduct } from '../../models/UserProduct'
 import { compareSnapshots, type ComparisonResult } from './snapshotComparison.service'
@@ -201,10 +202,18 @@ export async function compareAndRecordChanges(
         historyChangeType = 'STATUS_CHANGE'
       }
 
+      // Só o ruído de sincronização ganha prazo de validade, e só quando
+      // alguém o configurou. Tudo o resto fica sem `expiresAt`, logo para
+      // sempre.
+      const expiresAt = historyChangeType === 'PLATFORM_UPDATE'
+        ? platformUpdateExpiry()
+        : null
+
       return {
         userId: user._id,
         userEmail: user.email,
         changeType: historyChangeType,
+        ...(expiresAt ? { expiresAt } : {}),
         previousValue: { [change.field || 'value']: change.previousValue },
         newValue: { [change.field || 'value']: change.newValue },
         platform: change.platform || 'system',

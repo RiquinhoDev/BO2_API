@@ -68,6 +68,8 @@
     "test:e2e": "jest --selectProjects e2e --passWithNoTests",
     "maintenance:users-v2-indexes": "node dist/scripts/maintenance/ensure-users-v2-indexes.js",
     "maintenance:ac-webhook-leases": "node dist/scripts/maintenance/backfill-ac-webhook-receipt-leases.js",
+    "retention:plan": "ts-node --transpile-only scripts/maintenance/retention-plan.ts",
+    "retention:apply": "ts-node --transpile-only scripts/maintenance/retention-plan.ts --apply",
     "renewal:check-names": "ts-node --transpile-only scripts/renewal/check-turma-names.ts",
     "renewal:ensure-generic": "ts-node --transpile-only scripts/renewal/ensure-generic-offer.ts",
     "renewal:sync": "ts-node --transpile-only scripts/renewal/sync-offers.ts",
