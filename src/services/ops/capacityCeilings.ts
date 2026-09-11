@@ -37,13 +37,19 @@ export function loadCapacityCeilings(
   env: NodeJS.ProcessEnv = process.env,
 ): CapacityCeilings {
   const redisMemoryMb = optionalInteger(env, 'REDIS_PLAN_MEMORY_MB', 1_048_576)
+  // Em MB, porque os planos pequenos nao chegam a 1 GB: o Atlas M0 sao 512 MB e
+  // em GB inteiros nao havia forma de os escrever. A variante em GB fica para
+  // planos grandes, onde escrever megabytes seria absurdo.
+  const mongoStorageMb = optionalInteger(env, 'MONGO_PLAN_STORAGE_MB', 100_000_000)
   const mongoStorageGb = optionalInteger(env, 'MONGO_PLAN_STORAGE_GB', 100_000)
   const serviceMemoryGb = optionalInteger(env, 'RAILWAY_SERVICE_MEMORY_GB', 1_024)
 
   return {
     fmpCallsPerDay: optionalInteger(env, 'FMP_PLAN_CALLS_PER_DAY', 100_000_000),
     redisMemoryBytes: redisMemoryMb === null ? null : redisMemoryMb * MEGABYTE,
-    mongoStorageBytes: mongoStorageGb === null ? null : mongoStorageGb * GIGABYTE,
+    mongoStorageBytes: mongoStorageMb !== null
+      ? mongoStorageMb * MEGABYTE
+      : mongoStorageGb === null ? null : mongoStorageGb * GIGABYTE,
     railwayMonthlyBudgetUsd: optionalInteger(env, 'RAILWAY_MONTHLY_BUDGET_USD', 1_000_000),
     serviceMemoryBytes: serviceMemoryGb === null ? null : serviceMemoryGb * GIGABYTE,
   }

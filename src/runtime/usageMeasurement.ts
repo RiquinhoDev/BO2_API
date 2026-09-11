@@ -17,6 +17,7 @@ import {
   captureUsageSnapshot,
   previousHour,
 } from '../services/ops/usageSnapshot.service'
+import { runUsageRollups } from '../services/ops/usageRollup.service'
 
 /** Hora UTC cujo fecho arrasta o detalhe caro (tamanhos por coleccao, Railway). */
 export const DEEP_SNAPSHOT_HOUR = 4
@@ -24,8 +25,13 @@ export const DEEP_SNAPSHOT_HOUR = 4
 /** Minuto 5: da folga para todas as replicas terem despejado a hora anterior. */
 const HOURLY_SNAPSHOT_CRON = '5 * * * *'
 
+// 05:20 UTC: depois do snapshot detalhado das 05:05, para o resumo do dia ja
+// apanhar os tamanhos por coleccao desse dia.
+const DAILY_ROLLUP_CRON = '20 5 * * *'
+
 let flusher: UsageFlusher | null = null
 let snapshotTask: ScheduledTask | null = null
+let rollupTask: ScheduledTask | null = null
 
 function resolveUsageStorePort() {
   return cacheService.isReady() ? cacheService.getUsageStoreCommandPort() : null
@@ -61,6 +67,14 @@ export function startUsageMeasurement(): void {
     })
   }
 
+  if (!rollupTask) {
+    rollupTask = cron.schedule(DAILY_ROLLUP_CRON, () => {
+      void runUsageRollups().catch((error) => {
+        logger.error('Erro ao gravar resumos de consumo', { error })
+      })
+    })
+  }
+
   logger.info('📊 Medicao de consumo activa')
 }
 
@@ -69,5 +83,7 @@ export function stopUsageMeasurement(): void {
   flusher = null
   snapshotTask?.stop()
   snapshotTask = null
+  rollupTask?.stop()
+  rollupTask = null
   stopEventLoopMonitor()
 }

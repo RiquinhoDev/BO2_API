@@ -19,6 +19,7 @@ No Front: menu **Análise de Dados → Capacidade & Consumo**, ou o link directo
 | API | pedidos, latência p95/p99 e bytes de saída por rota | middleware `routeUsageInstrumentation` |
 | Jobs | execuções, falhas e tempo total por job | `CronJobExecutor` |
 | Negócio | alunos, alunos activos, inscrições, produtos activos | `estimatedDocumentCount` + vista `DashboardStats` |
+| Estabilidade | reinícios do processo, erros 5xx, jobs falhados | uptime a descer entre snapshots + contadores |
 
 O **atraso do event loop** e a **memória do processo** também entram: são o aviso que aparece antes de o Railway reiniciar o container.
 
@@ -27,9 +28,29 @@ O **atraso do event loop** e a **memória do processo** também entram: são o a
 ```
 1. contadores em memória      um incremento é um Map.set, zero I/O
 2. flush para o Redis a 60s   um pipeline por minuto e por réplica (HINCRBY, soma entre réplicas)
-3. snapshot horário na Mongo  um documento por hora, ~2 KB
-4. painel                     lê só a Mongo: uma query indexada por intervalo
+3. snapshot horário na Mongo  um documento por hora, ~2 KB — vive 14 dias
+4. resumo diário e semanal    um documento por dia (400 dias) e um por semana (para sempre)
+5. painel                     lê só a Mongo: uma query indexada por intervalo
 ```
+
+### A escada de retenção
+
+| Degrau | Para quê | Retenção | Tamanho |
+|---|---|---|---|
+| Horário | investigar a semana em curso, com detalhe por rota/colecção | 14 dias | ~670 KB |
+| Diário | tendência e "semanas até ao tecto" | 400 dias | ~400 KB |
+| Semanal | memória longa, comparar meses e anos | sem limite | ~52 KB/ano |
+
+Em regime, a medição inteira ocupa **cerca de 1 MB**. Apagar é automático, por TTL:
+não há cron de limpeza.
+
+Cada resumo guarda **média e pico**. Só a média mentia — uma semana com seis dias calmos
+e um pico de seis horas tem média baixa, e é o pico que rebenta o tecto. Nas métricas que
+são nível e não caudal (espaço ocupado, número de alunos) o resumo fica com o **último**
+valor, porque é esse que conta contra o tecto.
+
+As repartições por etiqueta (rota, colecção, endpoint, job) só existem no degrau horário.
+Por isso o painel avisa de que janela vêm, e ela nunca passa de 14 dias.
 
 Quem abre o painel não paga o custo de medir — as sondas correm no cron, nunca no pedido.
 
@@ -45,6 +66,7 @@ hora fica gravado.
 | Rota | Para quê |
 |---|---|
 | `GET /api/ops/capacity?days=14` | Relatório completo a partir do histórico. É o que o painel usa. |
+| `GET /api/ops/capacity?days=180&granularity=week` | Vista semanal: uma barra por semana, com média por dia e pico. |
 | `GET /api/ops/capacity/live?collections=true` | Sondagem imediata, sem histórico. Corre probes a sério — usar para verificar, não em ciclo. |
 
 Ambas são leitura autenticada. Não há endpoint de escrita: o snapshot é escrito pelo cron interno,
@@ -59,10 +81,30 @@ de tecto. Ver `.env.example`, secção *Painel de Capacidade & Consumo*.
 |---|---|
 | `RAILWAY_API_TOKEN` + `RAILWAY_PROJECT_ID` | cartão de custo e egress facturado |
 | `FMP_PLAN_CALLS_PER_DAY` | % da quota FMP e projeção de escala |
-| `MONGO_PLAN_STORAGE_GB` | % do espaço contratado e semanas até ao tecto |
+| `MONGO_PLAN_STORAGE_MB` / `MONGO_PLAN_STORAGE_GB` | % do espaço contratado e semanas até ao tecto. Usar MB nos planos pequenos: o Atlas M0 são 512 MB e em GB inteiros não havia como escrevê-lo |
 | `REDIS_PLAN_MEMORY_MB` | % da memória do Redis (se ausente, usa o `maxmemory` que o próprio servidor reporta) |
 | `RAILWAY_SERVICE_MEMORY_GB` | % da memória do container |
 | `RAILWAY_MONTHLY_BUDGET_USD` | % do orçamento mensal |
+
+## O que pode derrubar a API
+
+O painel tem três restrições dedicadas a isto, e aparecem no topo quando disparam:
+
+- **Reinícios do processo por dia** — detectados pelo uptime a descer entre snapshots. O
+  Railway reinicia o container em silêncio; sem isto, um ciclo de reinícios passa
+  despercebido. Acima de zero já é sintoma.
+- **Erros 5xx por dia** — falhas nossas a servir pedidos. Sobem quase sempre com um job a
+  rebentar.
+- **Execuções de jobs falhadas** — inclui o refresh diário do Clareza, que passa pelo
+  `CronJobExecutor` e por isso é medido sem código próprio.
+
+Duas coisas que o painel **não** cobre e valem uma decisão à parte:
+
+- Não existem handlers de `unhandledRejection` nem de `uncaughtException` no projeto. No
+  Node 18+ uma promessa rejeitada sem `catch` **mata o processo**. O painel conta o
+  reinício depois de acontecer; não o evita.
+- O serviço no Railway não tem `healthcheckPath` configurado. Um processo pendurado que
+  não saia não é detectado nem reiniciado.
 
 ## Como ler os sinais
 
@@ -72,6 +114,11 @@ de tecto. Ver `.env.example`, secção *Painel de Capacidade & Consumo*.
 - **Espera no limitador da FMP a subir** — o tecto somos nós, não a FMP. O `fmpThrottle` é local a
   cada processo e **não coordena réplicas**: com duas réplicas, a taxa real duplica sem ninguém dar
   por isso.
+- **Chamadas FMP recusadas por quota (429)** — o retry espera pela viragem do minuto (ou pelo
+  `Retry-After`, quando vem), em vez dos 2 segundos fixos do retry genérico. A quota da FMP é por
+  minuto: com 2 segundos, as três tentativas caíam todas dentro do minuto que já tinha recusado a
+  primeira. Continua a haver um tecto de 500 na fila do limitador — acima disso a chamada é
+  **rejeitada**, não adiada.
 - **Atraso do event loop no p99 a subir com memória estável** — não é falta de RAM, é trabalho
   síncrono a bloquear o processo.
 - **Rotas no topo do tráfego de saída** — é por aí que sai o egress que o Railway factura.

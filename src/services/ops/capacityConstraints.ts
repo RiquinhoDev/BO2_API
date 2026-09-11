@@ -15,6 +15,12 @@ export interface Constraint {
   readonly perWeekChange: number | null
   readonly weeksToCeiling: number | null
   readonly severity: ConstraintSeverity
+  /**
+   * Falso quando a serie ainda nao tem um unico valor medido. Sem isto, o
+   * painel mostrava "0" com selo verde para metricas que ninguem mediu ainda —
+   * que se le como facto e nao como ausencia.
+   */
+  readonly hasData: boolean
   readonly note?: string
 }
 
@@ -51,6 +57,10 @@ export function dailySlope(series: readonly (number | null)[]): number | null {
   return (n * sumXY - sumX * sumY) / denominator
 }
 
+function hasAnyValue(series: readonly (number | null)[]): boolean {
+  return series.some((value) => typeof value === 'number' && Number.isFinite(value))
+}
+
 function lastValue(series: readonly (number | null)[]): number {
   for (let index = series.length - 1; index >= 0; index -= 1) {
     const value = series[index]
@@ -79,12 +89,13 @@ const SEVERITY_ORDER: Readonly<Record<ConstraintSeverity, number>> = {
 }
 
 export function buildConstraint(input: ConstraintInput): Constraint {
+  const measured = hasAnyValue(input.series)
   const current = lastValue(input.series)
   const slope = dailySlope(input.series)
   const perWeekChange = slope === null ? null : slope * 7
 
   const percentOfCeiling =
-    input.ceiling === null || input.ceiling <= 0
+    !measured || input.ceiling === null || input.ceiling <= 0
       ? null
       : (current / input.ceiling) * 100
 
@@ -103,7 +114,8 @@ export function buildConstraint(input: ConstraintInput): Constraint {
     percentOfCeiling,
     perWeekChange,
     weeksToCeiling,
-    severity: severityOf(percentOfCeiling, weeksToCeiling),
+    severity: measured ? severityOf(percentOfCeiling, weeksToCeiling) : 'sem-teto',
+    hasData: measured,
     ...(input.note ? { note: input.note } : {}),
   }
 }

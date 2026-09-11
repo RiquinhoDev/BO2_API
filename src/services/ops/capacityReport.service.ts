@@ -5,6 +5,7 @@
 // Nenhuma sonda corre aqui. Quem abre o painel nao paga o custo de medir.
 
 import UsageSnapshot, { type IUsageSnapshot } from '../../models/UsageSnapshot'
+import UsageRollup, { type IUsageRollupPoint } from '../../models/UsageRollup'
 import { USAGE_METRICS } from '../../observability/usage/usageMetrics'
 import { loadCapacityCeilings, type CapacityCeilings } from './capacityCeilings'
 import {
@@ -25,7 +26,17 @@ import {
 } from './usageAggregation'
 
 export const DEFAULT_RANGE_DAYS = 14
-export const MAX_RANGE_DAYS = 120
+export const MAX_RANGE_DAYS = 400
+
+/** Ate aqui ha snapshots horarios; acima disto so existem resumos. */
+export const SNAPSHOT_RETENTION_DAYS = 14
+
+export type CapacityGranularity = 'day' | 'week'
+
+/** Um ponto da serie que o painel desenha, com o pico do periodo quando existe. */
+export interface CapacitySeriesPoint extends DailyUsagePoint {
+  readonly peak?: DailyUsagePoint | null
+}
 
 export interface CapacityBreakdownRow {
   readonly key: string
@@ -36,9 +47,16 @@ export interface CapacityReport {
   readonly generatedAt: Date
   readonly range: { readonly fromDay: string; readonly toDay: string; readonly days: number }
   readonly hasData: boolean
+  readonly granularity: CapacityGranularity
+  /**
+   * Janela em dias de onde saem as reparticoes por rota, coleccao e fornecedor.
+   * Vem sempre dos snapshots horarios, que so vivem catorze dias — os resumos
+   * guardam totais, nao guardam etiquetas.
+   */
+  readonly breakdownWindowDays: number
   readonly ceilings: CapacityCeilings
   readonly constraints: readonly Constraint[]
-  readonly daily: readonly DailyUsagePoint[]
+  readonly daily: readonly CapacitySeriesPoint[]
   readonly totals: {
     readonly httpRequests: number
     readonly egressBytes: number
@@ -104,7 +122,12 @@ function toRows(entries: ReadonlyArray<{ key: string; value: number }>, limit: n
 
 export interface CapacityReportOptions {
   readonly days?: number
+  readonly granularity?: CapacityGranularity
   readonly now?: Date
+}
+
+function pointFromRollup(day: string, source: IUsageRollupPoint): DailyUsagePoint {
+  return { day, ...source }
 }
 
 export async function buildCapacityReport(
@@ -112,15 +135,49 @@ export async function buildCapacityReport(
 ): Promise<CapacityReport> {
   const now = options.now ?? new Date()
   const days = Math.min(Math.max(options.days ?? DEFAULT_RANGE_DAYS, 1), MAX_RANGE_DAYS)
+  const granularity = options.granularity ?? 'day'
   const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1_000)
 
-  const snapshots = (await UsageSnapshot.find({ capturedAt: { $gte: from, $lte: now } })
+  // As reparticoes por etiqueta so existem no detalhe horario, por isso esta
+  // leitura nunca vai alem da retencao dos snapshots, por muito longa que seja
+  // a janela pedida.
+  const breakdownWindowDays = Math.min(days, SNAPSHOT_RETENTION_DAYS)
+  const breakdownFrom = new Date(now.getTime() - breakdownWindowDays * 24 * 60 * 60 * 1_000)
+
+  const snapshots = (await UsageSnapshot.find({ capturedAt: { $gte: breakdownFrom, $lte: now } })
     .sort({ hour: 1 })
     .lean()
     .exec()) as unknown as IUsageSnapshot[]
 
+  // A serie diaria alimenta sempre as restricoes e a economia unitaria, mesmo
+  // quando o painel mostra semanas: o declive tem de ser por dia, senao a
+  // projecao sai sete vezes errada.
+  const fromSnapshots = buildDailySeries(snapshots)
+  const dayRollups = days > SNAPSHOT_RETENTION_DAYS
+    ? await UsageRollup.find({ period: 'day', from: { $gte: from } }).sort({ from: 1 }).lean().exec()
+    : []
+  const dailySeries: readonly DailyUsagePoint[] = dayRollups.length > 0
+    ? [
+        ...dayRollups
+          .filter((rollup) => !fromSnapshots.some((point) => point.day === rollup.key))
+          .map((rollup) => pointFromRollup(rollup.key, rollup.average as IUsageRollupPoint)),
+        ...fromSnapshots,
+      ]
+    : fromSnapshots
+
+  let daily: readonly CapacitySeriesPoint[] = dailySeries
+  if (granularity === 'week') {
+    const weeks = await UsageRollup.find({ period: 'week', from: { $gte: from } })
+      .sort({ from: 1 })
+      .lean()
+      .exec()
+    daily = weeks.map((week) => ({
+      ...pointFromRollup(week.key, week.average as IUsageRollupPoint),
+      peak: pointFromRollup(week.peakDay ?? week.key, week.peak as IUsageRollupPoint),
+    }))
+  }
+
   const ceilings = loadCapacityCeilings()
-  const daily = buildDailySeries(snapshots)
   const latest = snapshots[snapshots.length - 1] ?? null
   const latestDeep = [...snapshots].reverse().find((snapshot) => snapshot.deep) ?? null
 
@@ -130,8 +187,8 @@ export async function buildCapacityReport(
     ?? latest?.business?.students
     ?? null
 
-  const fmpPerDay = averageOfLastDays(daily, (point) => point.fmpCalls)
-  const requestsPerDay = averageOfLastDays(daily, (point) => point.httpRequests)
+  const fmpPerDay = averageOfLastDays(dailySeries, (point) => point.fmpCalls)
+  const requestsPerDay = averageOfLastDays(dailySeries, (point) => point.httpRequests)
   const mongoBytes = latest?.mongo?.totalSizeBytes ?? null
   const redisBytes = latest?.redis?.usedMemoryBytes ?? null
   const railwayCost = latestDeep?.railway?.estimatedCostUsd ?? null
@@ -141,7 +198,7 @@ export async function buildCapacityReport(
       id: 'fmp.calls',
       label: 'Chamadas FMP por dia',
       unit: 'chamadas/dia',
-      series: daily.map((point) => point.fmpCalls),
+      series: dailySeries.map((point) => point.fmpCalls),
       ceiling: ceilings.fmpCallsPerDay,
       note: 'Quota do plano contratado na Financial Modeling Prep.',
     }),
@@ -149,7 +206,7 @@ export async function buildCapacityReport(
       id: 'mongo.storage',
       label: 'Espaco ocupado na Mongo',
       unit: 'bytes',
-      series: daily.map((point) => point.mongoTotalBytes),
+      series: dailySeries.map((point) => point.mongoTotalBytes),
       ceiling: ceilings.mongoStorageBytes,
       note: 'Dados mais indices, como o servidor os reporta.',
     }),
@@ -157,7 +214,7 @@ export async function buildCapacityReport(
       id: 'redis.memory',
       label: 'Memoria usada no Redis (pico diario)',
       unit: 'bytes',
-      series: daily.map((point) => point.redisUsedBytesPeak),
+      series: dailySeries.map((point) => point.redisUsedBytesPeak),
       ceiling: ceilings.redisMemoryBytes ?? latest?.redis?.maxMemoryBytes ?? null,
       note: 'Acima do teto o Redis comeca a despejar cache e a carga cai na Mongo.',
     }),
@@ -165,7 +222,7 @@ export async function buildCapacityReport(
       id: 'redis.evictions',
       label: 'Chaves despejadas por falta de memoria',
       unit: 'chaves/dia',
-      series: daily.map((point) => point.redisEvictedKeys),
+      series: dailySeries.map((point) => point.redisEvictedKeys),
       // Qualquer despejo ja e sintoma: o "teto" e zero mais uma margem de ruido.
       ceiling: 1,
       note: 'Deveria ser zero. Acima disso a cache esta a ser deitada fora antes de expirar.',
@@ -174,9 +231,35 @@ export async function buildCapacityReport(
       id: 'process.memory',
       label: 'Memoria do processo (pico diario)',
       unit: 'bytes',
-      series: daily.map((point) => point.rssBytesPeak),
+      series: dailySeries.map((point) => point.rssBytesPeak),
       ceiling: ceilings.serviceMemoryBytes,
       note: 'Chegar ao teto e o container ser reiniciado pelo Railway.',
+    }),
+    buildConstraint({
+      id: 'process.restarts',
+      label: 'Reinicios do processo por dia',
+      unit: 'reinicios/dia',
+      series: dailySeries.map((point) => point.processRestarts),
+      // Um reinicio por dia ja e de mais: significa que alguem morreu e
+      // voltou sem ninguem saber porque.
+      ceiling: 1,
+      note: 'Deteta-se pelo uptime a descer. Acima de zero, a API esta a morrer e a ser levantada pelo Railway.',
+    }),
+    buildConstraint({
+      id: 'http.server_errors',
+      label: 'Erros 5xx por dia',
+      unit: 'erros/dia',
+      series: dailySeries.map((point) => point.httpServerErrors),
+      ceiling: 10,
+      note: 'Falhas nossas a servir pedidos. Subidas acompanham quase sempre um job a rebentar.',
+    }),
+    buildConstraint({
+      id: 'jobs.failures',
+      label: 'Execucoes de jobs falhadas por dia',
+      unit: 'falhas/dia',
+      series: dailySeries.map((point) => point.jobFailures),
+      ceiling: 1,
+      note: 'Inclui o refresh diario do Clareza. Uma falha aqui e dados por actualizar.',
     }),
     buildConstraint({
       id: 'railway.cost',
@@ -227,7 +310,9 @@ export async function buildCapacityReport(
   return {
     generatedAt: now,
     range: { fromDay: dayKey(from), toDay: dayKey(now), days },
-    hasData: snapshots.length > 0,
+    hasData: daily.length > 0,
+    granularity,
+    breakdownWindowDays,
     ceilings,
     constraints,
     daily,

@@ -4,7 +4,12 @@
 // =====================================================
 
 import type { NextFunction, Request, Response } from 'express'
-import { buildCapacityReport, DEFAULT_RANGE_DAYS, MAX_RANGE_DAYS } from '../../services/ops/capacityReport.service'
+import {
+  buildCapacityReport,
+  DEFAULT_RANGE_DAYS,
+  MAX_RANGE_DAYS,
+  type CapacityGranularity,
+} from '../../services/ops/capacityReport.service'
 import { probeLiveCapacity } from '../../services/ops/capacityLive.service'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
 import { successResponse } from '../../contracts/responseContract'
@@ -16,13 +21,20 @@ function parseDays(raw: unknown): number {
   return Math.min(parsed, MAX_RANGE_DAYS)
 }
 
+function parseGranularity(raw: unknown): CapacityGranularity {
+  return raw === 'week' ? 'week' : 'day'
+}
+
 /**
  * GET /api/ops/capacity
- * Relatorio completo a partir dos snapshots ja gravados.
+ * Relatorio completo a partir dos snapshots e resumos ja gravados.
  */
 export const getCapacityReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const report = await buildCapacityReport({ days: parseDays(req.query.days) })
+    const report = await buildCapacityReport({
+      days: parseDays(req.query.days),
+      granularity: parseGranularity(req.query.granularity),
+    })
     res.json(successResponse(report, { generatedAt: report.generatedAt }))
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao construir relatorio de capacidade', 'CAPACITY_REPORT_FAILED')

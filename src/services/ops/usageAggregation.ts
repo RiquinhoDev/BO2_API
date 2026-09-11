@@ -165,6 +165,23 @@ function peak(
 }
 
 /**
+ * Quantas vezes o processo reiniciou. Detecta-se pelo uptime a descer entre
+ * snapshots: o Railway reinicia o container em silencio, sem deixar rasto nos
+ * nossos logs, e sem isto um ciclo de reinicios passa despercebido no painel.
+ */
+export function countProcessRestarts(snapshots: readonly IUsageSnapshot[]): number {
+  let restarts = 0
+  let previous: number | null = null
+  for (const snapshot of snapshots) {
+    const uptime = snapshot.process?.uptimeSeconds
+    if (typeof uptime !== 'number') continue
+    if (previous !== null && uptime < previous) restarts += 1
+    previous = uptime
+  }
+  return restarts
+}
+
+/**
  * Diferenca de um contador acumulado do Redis ao longo do dia. O Redis zera
  * estes contadores quando reinicia; detectamos isso pelo uptime a descer e,
  * nesse caso, somamos o valor final em vez de subtrair — subtrair daria
@@ -195,6 +212,8 @@ export interface DailyUsagePoint {
   readonly day: string
   readonly httpRequests: number
   readonly httpErrors: number
+  /** Só 5xx: erros nossos, não do cliente. É o sinal que precede um crash. */
+  readonly httpServerErrors: number
   readonly httpLatencyP95Ms: number | null
   readonly egressBytes: number
   readonly providerCalls: number
@@ -214,6 +233,8 @@ export interface DailyUsagePoint {
   readonly eventLoopP99MsPeak: number | null
   readonly students: number | null
   readonly activeStudents: number | null
+  /** Reinícios do processo detectados no dia. */
+  readonly processRestarts: number
 }
 
 export function buildDailySeries(
@@ -232,6 +253,7 @@ export function buildDailySeries(
       httpErrors:
         sumCounter(daily, 'http.requests', { status: '5xx' })
         + sumCounter(daily, 'http.requests', { status: '4xx' }),
+      httpServerErrors: sumCounter(daily, 'http.requests', { status: '5xx' }),
       httpLatencyP95Ms: mergeHistogram(daily, 'http.latency').p95Ms,
       egressBytes: sumCounter(daily, 'http.response_bytes'),
       providerCalls: sumCounter(daily, 'provider.calls'),
@@ -260,6 +282,7 @@ export function buildDailySeries(
         daily,
         (snapshot) => snapshot.business?.activeStudents ?? null,
       ),
+      processRestarts: countProcessRestarts(daily),
     }
   })
 }

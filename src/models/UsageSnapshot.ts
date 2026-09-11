@@ -145,9 +145,10 @@ const UsageSnapshotSchema = new Schema<IUsageSnapshot>(
 )
 
 UsageSnapshotSchema.index({ capturedAt: -1 })
-// Pouco mais de um ano: chega para comparar com o mesmo mes do ano passado sem
-// deixar a coleccao de medicao tornar-se ela propria um problema de espaco.
-UsageSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: 400 * 24 * 60 * 60 })
+// Catorze dias. Este e o degrau detalhado da escada: serve para investigar a
+// semana em curso. A memoria longa fica nos UsageRollup, que custam um
+// documento por dia e um por semana em vez de vinte e quatro por dia.
+UsageSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: 14 * 24 * 60 * 60 })
 
 export const UsageSnapshot: mongoose.Model<IUsageSnapshot> =
   mongoose.models.UsageSnapshot
