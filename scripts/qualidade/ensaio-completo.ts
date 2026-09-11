@@ -56,9 +56,10 @@ async function main() {
   for (const n of ['DailyPipeline', 'EvaluateRules', 'EvaluateRules_TEST']) {
     check(!ligado(n), `Janeiro desligado: ${n}`, ligado(n) ? 'LIGADO' : 'off')
   }
-  for (const n of ['RenewalPipeline', 'AcExpirationSync', 'AcTurmaTagSync', 'AcRefundHandler', 'RenewalAcSync']) {
-    check(!ligado(n), `escritor ainda off: ${n}`, ligado(n) ? 'LIGADO' : 'off')
+  for (const n of ['RenewalPipeline', 'AcExpirationSync', 'AcTurmaTagSync', 'AcRefundHandler']) {
+    check(ligado(n), `escritor LIGADO: ${n}`, ligado(n) ? 'on' : 'OFF')
   }
+  check(!ligado('RenewalAcSync'), 'RenewalAcSync continua off (substituido)', ligado('RenewalAcSync') ? 'LIGADO' : 'off')
   check(ligado('HotmartSync'), 'o "1º" está ligado (puxa as renovações)', ligado('HotmartSync') ? 'on' : 'OFF')
   check(ligado('AcTagWatch'), 'vigilância ligada', ligado('AcTagWatch') ? 'on' : 'OFF')
 
