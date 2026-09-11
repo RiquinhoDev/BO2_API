@@ -15,9 +15,15 @@ export const calculateProgress = (
     }
   }
 
-  const completed = lessons.filter(lesson => lesson.is_completed).length
-  const total = lessons.length
-  const completedPercentage = Math.round((completed / total) * 100)
+  // A barra de progresso do Hotmart Club só conta aulas "normais" — os módulos
+  // extra/bónus (is_module_extra) não entram no denominador. Contamos igual para
+  // a % bater certo com o que o aluno vê no Club. A lista completa de aulas
+  // (incl. extras) segue à mesma para o detalhe de módulos.
+  const countable = lessons.filter(lesson => !lesson.is_module_extra)
+  const base = countable.length > 0 ? countable : lessons
+  const completed = base.filter(lesson => lesson.is_completed).length
+  const total = base.length
+  const completedPercentage = total > 0 ? Math.round((completed / total) * 100) : 0
 
   // ✅ NOVO: Calcular módulos DIRETAMENTE DAS LIÇÕES (sem endpoint /modules)
   const modulesList = calculateModuleProgress(lessons)

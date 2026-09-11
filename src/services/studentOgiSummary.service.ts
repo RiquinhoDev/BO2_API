@@ -186,6 +186,12 @@ interface UserProductLean {
     lessonsCompleted?: string[]
     lastActivity?: Date
     modulesList?: UserProductModuleLean[]
+    // % oficial do Hotmart Club (cron HotmartOgiProgressRefresh, /users?email=).
+    // Fonte preferida — bate exactamente com o que o aluno vê dentro do Hotmart.
+    hotmartPercentage?: number
+    hotmartCompleted?: number
+    hotmartTotal?: number
+    hotmartRefreshedAt?: Date
   }
   engagement?: {
     lastLogin?: Date
@@ -478,14 +484,22 @@ function getTotalLessons(
   userProduct: UserProductLean | null,
   modules: OgiModuleSummary[]
 ): number {
+  // Só fontes OGI/Hotmart — sem user.combined.* (mistura de plataformas).
+  // Preferir o total oficial do Hotmart Club (cron) quando existir.
+  const hotmartTotal = userProduct?.progress?.hotmartTotal
+  if (typeof hotmartTotal === 'number' && hotmartTotal > 0) return hotmartTotal
+
   return userProduct?.progress?.total
     || sumModulesTotalLessons(modules)
-    || user.combined?.totalLessons
     || user.hotmart?.progress?.lessonsData?.length
     || 0
 }
 
 function getCompletedLessons(user: StudentLean, userProduct: UserProductLean | null): number {
+  // Preferir o "completo" oficial do Hotmart Club (cron) quando existir.
+  const hotmartCompleted = userProduct?.progress?.hotmartCompleted
+  if (typeof hotmartCompleted === 'number' && hotmartCompleted > 0) return hotmartCompleted
+
   return userProduct?.progress?.completed
     || userProduct?.progress?.lessonsCompleted?.length
     || user.hotmart?.progress?.completedLessons
@@ -493,17 +507,24 @@ function getCompletedLessons(user: StudentLean, userProduct: UserProductLean | n
 }
 
 function getProgressPercentage(
-  user: StudentLean,
+  _user: StudentLean,
   userProduct: UserProductLean | null,
   completedLessons: number,
   totalLessons: number
 ): number {
-  if (typeof userProduct?.progress?.percentage === 'number') {
-    return clampPercentage(userProduct.progress.percentage)
+  // Fonte preferida: a % oficial do Hotmart Club, capturada aluno a aluno pelo
+  // cron HotmartOgiProgressRefresh (/users?email=). É o número exacto que o
+  // aluno vê dentro do Hotmart — o denominador da Hotmart não coincide com o
+  // nosso sync por lições, por isso só assim a barra bate certo.
+  if (typeof userProduct?.progress?.hotmartPercentage === 'number') {
+    return clampPercentage(userProduct.progress.hotmartPercentage)
   }
 
-  if (typeof user.combined?.totalProgress === 'number') {
-    return clampPercentage(user.combined.totalProgress)
+  // Fallback: o progresso calculado pelo sync nocturno (aulas feitas ÷ total,
+  // já sem módulos extra). NÃO usar user.combined.* — mistura Hotmart com
+  // Curseduca/outras fontes.
+  if (typeof userProduct?.progress?.percentage === 'number') {
+    return clampPercentage(userProduct.progress.percentage)
   }
 
   if (totalLessons <= 0) return 0

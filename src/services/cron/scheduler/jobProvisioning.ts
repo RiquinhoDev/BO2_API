@@ -98,6 +98,16 @@ const JOBS: readonly SystemJobDefinition[] = [
     updateSchedule: false,
     maxRetries: 1,
     exponentialBackoff: false
+  },
+  {
+    name: 'HotmartOgiProgressRefresh',
+    description:
+      'Captura diariamente (06:00) a % oficial de progresso OGI do Hotmart Club, aluno a aluno (endpoint /club/api/v1/users?email=), só para inscrições ACTIVE. Grava em userProduct.progress.hotmart* sem tocar na % calculada pelo sync nocturno. Concorrência 3 + retry/backoff para respeitar o rate limit da Hotmart.',
+    cronExpression: '0 6 * * *',
+    enabled: true,
+    updateSchedule: true,
+    maxRetries: 2,
+    exponentialBackoff: true
   }
 ]
 

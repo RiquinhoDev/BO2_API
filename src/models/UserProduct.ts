@@ -38,6 +38,14 @@ export interface IProgress {
   }>
   totalModules?: number  // Total de módulos do curso
 
+  // ✅ HOTMART: % oficial do Club (endpoint /users?email=), capturada pelo cron
+  // HotmartOgiProgressRefresh. Fonte preferida no dashboard do aluno — bate
+  // exactamente com o que o aluno vê dentro do Hotmart.
+  hotmartPercentage?: number
+  hotmartCompleted?: number
+  hotmartTotal?: number
+  hotmartRefreshedAt?: Date
+
   // 🔴 REMOVIDOS - Não disponíveis nos APIs:
   // reportsGenerated, lastReportOpen (Curseduca não fornece)
   // videosWatched, quizzesCompleted (Hotmart não fornece)
@@ -263,7 +271,13 @@ const UserProductSchema = new Schema<IUserProduct>({
       progressPercentage: Number,
       lastCompletedDate: Number
     }],
-    totalModules: Number  // Total de módulos do curso
+    totalModules: Number,  // Total de módulos do curso
+
+    // ✅ HOTMART: % oficial do Club (cron HotmartOgiProgressRefresh, /users?email=)
+    hotmartPercentage: Number,
+    hotmartCompleted: Number,
+    hotmartTotal: Number,
+    hotmartRefreshedAt: Date
 
     // 🔴 REMOVIDOS campos não disponíveis nos APIs
   },

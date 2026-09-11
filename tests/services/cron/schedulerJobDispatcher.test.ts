@@ -37,6 +37,7 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
     jaExistiam: 2,
     errors: [{ contexto: 'x', error: 'boom' }]
   })),
+  refreshHotmartOgiProgress: jest.fn(async () => ({ total: 12, updated: 9, skipped: 2, errors: 1 })),
   evaluateAchievements: jest.fn(async () => ({ total: 5, evaluated: 4, errors: 1 })),
   executeDailyPipeline: jest.fn(async () => ({
     success: true,
@@ -59,7 +60,8 @@ describe('CronJobDispatcher', () => {
     ['CronExecutionCleanup', 'cleanupExecutions'],
     ['WeeklyTagSnapshot', 'weeklyTagSnapshot'],
     ['ClarezaDailyRefresh', 'clarezaRefresh'],
-    ['GuruTrialCheck', 'guruTrialCheck']
+    ['GuruTrialCheck', 'guruTrialCheck'],
+    ['HotmartOgiProgressRefresh', 'refreshHotmartOgiProgress']
   ] as const)('dispatches %s to its dedicated runner', async (name, dependency) => {
     const dependencies = createDependencies()
     const dispatcher = new CronJobDispatcher(dependencies)
@@ -113,6 +115,16 @@ describe('CronJobDispatcher', () => {
       success: false,
       stats: { total: 5, inserted: 3, updated: 0, errors: 1, skipped: 2 },
       errorMessage: 'x: boom'
+    })
+  })
+
+  it('normalizes the Hotmart OGI progress refresh report', async () => {
+    const dispatcher = new CronJobDispatcher(createDependencies())
+
+    await expect(dispatcher.execute(job('HotmartOgiProgressRefresh'))).resolves.toEqual({
+      success: false,
+      stats: { total: 12, inserted: 0, updated: 9, errors: 1, skipped: 2 },
+      errorMessage: undefined
     })
   })
 

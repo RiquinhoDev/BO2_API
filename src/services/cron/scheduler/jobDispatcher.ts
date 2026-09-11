@@ -37,6 +37,7 @@ export interface CronDispatchDependencies {
   runDiscordRolesSync: UnknownRunner
   runRenewalAcSync: UnknownRunner
   runAcTagWatch: UnknownRunner
+  refreshHotmartOgiProgress: UnknownRunner
   evaluateAchievements: UnknownRunner
   executeDailyPipeline: UnknownRunner
   fetchHotmart(): Promise<UniversalSourceItem[]>
@@ -58,7 +59,8 @@ const SPECIFIC_JOB_NAMES = [
   'RenewalAcSync',
   'DiscordRolesSync',
   'DiscordScheduledMessages',
-  'AcTagWatch'
+  'AcTagWatch',
+  'HotmartOgiProgressRefresh'
 ] as const
 
 const recordOf = (value: unknown): Record<string, unknown> =>
@@ -139,6 +141,8 @@ const defaultDependencies: CronDispatchDependencies = {
     (await import('../../renewal/renewalAcSync.service')).runRenewalAcSyncJob(),
   runAcTagWatch: async () =>
     (await import('../../renewal/acTagWatch.service')).correrAcTagWatch({ dryRun: false, actualizarEspelho: true }),
+  refreshHotmartOgiProgress: async () =>
+    (await import('../hotmartOgiProgressRefresh.service')).runHotmartOgiProgressRefresh(),
   evaluateAchievements: async () => evaluateAllAchievements({ backfillUnlockedAsSeen: true }),
   executeDailyPipeline,
   fetchHotmart: () =>
@@ -269,6 +273,7 @@ export class CronJobDispatcher {
     if (name.includes('WeeklyTagSnapshot')) return this.dependencies.weeklyTagSnapshot
     if (name.includes('ClarezaDailyRefresh')) return this.dependencies.clarezaRefresh
     if (name.includes('GuruTrialCheck')) return this.dependencies.guruTrialCheck
+    if (name.includes('HotmartOgiProgressRefresh')) return this.dependencies.refreshHotmartOgiProgress
     return undefined
   }
 

@@ -24,20 +24,21 @@ const repository = (jobs: CronProvisioningJob[] = []) => {
 }
 
 describe('CronJobProvisioner', () => {
-  it('creates the six system jobs in their established order', async () => {
+  it('creates the seven system jobs in their established order', async () => {
     const repo = repository()
     const provisioner = new CronJobProvisioner(repo, () => nextRun)
 
     await provisioner.ensureSystemJobs()
 
-    expect(repo.create).toHaveBeenCalledTimes(6)
+    expect(repo.create).toHaveBeenCalledTimes(7)
     expect(jest.mocked(repo.create).mock.calls.map(([seed]) => seed.name)).toEqual([
       'RenewalOfferSync',
       'AchievementEvaluation',
       'RenewalAcSync',
       'DiscordRolesSync',
       'DiscordScheduledMessages',
-      'AcTagWatch'
+      'AcTagWatch',
+      'HotmartOgiProgressRefresh'
     ])
     expect(jest.mocked(repo.create).mock.calls.map(([seed]) => seed.schedule.enabled)).toEqual([
       true,
@@ -45,7 +46,8 @@ describe('CronJobProvisioner', () => {
       false,
       false,
       false,
-      false
+      false,
+      true
     ])
     expect(jest.mocked(repo.create).mock.calls.every(([seed]) =>
       seed.createdBy.equals(new mongoose.Types.ObjectId('000000000000000000000001'))
@@ -62,7 +64,7 @@ describe('CronJobProvisioner', () => {
     expect(job.schedule.cronExpression).toBe('0 5 * * *')
     expect(job.nextRun).toEqual(nextRun)
     expect(job.save).toHaveBeenCalledTimes(1)
-    expect(repo.create).toHaveBeenCalledTimes(5)
+    expect(repo.create).toHaveBeenCalledTimes(6)
   })
 
   it('preserves an existing disabled kill-switch job without rewriting it', async () => {
