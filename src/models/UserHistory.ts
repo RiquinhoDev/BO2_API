@@ -17,8 +17,6 @@ export interface IUserHistory {
   changedBy?: string
   adminId?: string
   reason?: string
-  /** Quando preenchido, o TTL apaga o registo nessa data. Ausente = permanente. */
-  expiresAt?: Date | null
   notes?: string
   metadata?: { platforms?: string[] } & Record<string, unknown>
 }
@@ -62,18 +60,10 @@ const userHistorySchema = new Schema<IUserHistory, UserHistoryModelType>(
     changedBy: String,
 
     reason: String,
-    notes: String,
-
-    // Só os registos que a política de retenção marca é que trazem este campo.
-    // Um documento sem `expiresAt` nunca expira — e é esse o caso de tudo o que
-    // descreve o percurso de um aluno (inactivações, mudanças de turma, de
-    // estado, de email). O TTL do Mongo ignora documentos sem o campo.
-    expiresAt: { type: Date, default: null }
+    notes: String
   },
   { timestamps: true, collection: 'userhistories' }
 )
-
-userHistorySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 // índices...
 userHistorySchema.index({ userId: 1, changeDate: -1 })

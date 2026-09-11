@@ -183,7 +183,14 @@ const userSnapshotSchema = new Schema<IUserSnapshot>(
       // coleção encher a quota do Atlas — 124k docs/147MB em 25 dias e bloquear as
       // escritas do cluster). O Mongo apaga sozinho snapshots com >7 dias; a
       // retenção "6 meses" do expiresAt abaixo nunca teve TTL e não cabia em 512MB.
-      index: { expireAfterSeconds: 7 * 24 * 3600 }
+      // Dois dias. Só o snapshot mais recente de cada aluno é alguma vez lido
+      // (getLastUserSnapshot, para o diff da sincronização seguinte); os
+      // restantes não têm leitor nenhum. Dois dias cobrem um dia de syncs
+      // falhados com folga.
+      //
+      // Alterar este número não altera o índice que já existe na base: o Mongo
+      // só aceita a mudança por collMod. Ver `npm run retention:plan`.
+      index: { expireAfterSeconds: 2 * 24 * 3600 }
     },
 
     userState: {

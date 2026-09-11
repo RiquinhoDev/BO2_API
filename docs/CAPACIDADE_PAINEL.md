@@ -126,28 +126,28 @@ planos partilhados — tal como `serverStatus`, `connPoolStats` e `hostInfo`. Nu
 dedicado passam a estar disponíveis, e valem a pena: os índices deste cluster são dezenas
 de megabytes.
 
-## Retenção de histórico
+## Retenção
 
-Duas políticas, ambas **desligadas por omissão**. Ver antes de mexer:
+**Não se apaga histórico.** A colecção `userhistories` é toda mantida, e não existe no
+código nenhuma forma de a fazer expirar. Foi uma decisão explícita, depois de se ver o que
+lá está: o que parecia ruído de migração — registos sem campo e sem valor anterior — é a
+forma como se regista uma inscrição num produto, porque numa inscrição não há valor
+anterior. São `FIRST_ENROLLMENT` e `PRODUCT_ADDED`, marcados `HIGH`, e são história
+comercial: a data em que cada aluno entrou e em que comprou cada produto.
+
+A única retenção que existe é a dos **snapshots de utilizador**:
 
 ```
 npm run retention:plan     # simula, não altera nada
-npm run retention:apply    # executa
+npm run retention:apply    # aplica
 ```
 
-| Variável | O que apanha |
-|---|---|
-| `USER_HISTORY_FIRST_OBSERVATION_DAYS` | Só primeiras observações: `PLATFORM_UPDATE` sem campo identificado **e** com valor anterior nulo. Descrevem "não havia nada, agora há isto" — são o rasto das cargas em massa. O corte mais conservador. |
-| `USER_HISTORY_PLATFORM_UPDATE_DAYS` | Todo o ruído de sincronização acima dessa idade, incluindo mudanças reais de progresso e engagement. |
-| `USER_SNAPSHOT_DAYS` | Retenção dos snapshots de utilizador. Só o mais recente de cada aluno é lido. |
+Destes, só o mais recente de cada aluno é alguma vez lido — `getLastUserSnapshot`, para o
+diff da sincronização seguinte. Os outros dias são cópias sem leitor. Retenção por omissão:
+2 dias (`USER_SNAPSHOT_DAYS`).
 
-**Nunca expiram, e não há variável que os faça expirar:** `INACTIVATION`,
-`CLASS_CHANGE`, `STATUS_CHANGE`, `EMAIL_CHANGE`, `MANUAL_EDIT`. São o percurso do aluno, e
-a reactivação de uma inactivação depende de encontrar o registo pelo seu id.
-
-A implementação é por presença de campo: só os registos abrangidos recebem `expiresAt`, e
-o TTL do Mongo ignora documentos sem esse campo. O que fica protegido, fica protegido por
-construção e não por configuração.
+Mudar o valor no modelo não chega: o Mongo só altera um índice TTL que já existe por
+`collMod`, e é isso que o script faz — quando alguém o corre, não no arranque.
 
 ## Como ler os sinais
 
