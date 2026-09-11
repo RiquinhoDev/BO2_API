@@ -85,14 +85,23 @@ function parseFmp(env: NodeJS.ProcessEnv): IntegrationConfig<FmpIntegration> {
 
 // O token do Railway e de conta/equipa: da acesso a leitura de consumo e custo
 // do projecto inteiro. Fica so no backend e nunca atravessa para o Front.
+//
+// So o token decide se a integracao esta ligada. RAILWAY_PROJECT_ID nao serve
+// de gatilho porque nao e nosso: o proprio Railway injecta-o em todos os
+// servicos que la correm. Tratar a sua presenca como "alguem configurou o
+// Railway" fazia a API rebentar no arranque, em producao e so em producao.
 function parseRailway(env: NodeJS.ProcessEnv): IntegrationConfig<RailwayIntegration> {
-  const names = ['RAILWAY_API_TOKEN', 'RAILWAY_PROJECT_ID'] as const
-  if (!hasAnyValue(env, names)) return { configured: false }
+  const token = readOptionalString(env, 'RAILWAY_API_TOKEN')
+  if (!token) return { configured: false }
 
-  return configuredCredentialGroup(env, names, (values) => ({
-    token: values.RAILWAY_API_TOKEN,
-    projectId: values.RAILWAY_PROJECT_ID,
-  }))
+  const projectId = readOptionalString(env, 'RAILWAY_PROJECT_ID')
+  if (!projectId) {
+    throw new Error(
+      'CONFIG_INVALIDA: RAILWAY_PROJECT_ID e obrigatorio quando RAILWAY_API_TOKEN esta definido',
+    )
+  }
+
+  return { configured: true, value: { token, projectId } }
 }
 
 function parseHotmart(env: NodeJS.ProcessEnv): IntegrationConfig<HotmartIntegration> {
