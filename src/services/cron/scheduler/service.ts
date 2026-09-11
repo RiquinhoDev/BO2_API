@@ -21,7 +21,6 @@ import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaDailyRefresh'])
-const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
@@ -307,15 +306,6 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
-    // RenewalPipeline não tem trigger próprio — "schedule.enabled" é só
-    // o interruptor lido pelo "1º" (dailyPipeline.service.ts) no fim da
-    // sua própria execução. Registá-lo aqui também faria a cadeia correr
-    // 2x (uma vez a horas fixas, outra dependente do "1º").
-    if (job.name === RENEWAL_PIPELINE_JOB_NAME) {
-      logger.info(`🔗 ${job.name}: sem trigger próprio — corre dentro do "1º" quando o interruptor está ligado`)
-      return
-    }
-
     if (!job.schedule.enabled || !job.isActive) {
       logger.info(`⏸️ Job não agendado (disabled): ${job.name}`)
       return
