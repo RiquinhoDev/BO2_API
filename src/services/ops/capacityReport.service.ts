@@ -18,6 +18,7 @@ import {
 } from './capacityConstraints'
 import {
   buildDailySeries,
+  countedMongoBytes,
   groupCounter,
   groupHistogramSum,
   mergeHistogram,
@@ -196,7 +197,7 @@ export async function buildCapacityReport(
 
   const fmpPerDay = averageOfLastDays(dailySeries, (point) => point.fmpCalls)
   const requestsPerDay = averageOfLastDays(dailySeries, (point) => point.httpRequests)
-  const mongoBytes = latest?.mongo?.countedSizeBytes ?? latest?.mongo?.totalSizeBytes ?? null
+  const mongoBytes = latest ? countedMongoBytes(latest) : null
   const redisBytes = latest?.redis?.usedMemoryBytes ?? null
   const railwayCost = latestDeep?.railway?.estimatedCostUsd ?? null
 

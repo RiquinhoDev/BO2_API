@@ -140,6 +140,22 @@ export function groupByDay(
     .sort((left, right) => left.day.localeCompare(right.day))
 }
 
+/**
+ * O espaço que o servidor conta contra o limite do plano. Os snapshots gravados
+ * antes desta medida existir não trazem o campo, mas trazem as duas parcelas —
+ * somá-las dá o mesmo número, e é exacto. Cair para o físico seria mostrar um
+ * valor diferente com o rótulo errado, que foi o que já aconteceu uma vez.
+ */
+export function countedMongoBytes(snapshot: IUsageSnapshot): number | null {
+  const mongo = snapshot.mongo
+  if (!mongo) return null
+  if (typeof mongo.countedSizeBytes === 'number') return mongo.countedSizeBytes
+  if (typeof mongo.dataSizeBytes === 'number' && typeof mongo.indexSizeBytes === 'number') {
+    return mongo.dataSizeBytes + mongo.indexSizeBytes
+  }
+  return null
+}
+
 function lastDefined<T>(
   snapshots: readonly IUsageSnapshot[],
   read: (snapshot: IUsageSnapshot) => T | null | undefined,
@@ -268,12 +284,7 @@ export function buildDailySeries(
       fmpDeduplicated: sumCounter(daily, 'provider.deduplicated', { provider: 'fmp' }),
       mongoCommands: sumCounter(daily, 'mongo.commands'),
       mongoTotalBytes: lastDefined(daily, (snapshot) => snapshot.mongo?.totalSizeBytes ?? null),
-      mongoCountedBytes: lastDefined(
-        daily,
-        // Snapshots gravados antes desta medida existir não têm o campo; cair
-        // para o físico é melhor do que abrir um buraco na série.
-        (snapshot) => snapshot.mongo?.countedSizeBytes ?? snapshot.mongo?.totalSizeBytes ?? null,
-      ),
+      mongoCountedBytes: lastDefined(daily, (snapshot) => countedMongoBytes(snapshot)),
       redisUsedBytesPeak: peak(daily, (snapshot) => snapshot.redis?.usedMemoryBytes ?? null),
       redisEvictedKeys: cumulativeDelta(daily, (redis) => redis.evictedKeys),
       redisHitRate: keyspaceTotal === 0 ? null : (keyspaceHits ?? 0) / keyspaceTotal,
