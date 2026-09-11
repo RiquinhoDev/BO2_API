@@ -28,6 +28,7 @@ const POINT_KEYS: readonly PointKey[] = [
   'fmpDeduplicated',
   'mongoCommands',
   'mongoTotalBytes',
+  'mongoCountedBytes',
   'redisUsedBytesPeak',
   'redisEvictedKeys',
   'redisHitRate',
@@ -49,6 +50,7 @@ const POINT_KEYS: readonly PointKey[] = [
  */
 const LEVEL_KEYS: ReadonlySet<PointKey> = new Set<PointKey>([
   'mongoTotalBytes',
+  'mongoCountedBytes',
   'students',
   'activeStudents',
 ])
@@ -66,6 +68,7 @@ function emptyPoint(): IUsageRollupPoint {
     fmpDeduplicated: 0,
     mongoCommands: 0,
     mongoTotalBytes: null,
+    mongoCountedBytes: null,
     redisUsedBytesPeak: null,
     redisEvictedKeys: null,
     redisHitRate: null,

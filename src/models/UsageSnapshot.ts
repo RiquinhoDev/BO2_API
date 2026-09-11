@@ -40,6 +40,7 @@ export interface IUsageSnapshot extends Document {
     storageSizeBytes: number
     indexSizeBytes: number
     totalSizeBytes: number
+    countedSizeBytes?: number
     objects: number
     collections: number
     indexes: number

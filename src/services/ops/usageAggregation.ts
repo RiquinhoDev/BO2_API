@@ -221,7 +221,10 @@ export interface DailyUsagePoint {
   readonly fmpRateLimited: number
   readonly fmpDeduplicated: number
   readonly mongoCommands: number
+  /** Físico em disco. */
   readonly mongoTotalBytes: number | null
+  /** O que o Atlas conta contra o limite do plano: dados lógicos mais índices. */
+  readonly mongoCountedBytes: number | null
   readonly redisUsedBytesPeak: number | null
   readonly redisEvictedKeys: number | null
   readonly redisHitRate: number | null
@@ -265,6 +268,12 @@ export function buildDailySeries(
       fmpDeduplicated: sumCounter(daily, 'provider.deduplicated', { provider: 'fmp' }),
       mongoCommands: sumCounter(daily, 'mongo.commands'),
       mongoTotalBytes: lastDefined(daily, (snapshot) => snapshot.mongo?.totalSizeBytes ?? null),
+      mongoCountedBytes: lastDefined(
+        daily,
+        // Snapshots gravados antes desta medida existir não têm o campo; cair
+        // para o físico é melhor do que abrir um buraco na série.
+        (snapshot) => snapshot.mongo?.countedSizeBytes ?? snapshot.mongo?.totalSizeBytes ?? null,
+      ),
       redisUsedBytesPeak: peak(daily, (snapshot) => snapshot.redis?.usedMemoryBytes ?? null),
       redisEvictedKeys: cumulativeDelta(daily, (redis) => redis.evictedKeys),
       redisHitRate: keyspaceTotal === 0 ? null : (keyspaceHits ?? 0) / keyspaceTotal,

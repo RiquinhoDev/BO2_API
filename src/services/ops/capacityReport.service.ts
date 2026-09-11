@@ -179,6 +179,13 @@ export async function buildCapacityReport(
 
   const ceilings = loadCapacityCeilings()
   const latest = snapshots[snapshots.length - 1] ?? null
+  // O Redis reporta maxmemory=0 quando nao tem limite configurado. Passar esse
+  // zero como tecto dava "65 MB de 0 B" no painel, que nao quer dizer nada.
+  const redisReportedCeiling = latest?.redis?.maxMemoryBytes
+  const redisCeiling = ceilings.redisMemoryBytes
+    ?? (typeof redisReportedCeiling === 'number' && redisReportedCeiling > 0
+      ? redisReportedCeiling
+      : null)
   const latestDeep = [...snapshots].reverse().find((snapshot) => snapshot.deep) ?? null
 
   const httpLatency = mergeHistogram(snapshots, USAGE_METRICS.httpLatency)
@@ -189,7 +196,7 @@ export async function buildCapacityReport(
 
   const fmpPerDay = averageOfLastDays(dailySeries, (point) => point.fmpCalls)
   const requestsPerDay = averageOfLastDays(dailySeries, (point) => point.httpRequests)
-  const mongoBytes = latest?.mongo?.totalSizeBytes ?? null
+  const mongoBytes = latest?.mongo?.countedSizeBytes ?? latest?.mongo?.totalSizeBytes ?? null
   const redisBytes = latest?.redis?.usedMemoryBytes ?? null
   const railwayCost = latestDeep?.railway?.estimatedCostUsd ?? null
 
@@ -204,18 +211,18 @@ export async function buildCapacityReport(
     }),
     buildConstraint({
       id: 'mongo.storage',
-      label: 'Espaco ocupado na Mongo',
+      label: 'Espaco contado pela Mongo',
       unit: 'bytes',
-      series: dailySeries.map((point) => point.mongoTotalBytes),
+      series: dailySeries.map((point) => point.mongoCountedBytes),
       ceiling: ceilings.mongoStorageBytes,
-      note: 'Dados mais indices, como o servidor os reporta.',
+      note: 'Dados logicos mais indices — o mesmo numero que o Atlas mostra. Ao chegar ao tecto de um plano gratuito, as escritas sao bloqueadas.',
     }),
     buildConstraint({
       id: 'redis.memory',
       label: 'Memoria usada no Redis (pico diario)',
       unit: 'bytes',
       series: dailySeries.map((point) => point.redisUsedBytesPeak),
-      ceiling: ceilings.redisMemoryBytes ?? latest?.redis?.maxMemoryBytes ?? null,
+      ceiling: redisCeiling,
       note: 'Acima do teto o Redis comeca a despejar cache e a carga cai na Mongo.',
     }),
     buildConstraint({
@@ -284,7 +291,7 @@ export async function buildCapacityReport(
     },
     {
       id: 'mongo.storage',
-      label: 'Espaco ocupado na Mongo',
+      label: 'Espaco contado pela Mongo',
       unit: 'bytes',
       current: mongoBytes ?? 0,
       ceiling: ceilings.mongoStorageBytes,
@@ -294,7 +301,7 @@ export async function buildCapacityReport(
       label: 'Memoria usada no Redis',
       unit: 'bytes',
       current: redisBytes ?? 0,
-      ceiling: ceilings.redisMemoryBytes ?? latest?.redis?.maxMemoryBytes ?? null,
+      ceiling: redisCeiling,
     },
     {
       id: 'railway.cost',

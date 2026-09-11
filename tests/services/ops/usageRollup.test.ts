@@ -19,6 +19,7 @@ function point(overrides: Partial<IUsageRollupPoint>): IUsageRollupPoint {
     fmpDeduplicated: 0,
     mongoCommands: 0,
     mongoTotalBytes: null,
+    mongoCountedBytes: null,
     redisUsedBytesPeak: null,
     redisEvictedKeys: null,
     redisHitRate: null,

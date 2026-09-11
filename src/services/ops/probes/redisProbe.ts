@@ -83,7 +83,7 @@ export async function probeRedisPrefixes(
 
   for (const prefix of prefixes) {
     const pattern = `${prefix}*`
-    let totalKeys = 0
+    let totalKeys: number
     try {
       totalKeys = (await port.sampleKeys(pattern, 5_000)).length
     } catch {

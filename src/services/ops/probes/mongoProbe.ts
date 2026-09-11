@@ -8,7 +8,14 @@ export interface MongoStorageTotals {
   readonly dataSizeBytes: number
   readonly storageSizeBytes: number
   readonly indexSizeBytes: number
+  /** Fisico em disco, ja comprimido. E o que o servidor gasta. */
   readonly totalSizeBytes: number
+  /**
+   * Dados logicos mais indices — o numero que o Atlas mostra como "Data Size" e
+   * conta contra o limite do plano. Num M0, e este que bloqueia escritas aos
+   * 512 MB, e nao o fisico, que por compressao e bastante menor.
+   */
+  readonly countedSizeBytes: number
   readonly objects: number
   readonly collections: number
   readonly indexes: number
@@ -81,6 +88,7 @@ export async function probeMongoTotals(port: MongoProbePort): Promise<MongoStora
     // `totalSize` so existe a partir do Mongo 6; somamos a mao quando falta.
     totalSizeBytes:
       number(stats, 'totalSize') || number(stats, 'storageSize') + number(stats, 'indexSize'),
+    countedSizeBytes: number(stats, 'dataSize') + number(stats, 'indexSize'),
     objects: number(stats, 'objects'),
     collections: number(stats, 'collections'),
     indexes: number(stats, 'indexes'),
@@ -100,7 +108,7 @@ export async function probeMongoCollections(
   const usages: MongoCollectionUsage[] = []
 
   for (const name of names) {
-    let stats: Record<string, unknown> | null = null
+    let stats: Record<string, unknown> | null
     try {
       stats = await port.collectionStorageStats(name)
     } catch {

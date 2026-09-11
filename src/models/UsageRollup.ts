@@ -28,6 +28,7 @@ export interface IUsageRollupPoint {
   fmpDeduplicated: number
   mongoCommands: number
   mongoTotalBytes: number | null
+  mongoCountedBytes: number | null
   redisUsedBytesPeak: number | null
   redisEvictedKeys: number | null
   redisHitRate: number | null
@@ -74,6 +75,7 @@ const PointSchema = new Schema<IUsageRollupPoint>(
     fmpDeduplicated: { type: Number, default: 0 },
     mongoCommands: { type: Number, default: 0 },
     mongoTotalBytes: { type: Number, default: null },
+    mongoCountedBytes: { type: Number, default: null },
     redisUsedBytesPeak: { type: Number, default: null },
     redisEvictedKeys: { type: Number, default: null },
     redisHitRate: { type: Number, default: null },
