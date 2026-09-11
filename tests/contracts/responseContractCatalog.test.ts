@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(405)
-    expect(new Set(contractIds).size).toBe(405)
+    expect(responseCatalog).toHaveLength(411)
+    expect(new Set(contractIds).size).toBe(411)
     expect(contractIds).toEqual(routeIds)
   })
 
@@ -107,9 +107,15 @@ describe('response contract catalog', () => {
       'GET /api/clareza/earnings/data',
       'GET /api/clareza/radar',
       'GET /api/clareza/raiox',
+      'GET /api/clareza/reit-valuation/:ticker',
+      'GET /api/clareza/reit/:ticker',
+      'GET /api/clareza/stock/:ticker',
       'GET /api/clareza/top10',
       'GET /api/health',
       'GET /api/info',
+      'GET /api/ogi/ferramentas/reit-valuation/:ticker',
+      'GET /api/ogi/ferramentas/reit/:ticker',
+      'GET /api/ogi/ferramentas/stock/:ticker',
     ])
 
     expect(responseCatalog.filter((entry) => entry.family === 'webhook-ack').map(routeId).sort()).toEqual([

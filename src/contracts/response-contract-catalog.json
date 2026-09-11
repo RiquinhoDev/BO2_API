@@ -699,6 +699,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/reit-valuation/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/reit/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/stock/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/suggestions/admin",
     "family": "success-data",
     "shapeKeys": [
@@ -1943,6 +1967,30 @@
       "success"
     ],
     "evidence": "src/controllers/metrics.controller.ts:35",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit-valuation/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/stock/:ticker",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/ogiTools/ferramentas.controller.ts:66",
     "frontConsumer": null
   },
   {

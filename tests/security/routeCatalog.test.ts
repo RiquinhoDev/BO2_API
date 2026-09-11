@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 405 rotas do manifest', () => {
-  expect(manifest).toHaveLength(405)
-  expect(catalog).toHaveLength(405)
-  expect(new Set(manifest.map(key)).size).toBe(405)
-  expect(new Set(catalog.map(key)).size).toBe(405)
+test('o catalogo cobre exatamente as 411 rotas do manifest', () => {
+  expect(manifest).toHaveLength(411)
+  expect(catalog).toHaveLength(411)
+  expect(new Set(manifest.map(key)).size).toBe(411)
+  expect(new Set(catalog.map(key)).size).toBe(411)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -86,6 +86,12 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/clareza/suggestions',
   ])
   expect(routesWith('signature')).toEqual([
+    'GET /api/clareza/reit-valuation/:ticker',
+    'GET /api/clareza/reit/:ticker',
+    'GET /api/clareza/stock/:ticker',
+    'GET /api/ogi/ferramentas/reit-valuation/:ticker',
+    'GET /api/ogi/ferramentas/reit/:ticker',
+    'GET /api/ogi/ferramentas/stock/:ticker',
     'GET /api/student/ogi/access',
     'GET /api/student/ogi/summary',
     'POST /api/achievements/mark-seen',

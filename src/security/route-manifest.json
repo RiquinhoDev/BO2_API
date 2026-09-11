@@ -233,6 +233,18 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/reit-valuation/:ticker"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/reit/:ticker"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/stock/:ticker"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/suggestions/admin"
   },
   {
@@ -662,6 +674,18 @@
   {
     "method": "GET",
     "path": "/api/metrics/history"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit-valuation/:ticker"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit/:ticker"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/stock/:ticker"
   },
   {
     "method": "GET",

@@ -69,7 +69,7 @@ export async function probeBusinessScale(
     safeCount(port, 'userproducts'),
   ])
 
-  let overview: Awaited<ReturnType<BusinessProbePort['latestDashboardOverview']>> = null
+  let overview: Awaited<ReturnType<BusinessProbePort['latestDashboardOverview']>>
   try {
     overview = await port.latestDashboardOverview()
   } catch {

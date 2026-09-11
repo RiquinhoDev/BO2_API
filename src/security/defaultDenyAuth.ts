@@ -1,5 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express'
 import { authenticate } from '../middleware/auth.middleware'
+import { matchCatalogRoute } from './routeCatalogMatcher'
 import routeCatalog from './route-catalog.json'
 
 type CatalogAccess = 'public' | 'authenticated' | 'signature' | 'dead'
@@ -35,6 +36,24 @@ function belongsToGuardedSurface(req: Request): boolean {
   return guardedRoots.has(firstPathSegment(req.path))
 }
 
+/**
+ * Uma rota do catálogo cuja credencial viaja no próprio pedido — `public` ou
+ * `signature` — não passa por aqui.
+ *
+ * A comparação tem de ser feita contra o *template* e não contra o caminho
+ * literal. Enquanto foi por string exacta, qualquer rota com parâmetro ficava
+ * de fora do bypass: o pedido chega como `/api/ogi/ferramentas/reit/WPC` e a
+ * chave era `/api/ogi/ferramentas/reit/:ticker`, que nunca coincidia. O
+ * resultado era um 401 numa rota catalogada como dispensada de JWT — silencioso,
+ * porque as rotas assim catalogadas eram todas literais e ninguém reparou.
+ */
+function bypassesJwt(req: Request): boolean {
+  if (jwtBypass.has(routeKey(req.method, req.path))) return true
+
+  const matched = matchCatalogRoute(req.method, req.path)
+  return matched?.access === 'public' || matched?.access === 'signature'
+}
+
 export function createDefaultDenyAuth(
   options: DefaultDenyAuthOptions = {},
 ): RequestHandler {
@@ -43,7 +62,7 @@ export function createDefaultDenyAuth(
 
   return (req: Request, res: Response, next: NextFunction) => {
     if (!enabled || !belongsToGuardedSurface(req)) return next()
-    if (jwtBypass.has(routeKey(req.method, req.path))) return next()
+    if (bypassesJwt(req)) return next()
     return authenticateRequest(req, res, next)
   }
 }
