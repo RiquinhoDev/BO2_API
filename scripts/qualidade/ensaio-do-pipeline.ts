@@ -83,7 +83,7 @@ async function main() {
   console.log('FILA:', JSON.stringify(report.fila))
   console.log('marcações de tratado:', marcados.length ? JSON.stringify(marcados) : 'nenhuma')
 
-  for (const passo of ['acExpiration', 'acTurmaTags', 'acRefunds', 'timelines'] as const) {
+  for (const passo of ['timelines', 'acExpiration', 'acTurmaTags', 'acRefunds'] as const) {
     const r = report[passo]
     console.log('\n─── ' + passo + ' ─── ' + (r.skipped ? 'SALTADO' : r.success ? 'ok' : 'FALHOU: ' + r.error) + ` (${r.durationMs}ms)`)
     for (const [k, v] of Object.entries(r.report ?? {})) {

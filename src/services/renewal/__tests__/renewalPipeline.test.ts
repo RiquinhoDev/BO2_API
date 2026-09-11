@@ -57,7 +57,7 @@ test('o pipeline nunca escreve a data de compra', async () => {
   const report = await executarPipeline(fixtures.valor)
 
   assert.deepEqual(fixtures.gates, ['AcExpirationSync', 'AcTurmaTagSync', 'AcRefundHandler'])
-  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'esperas', 'fila', 'expiracao', 'turmaTags', 'reembolsos', 'discord', 'timeline'])
+  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'timeline', 'esperas', 'fila', 'expiracao', 'turmaTags', 'reembolsos', 'discord'])
   assert.deepEqual(fixtures.opcoesCompra, [], 'o campo 334 é informativo: o nocturno lê-o, não o escreve')
   assert.deepEqual(fixtures.opcoesTags, [{ dryRun: false, userIds: [] }])
   assert.deepEqual(fixtures.opcoesReembolsos, [{ dryRun: false, transacoes: [] }])
@@ -84,7 +84,7 @@ test('os interruptores de tags e reembolsos são independentes', async () => {
 
   const report = await executarPipeline(fixtures.valor)
 
-  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'esperas', 'fila', 'turmaTags', 'discord', 'timeline'])
+  assert.deepEqual(fixtures.ordem, ['hotmart', 'ac', 'tags', 'timeline', 'esperas', 'fila', 'turmaTags', 'discord'])
   assert.equal(report.acTurmaTags.skipped ?? false, false)
   assert.equal(report.acRefunds.skipped, true)
   assert.equal(report.acExpiration.skipped, true)
@@ -172,4 +172,21 @@ test('um passo com o interruptor desligado nao marca a fila', async () => {
   await executarPipeline(fixtures.valor)
 
   assert.deepEqual(fixtures.marcados, [], 'saltado nao e tratado')
+})
+
+test('as timelines correm ANTES das escritas, nao depois', async () => {
+  // É delas que o passo das tags lê a turma do aluno. Enquanto corriam no fim,
+  // esse passo decidia com a fotografia da noite anterior: a equipa movia
+  // alguém da genérica, o "1º" actualizava a turma nessa noite, e a tag só
+  // entrava na noite seguinte. Medido a 11/09/2026 — com as timelines velhas o
+  // passo via 16 alunos à espera de turma, com as frescas via 17.
+  const fixtures = dependencias(true)
+
+  await executarPipeline(fixtures.valor)
+
+  const timeline = fixtures.ordem.indexOf('timeline')
+  for (const escrita of ['expiracao', 'turmaTags', 'reembolsos']) {
+    const i = fixtures.ordem.indexOf(escrita)
+    assert.ok(i > timeline, `${escrita} tem de correr depois das timelines`)
+  }
 })

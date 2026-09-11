@@ -199,6 +199,19 @@ export async function runRenewalPipelineComDependencias(
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => dependencias.syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => dependencias.syncActiveStudentAcRenewalData())
   const acStudentTags = await runStep('Sync AC (tags)', () => dependencias.syncAcStudentTags())
+  // As timelines vêm antes de qualquer escrita, e não depois.
+  //
+  // É delas que o passo das tags lê a turma do aluno. Enquanto corriam no
+  // fim, esse passo decidia com a fotografia da noite anterior: a equipa
+  // movia alguém da genérica, o "1º" actualizava a turma nessa mesma noite, e
+  // a tag só entrava na noite seguinte. Medido a 11/09/2026 — com as
+  // timelines velhas o passo via 16 alunos à espera de turma, com as frescas
+  // via 17.
+  //
+  // Não perdem nada por virem para aqui: só precisam dos três espelhos, que
+  // acabaram de correr. Nenhum escritor lhes acrescenta o que quer que seja.
+  const timelines = await runStep('Timelines de renovação', () => dependencias.gerarTimelinesEmLote())
+
   // Antes de ler a fila: quem está na genérica tem tag pendente e entra
   // nela, tenha ou não uma compra em aberto.
   const esperas = await dependencias.abrirEsperas().catch(() => ({
@@ -246,8 +259,6 @@ export async function runRenewalPipelineComDependencias(
   }
 
   const discordRoles = await runStep('Discord Roles', () => dependencias.runDiscordRolesSyncJob())
-  // Só faz sentido depois de os três espelhos estarem frescos.
-  const timelines = await runStep('Timelines de renovação', () => dependencias.gerarTimelinesEmLote())
 
   return {
     hotmartSales,
