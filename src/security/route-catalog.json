@@ -524,29 +524,29 @@
   {
     "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/clareza.routes.ts:22"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:22"
   },
   {
     "method": "GET",
     "path": "/api/clareza/reit/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/clareza.routes.ts:21"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:21"
   },
   {
     "method": "GET",
     "path": "/api/clareza/stock/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/clareza.routes.ts:23"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:23"
   },
   {
     "method": "GET",
@@ -1533,29 +1533,29 @@
   {
     "method": "GET",
     "path": "/api/ogi/ferramentas/reit-valuation/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/ogiFerramentas.routes.ts:26"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:26"
   },
   {
     "method": "GET",
     "path": "/api/ogi/ferramentas/reit/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/ogiFerramentas.routes.ts:23"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:23"
   },
   {
     "method": "GET",
     "path": "/api/ogi/ferramentas/stock/:ticker",
-    "access": "signature",
+    "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada da Comunidade em <src/services/marketApi.js>; rota em src/routes/ogiFerramentas.routes.ts:29"
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:29"
   },
   {
     "method": "GET",

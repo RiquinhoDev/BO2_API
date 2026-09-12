@@ -3,11 +3,20 @@
 // Ferramentas OGI publicadas em osriquinhos.serriquinho.com
 // =====================================================
 //
-// O acesso é o mesmo do resumo OGI do aluno: o token vem em `?token=`, porque
-// quem chama é uma página da Comunidade e não um cliente com cabeçalho de
-// autorização. Por isso estas rotas entram no catálogo como `signature` — a
-// credencial viaja no próprio pedido — e a verificação é feita aqui, não pelo
-// middleware de Bearer.
+// Públicas, como as outras ferramentas de mercado da Comunidade
+// (/api/clareza/raiox, /top10, /carteira/*, /comparador).
+//
+// Eu tinha-lhes posto uma guarda de token de aluno, por analogia com o resumo
+// OGI. Estava errado por duas razões. Primeira: historicamente nunca tiveram
+// verificação nenhuma — foi uma exigência que inventei ao repô-las. Segunda, e
+// decisiva: o login da Comunidade não emite token. Guarda em `ogiSession` um
+// objecto com discordId, email, nome e data de validação, e mais nada — não há
+// JWT para enviar. Com a guarda, a ferramenta era impossível de usar por quem
+// quer que fosse.
+//
+// O que protege a quota da FMP não é uma credencial que o cliente não tem: é a
+// cache de 24 horas por ticker, o limitador de ritmo partilhado e o facto de
+// este consumo passar a estar contado no painel de capacidade.
 
 import type { NextFunction, Request, Response } from 'express'
 import {
@@ -15,44 +24,12 @@ import {
   getReitValuation,
   getStockAnalysis,
 } from '../../services/ogiTools/fmpAnalysis'
-import { resolveStudentEmailFromToken } from '../../services/studentOgiSummary/access'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
 
 type Ferramenta = (ticker: string) => Promise<unknown>
 
-function queryValue(value: unknown): string | null {
-  if (typeof value === 'string') return value
-  if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
-  return null
-}
-
-/**
- * Deixa passar quem apresenta um token de aluno válido — ou quem já foi
- * autenticado antes por Bearer, que é o caso do backoffice.
- */
-function alunoAutorizado(req: Request): boolean {
-  if (req.user) return true
-
-  const token = queryValue(req.query.token)
-  if (!token) return false
-
-  try {
-    return Boolean(resolveStudentEmailFromToken(token))
-  } catch {
-    return false
-  }
-}
-
 function servir(ferramenta: Ferramenta, codigoErro: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!alunoAutorizado(req)) {
-      return res.status(401).json({
-        success: false,
-        error: 'STUDENT_ACCESS_REQUIRED',
-        message: 'Token de aluno em falta ou inválido',
-      })
-    }
-
     const ticker = String(req.params.ticker || '')
 
     try {
