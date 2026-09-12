@@ -4,6 +4,8 @@ export interface JobRuntimeDependencies {
   initializeScheduler: () => Promise<void>
   ensureCronSeeds: () => Promise<void>
   startSystemMonitor: () => void
+  /** Opcional para nao obrigar todos os arranques de teste a montar a medicao. */
+  startUsageMeasurement?: () => void
   startWarmups: () => void | Promise<void>
   registerShutdownHandlers: (warmupPromise: Promise<void>) => JobDisposer | void
   logError: (message: string, error: unknown) => void
@@ -41,6 +43,14 @@ export function createJobStarter(
 
     if (config.nodeEnv === 'production') {
       dependencies.startSystemMonitor()
+    }
+
+    // Fora do `if` acima de proposito: em desenvolvimento tambem queremos ver
+    // o consumo, e e a unica forma de validar o painel antes de ir para o ar.
+    try {
+      dependencies.startUsageMeasurement?.()
+    } catch (error) {
+      dependencies.logError('Erro ao iniciar medicao de consumo', error)
     }
 
     const warmupPromise = startWarmupLifecycle(dependencies)

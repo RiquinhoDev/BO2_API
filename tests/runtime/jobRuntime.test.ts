@@ -37,6 +37,7 @@ const config = (nodeEnv: AppConfig['nodeEnv']): AppConfig => ({
   integrations: {
     activeCampaign: { configured: false },
     fmp: { configured: false },
+    railway: { configured: false },
     hotmart: { configured: false },
     curseduca: { configured: false },
     guru: { configured: false },

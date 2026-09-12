@@ -5,8 +5,22 @@ import { clarezaCoreController } from '../controllers/clarezaCore.controller'
 import { clarezaSuggestionAdminController } from '../controllers/clarezaSuggestionAdmin.controller'
 import { authorize } from '../middleware/auth.middleware'
 import { clarezaOperationsController } from '../controllers/clarezaOperations.controller'
+import {
+  getReitTool,
+  getReitValuationTool,
+  getStockTool,
+} from '../controllers/ogiTools/ferramentas.controller'
 
 const router = Router()
+
+// ── COMPATIBILIDADE ─────────────────────────────────────────
+// As ferramentas OGI mudaram para /api/ogi/ferramentas/*. Estes três caminhos
+// ficam porque o build da Comunidade que está publicado ainda os chama; apontam
+// para os mesmos handlers. Removê-los parte a ferramenta em produção — foi
+// exactamente assim que ela parou da última vez.
+router.get('/reit/:ticker', asyncRoute(getReitTool))
+router.get('/reit-valuation/:ticker', asyncRoute(getReitValuationTool))
+router.get('/stock/:ticker', asyncRoute(getStockTool))
 
 router.get('/radar', asyncRoute(clarezaCoreController.radar))
 // Compatibilidade: WordPress ainda não migrado para /radar (Termómetro,

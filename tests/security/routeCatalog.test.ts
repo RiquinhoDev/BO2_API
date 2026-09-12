@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 403 rotas do manifest', () => {
-  expect(manifest).toHaveLength(403)
-  expect(catalog).toHaveLength(403)
-  expect(new Set(manifest.map(key)).size).toBe(403)
-  expect(new Set(catalog.map(key)).size).toBe(403)
+test('o catalogo cobre exatamente as 411 rotas do manifest', () => {
+  expect(manifest).toHaveLength(411)
+  expect(catalog).toHaveLength(411)
+  expect(new Set(manifest.map(key)).size).toBe(411)
+  expect(new Set(catalog.map(key)).size).toBe(411)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -79,9 +79,15 @@ test('a superficie excecional fica curta e explicita', () => {
     'GET /api/clareza/earnings/data',
     'GET /api/clareza/radar',
     'GET /api/clareza/raiox',
+    'GET /api/clareza/reit-valuation/:ticker',
+    'GET /api/clareza/reit/:ticker',
+    'GET /api/clareza/stock/:ticker',
     'GET /api/clareza/top10',
     'GET /api/events/upcoming',
     'GET /api/health',
+    'GET /api/ogi/ferramentas/reit-valuation/:ticker',
+    'GET /api/ogi/ferramentas/reit/:ticker',
+    'GET /api/ogi/ferramentas/stock/:ticker',
     'POST /api/auth/login',
     'POST /api/clareza/suggestions',
   ])
@@ -94,7 +100,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(383)
+  expect(routesWith('authenticated')).toHaveLength(385)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**

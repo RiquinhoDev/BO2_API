@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(403)
-    expect(new Set(contractIds).size).toBe(403)
+    expect(responseCatalog).toHaveLength(411)
+    expect(new Set(contractIds).size).toBe(411)
     expect(contractIds).toEqual(routeIds)
   })
 
@@ -107,9 +107,15 @@ describe('response contract catalog', () => {
       'GET /api/clareza/earnings/data',
       'GET /api/clareza/radar',
       'GET /api/clareza/raiox',
+      'GET /api/clareza/reit-valuation/:ticker',
+      'GET /api/clareza/reit/:ticker',
+      'GET /api/clareza/stock/:ticker',
       'GET /api/clareza/top10',
       'GET /api/health',
       'GET /api/info',
+      'GET /api/ogi/ferramentas/reit-valuation/:ticker',
+      'GET /api/ogi/ferramentas/reit/:ticker',
+      'GET /api/ogi/ferramentas/stock/:ticker',
     ])
 
     expect(responseCatalog.filter((entry) => entry.family === 'webhook-ack').map(routeId).sort()).toEqual([
@@ -225,7 +231,7 @@ describe('response contract catalog', () => {
     const consumer = (identity: string): string | null | undefined =>
       responseCatalog.find((entry) => routeId(entry) === identity)?.frontConsumer
 
-    expect(consumers).toHaveLength(188)
+    expect(consumers).toHaveLength(190)
     expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('GET /api/users/enrollments')).toBe('src/features/users-v2/usersV2.api.ts')

@@ -78,7 +78,11 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
 
   async readPublished(): Promise<CoreGenerationCandidate | null> {
     const cached = await cacheService.get<CoreGenerationCandidate>(PUBLISHED_CACHE_KEY)
-    if (cached !== null) return cached
+    // Redis round-trips through JSON -- createdAt comes back a string, not a
+    // Date, and projectRadarGeneration/projectCarteiraGeneration call
+    // .getTime() on it assuming the real thing. Revive it on the cached path
+    // only; the direct-from-Mongo path below already returns a real Date.
+    if (cached !== null) return { ...cached, createdAt: new Date(cached.createdAt) }
 
     const pointer = await ClarezaCorePublication.findOne({ key: POINTER_KEY }).maxTimeMS(5_000).lean()
     if (!pointer) return null

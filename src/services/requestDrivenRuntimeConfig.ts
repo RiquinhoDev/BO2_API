@@ -134,3 +134,15 @@ export function getOptionalOldApiUrl(): string | undefined {
 export function isDevelopmentRuntime(): boolean {
   return getRuntimeConfig().core.nodeEnv === 'development'
 }
+
+export interface RailwayRuntimeSettings {
+  readonly token: string
+  readonly projectId: string
+}
+
+// Leitura tolerante: sem credenciais do Railway o painel de capacidade mostra
+// tudo o resto e marca so o cartao de custo como indisponivel.
+export function getOptionalRailwaySettings(): RailwayRuntimeSettings | undefined {
+  const integration = getRuntimeConfig().integrations.railway
+  return integration.configured ? integration.value : undefined
+}

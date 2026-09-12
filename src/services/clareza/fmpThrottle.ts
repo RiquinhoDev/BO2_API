@@ -1,6 +1,9 @@
 // Limitador local partilhado pelas ferramentas Clareza nesta instância Node.
 // A taxa preserva o comportamento existente. Não coordena réplicas/processos.
 
+import { observeUsage } from '../../observability/usage/usageMeter'
+import { USAGE_METRICS } from '../../observability/usage/usageMetrics'
+
 const CAPACITY = 150
 const REFILL_PER_MINUTE = 2400
 const MAX_QUEUE_LENGTH = 500
@@ -145,5 +148,27 @@ const sharedFmpTokenBucket = new FmpTokenBucket({
 
 /** Aguarda autorização local para uma chamada à FMP. */
 export function fmpThrottle(signal?: AbortSignal): Promise<void> {
-  return sharedFmpTokenBucket.acquire(signal)
+  // O tempo passado aqui é tempo em que já decidimos chamar a FMP mas ainda
+  // não chamámos. Quando sobe, o limitador é que está a ser o tecto — não a
+  // FMP e não a rede.
+  const startedAt = Date.now()
+  return sharedFmpTokenBucket.acquire(signal).then(
+    (result) => {
+      observeUsage(USAGE_METRICS.providerThrottleWait, Date.now() - startedAt, {
+        provider: 'fmp',
+      })
+      return result
+    },
+    (error) => {
+      observeUsage(USAGE_METRICS.providerThrottleWait, Date.now() - startedAt, {
+        provider: 'fmp',
+      })
+      throw error
+    },
+  )
+}
+
+/** Pedidos à espera de autorização neste processo. */
+export function fmpThrottlePendingCount(): number {
+  return sharedFmpTokenBucket.pendingCount
 }

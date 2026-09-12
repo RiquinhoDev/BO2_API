@@ -225,6 +225,7 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
   expect(config.integrations).toEqual({
     activeCampaign: { configured: false },
     fmp: { configured: false },
+    railway: { configured: false },
     hotmart: { configured: false },
     curseduca: { configured: false },
     guru: { configured: false },
@@ -533,6 +534,37 @@ test.each([
   'CLAREZA_FMP_EGRESS_ENABLED',
 ])('rejects an invalid operational switch: %s', (name) => {
   expect(() => loadConfig({ ...VALID_ENV, [name]: 'sometimes' })).toThrow(name)
+})
+
+// O Railway injecta RAILWAY_PROJECT_ID em todos os servicos que la correm. Se
+// essa variavel sozinha ligasse a integracao, a API rebentava no arranque em
+// producao — e so em producao, que foi exactamente o que aconteceu uma vez.
+test('RAILWAY_PROJECT_ID sozinho nao liga a integracao nem faz rebentar o arranque', () => {
+  const config = loadConfig({
+    ...VALID_ENV,
+    RAILWAY_PROJECT_ID: '7f5e0ef5-3af0-4b8a-954d-1b09c28b7433',
+  })
+
+  expect(config.integrations.railway).toEqual({ configured: false })
+})
+
+test('o token do Railway sem projeto e recusado com mensagem propria', () => {
+  expect(() =>
+    loadConfig({ ...VALID_ENV, RAILWAY_API_TOKEN: 'railway-token' }),
+  ).toThrow('CONFIG_INVALIDA: RAILWAY_PROJECT_ID e obrigatorio quando RAILWAY_API_TOKEN esta definido')
+})
+
+test('token e projeto juntos ligam a integracao do Railway', () => {
+  const config = loadConfig({
+    ...VALID_ENV,
+    RAILWAY_API_TOKEN: 'railway-token',
+    RAILWAY_PROJECT_ID: 'projecto-bo',
+  })
+
+  expect(config.integrations.railway).toEqual({
+    configured: true,
+    value: { token: 'railway-token', projectId: 'projecto-bo' },
+  })
 })
 
 test('configured optional integrations receive typed values', () => {

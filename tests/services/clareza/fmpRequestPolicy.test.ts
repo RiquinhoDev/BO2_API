@@ -1,15 +1,22 @@
 import {
   executeFmpRequest,
   FmpRequestAbortedError,
+  rateLimitWaitMs,
 } from '../../../src/services/clareza/fmpRequestPolicy'
 
 function httpError(status: number): unknown {
   return { response: { status } }
 }
 
+function rateLimited(headers?: Record<string, string>): unknown {
+  return { response: { status: 429, ...(headers ? { headers } : {}) } }
+}
+
+/** 11:30:20.000 UTC — vinte segundos dentro do minuto. */
+const MID_MINUTE = Date.UTC(2026, 8, 11, 11, 30, 20)
+
 describe('executeFmpRequest', () => {
   it.each([
-    ['rate limit', httpError(429)],
     ['HTTP timeout', httpError(408)],
     ['server failure', httpError(503)],
     ['request timeout', { code: 'ETIMEDOUT' }],
@@ -25,6 +32,52 @@ describe('executeFmpRequest', () => {
     expect(request).toHaveBeenCalledTimes(2)
     expect(throttle).toHaveBeenCalledTimes(2)
     expect(sleep).toHaveBeenCalledTimes(1)
+    expect(sleep).toHaveBeenCalledWith(2000)
+  })
+
+  // A quota da FMP e por minuto. Com os 2 segundos fixos do retry generico, as
+  // tres tentativas caiam dentro do mesmo minuto que ja tinha recusado a
+  // primeira, e a chamada morria com dados por ir buscar.
+  it('espera pela viragem do minuto depois de um 429 sem Retry-After', async () => {
+    const request = jest.fn()
+      .mockRejectedValueOnce(rateLimited())
+      .mockResolvedValueOnce('ok')
+    const throttle = jest.fn().mockResolvedValue(undefined)
+    const sleep = jest.fn().mockResolvedValue(undefined)
+
+    await expect(
+      executeFmpRequest({ request, throttle, sleep, now: () => MID_MINUTE }),
+    ).resolves.toBe('ok')
+    expect(sleep).toHaveBeenCalledWith(41_000)
+  })
+
+  it('prefere o Retry-After quando o fornecedor o manda', async () => {
+    const request = jest.fn()
+      .mockRejectedValueOnce(rateLimited({ 'retry-after': '12' }))
+      .mockResolvedValueOnce('ok')
+    const throttle = jest.fn().mockResolvedValue(undefined)
+    const sleep = jest.fn().mockResolvedValue(undefined)
+
+    await expect(
+      executeFmpRequest({ request, throttle, sleep, now: () => MID_MINUTE }),
+    ).resolves.toBe('ok')
+    expect(sleep).toHaveBeenCalledWith(12_000)
+  })
+
+  it('nunca espera mais do que noventa segundos por um Retry-After absurdo', () => {
+    expect(rateLimitWaitMs(rateLimited({ 'retry-after': '3600' }), MID_MINUTE)).toBe(90_000)
+  })
+
+  it('mantem o atraso fixo nos erros que nao sao de quota', async () => {
+    const request = jest.fn()
+      .mockRejectedValueOnce(httpError(503))
+      .mockResolvedValueOnce('ok')
+    const throttle = jest.fn().mockResolvedValue(undefined)
+    const sleep = jest.fn().mockResolvedValue(undefined)
+
+    await expect(
+      executeFmpRequest({ request, throttle, sleep, now: () => MID_MINUTE }),
+    ).resolves.toBe('ok')
     expect(sleep).toHaveBeenCalledWith(2000)
   })
 

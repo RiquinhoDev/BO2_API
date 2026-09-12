@@ -456,7 +456,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:20"
+    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:34"
   },
   {
     "method": "GET",
@@ -465,7 +465,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:18"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:32"
   },
   {
     "method": "GET",
@@ -474,7 +474,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:19"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:33"
   },
   {
     "method": "GET",
@@ -483,7 +483,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:22"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:36"
   },
   {
     "method": "GET",
@@ -492,7 +492,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo (compatibilidade Termómetro/Mapa de Calor); rota em src/routes/clareza.routes.ts:15"
+    "evidence": "public: HTML Clareza externo (compatibilidade Termómetro/Mapa de Calor); rota em src/routes/clareza.routes.ts:29"
   },
   {
     "method": "GET",
@@ -501,7 +501,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:21"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:35"
   },
   {
     "method": "GET",
@@ -510,7 +510,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:11"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:25"
   },
   {
     "method": "GET",
@@ -519,7 +519,34 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:17"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:31"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/reit-valuation/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:22"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/reit/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:21"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/stock/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/clareza.routes.ts:23"
   },
   {
     "method": "GET",
@@ -528,7 +555,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:26"
+    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:40"
   },
   {
     "method": "GET",
@@ -537,7 +564,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:27"
+    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:41"
   },
   {
     "method": "GET",
@@ -546,7 +573,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:16"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:30"
   },
   {
     "method": "GET",
@@ -1366,7 +1393,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:115"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:123"
   },
   {
     "method": "GET",
@@ -1438,7 +1465,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:163"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:171"
   },
   {
     "method": "GET",
@@ -1502,6 +1529,51 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:16"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit-valuation/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:26"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/reit/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:23"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ogi/ferramentas/stock/:ticker",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: dados de mercado sem PII, servidos pela ferramenta da Comunidade; o login do Comunidade_login nao emite token (guarda so discordId/email em ogiSession), logo nao ha credencial possivel; quota protegida por cache de 24h por ticker e limitador; consumidor Comunidade_login; rota em src/routes/ogiFerramentas.routes.ts:29"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/ops/capacidade/useCapacityReport.ts>; rota em src/routes/ops.routes.ts:13"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ops/capacity/live",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/ops/capacidade/useCapacityReport.ts>; rota em src/routes/ops.routes.ts:16"
   },
   {
     "method": "GET",
@@ -1933,7 +2005,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:92"
   },
   {
     "method": "GET",
@@ -2535,7 +2607,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:30"
+    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:44"
   },
   {
     "method": "POST",
@@ -2544,7 +2616,7 @@
     "consumer": "externo",
     "writes": true,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:25"
+    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:39"
   },
   {
     "method": "POST",
@@ -3311,7 +3383,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
   },
   {
     "method": "POST",
@@ -3320,7 +3392,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:89"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:91"
   },
   {
     "method": "POST",

@@ -6,6 +6,7 @@ import ClarezaCoreGeneration from '../../../src/models/ClarezaCoreGeneration'
 import ClarezaCorePublication from '../../../src/models/ClarezaCorePublication'
 import { MongooseCoreGenerationStore } from '../../../src/services/clareza/core/coreGenerationStore'
 import type { CoreGenerationCandidate } from '../../../src/services/clareza/core/coreGeneration.types'
+import { cacheService } from '../../../src/services/cache.service'
 
 let mongoServer: MongoMemoryServer
 
@@ -129,5 +130,24 @@ describe('MongooseCoreGenerationStore', () => {
     await expect(store.retainCandidates(21)).rejects.toThrow(
       'candidate retention limit must be an integer between 0 and 20',
     )
+  })
+
+  it('revives createdAt into a real Date on a Redis cache hit', async () => {
+    // A round trip through Redis is a JSON round trip: createdAt comes back
+    // a string, not a Date. projectRadarGeneration/projectCarteiraGeneration
+    // call .getTime() on it and throw if this isn't undone on the way out.
+    const cachedAsJson = {
+      ...candidate('generation-cached', '2026-09-10T03:00:00.000Z'),
+      createdAt: '2026-09-10T03:00:00.000Z' as unknown as Date,
+    }
+    jest.spyOn(cacheService, 'get').mockResolvedValue(cachedAsJson)
+
+    const store = new MongooseCoreGenerationStore()
+    const result = await store.readPublished()
+
+    expect(result?.createdAt).toBeInstanceOf(Date)
+    expect(result?.createdAt.getTime()).toBe(new Date('2026-09-10T03:00:00.000Z').getTime())
+
+    jest.restoreAllMocks()
   })
 })

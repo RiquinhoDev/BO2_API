@@ -10,6 +10,7 @@ import { createCronSeedProvisioner } from './cronSeeds'
 import { createJobStarter } from './jobRuntime'
 import { mongooseCronSeedRepository } from './mongooseCronSeed.repository'
 import { createShutdownRegistrar } from './shutdown'
+import { startUsageMeasurement, stopUsageMeasurement } from './usageMeasurement'
 
 const logError = (message: string, error: unknown): void => {
   logger.error(message, { error })
@@ -64,11 +65,13 @@ export const startJobs = createJobStarter({
   initializeScheduler: () => syncSchedulerService.initializeScheduler(),
   ensureCronSeeds,
   startSystemMonitor: () => systemMonitor.start(),
+  startUsageMeasurement,
   startWarmups,
   registerShutdownHandlers: (warmupPromise) => {
     const shutdownRegistrar = createShutdownRegistrar({
       signals: processSignals,
       stopSystemMonitor: () => systemMonitor.stop(),
+      stopUsageMeasurement,
       stopScheduler: () => syncSchedulerService.stopScheduler(),
       stopCache: () => cacheService.disconnect(),
       waitForWarmups: () => warmupPromise,

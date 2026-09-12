@@ -25,6 +25,12 @@ const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/clareza/raiox',
   'GET /api/clareza/radar',
   'GET /api/clareza/top10',
+  'GET /api/ogi/ferramentas/reit/:ticker',
+  'GET /api/ogi/ferramentas/reit-valuation/:ticker',
+  'GET /api/ogi/ferramentas/stock/:ticker',
+  'GET /api/clareza/reit/:ticker',
+  'GET /api/clareza/reit-valuation/:ticker',
+  'GET /api/clareza/stock/:ticker',
   'GET /api/health',
   'GET /api/info',
 ])

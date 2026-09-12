@@ -6,9 +6,40 @@ import {
   REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
   type RedisRateLimitCommandPort,
 } from '../security/redisRateLimitStore'
+import type { UsageStoreCommandPort } from '../observability/usage/usageStore'
+import { countUsage } from '../observability/usage/usageMeter'
+import { USAGE_METRICS } from '../observability/usage/usageMetrics'
+
+// Familia da chave, sem a parte variavel. "clareza:core:raiox:AAPL" conta como
+// "clareza:core": queremos saber que familia pesa, nao que simbolo.
+//
+// Paramos no primeiro segmento que ja nao seja um nome — getCacheKey() cola JSON
+// dos parametros a chave, e esse JSON traz ':' la dentro. Sem esta paragem cada
+// combinacao de filtros criava a sua propria serie.
+const KEY_SEGMENT = /^[A-Za-z0-9_.-]+$/
+
+function keyFamily(key: string): string {
+  const family: string[] = []
+  for (const segment of key.split(':')) {
+    if (!KEY_SEGMENT.test(segment)) break
+    family.push(segment)
+    if (family.length === 2) break
+  }
+  return family.length === 0 ? 'outros' : family.join(':')
+}
 
 export interface RedisRefreshJobCommandPort {
   eval(script: string, keys: readonly string[], args: readonly string[]): Promise<unknown>
+}
+
+/** Leituras de diagnostico ao proprio Redis, para o painel de capacidade. */
+export interface RedisDiagnosticsPort {
+  info(section?: string): Promise<string>
+  dbSize(): Promise<number>
+  /** Amostra de chaves por padrao, com SCAN (nao bloqueia como KEYS). */
+  sampleKeys(pattern: string, limit: number): Promise<readonly string[]>
+  /** Bytes que uma chave ocupa, incluindo overhead. null se a chave nao existir. */
+  memoryUsage(key: string): Promise<number | null>
 }
 
 class CacheService {
@@ -101,6 +132,57 @@ class CacheService {
     }
   }
 
+  public getUsageStoreCommandPort(): UsageStoreCommandPort {
+    const requireRedis = (): Redis => {
+      const redis = this.redis
+      if (!redis || !this.isConnected) throw new Error('Redis is not connected')
+      return redis
+    }
+
+    return {
+      incrementFields: async (key, fields, ttlSeconds) => {
+        const redis = requireRedis()
+        const pipeline = redis.pipeline()
+        for (const [field, value] of fields) pipeline.hincrby(key, field, value)
+        pipeline.expire(key, ttlSeconds)
+        await pipeline.exec()
+      },
+      readHash: async (key) => requireRedis().hgetall(key),
+      deleteKey: async (key) => {
+        await requireRedis().del(key)
+      },
+    }
+  }
+
+  public getDiagnosticsPort(): RedisDiagnosticsPort {
+    const requireRedis = (): Redis => {
+      const redis = this.redis
+      if (!redis || !this.isConnected) throw new Error('Redis is not connected')
+      return redis
+    }
+
+    return {
+      info: async (section) => (section ? requireRedis().info(section) : requireRedis().info()),
+      dbSize: async () => requireRedis().dbsize(),
+      sampleKeys: async (pattern, limit) => {
+        const redis = requireRedis()
+        const found: string[] = []
+        let cursor = '0'
+        do {
+          const [next, batch] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', '200')
+          found.push(...batch)
+          cursor = next
+        } while (cursor !== '0' && found.length < limit)
+        return found.slice(0, limit)
+      },
+      memoryUsage: async (key) => requireRedis().memory('USAGE', key) as Promise<number | null>,
+    }
+  }
+
+  public isReady(): boolean {
+    return this.isConnected && this.redis !== null
+  }
+
   public async disconnect(): Promise<void> {
     const redis = this.redis
     this.redis = null
@@ -114,8 +196,14 @@ class CacheService {
     
     try {
       const data = await this.redis.get(key)
+      countUsage(USAGE_METRICS.cacheOps, {
+        op: 'get',
+        outcome: data ? 'hit' : 'miss',
+        prefix: keyFamily(key),
+      })
       return data ? JSON.parse(data) : null
     } catch (error) {
+      countUsage(USAGE_METRICS.cacheOps, { op: 'get', outcome: 'error', prefix: keyFamily(key) })
       logger.error('Cache get error:', error)
       return null
     }
@@ -125,8 +213,16 @@ class CacheService {
     if (!this.isConnected || !this.redis) return
 
     try {
-      await this.redis.setex(key, ttl, JSON.stringify(value))
+      const payload = JSON.stringify(value)
+      await this.redis.setex(key, ttl, payload)
+      countUsage(USAGE_METRICS.cacheOps, { op: 'set', outcome: 'ok', prefix: keyFamily(key) })
+      countUsage(
+        USAGE_METRICS.cacheBytesWritten,
+        { prefix: keyFamily(key) },
+        Buffer.byteLength(payload),
+      )
     } catch (error) {
+      countUsage(USAGE_METRICS.cacheOps, { op: 'set', outcome: 'error', prefix: keyFamily(key) })
       logger.error('Cache set error:', error)
     }
   }
@@ -137,8 +233,15 @@ class CacheService {
     if (!this.isConnected || !this.redis) return null
 
     try {
-      return await this.redis.get(key)
+      const data = await this.redis.get(key)
+      countUsage(USAGE_METRICS.cacheOps, {
+        op: 'get',
+        outcome: data ? 'hit' : 'miss',
+        prefix: keyFamily(key),
+      })
+      return data
     } catch (error) {
+      countUsage(USAGE_METRICS.cacheOps, { op: 'get', outcome: 'error', prefix: keyFamily(key) })
       logger.error('Cache getRaw error:', error)
       return null
     }
@@ -149,7 +252,14 @@ class CacheService {
 
     try {
       await this.redis.setex(key, ttl, value)
+      countUsage(USAGE_METRICS.cacheOps, { op: 'set', outcome: 'ok', prefix: keyFamily(key) })
+      countUsage(
+        USAGE_METRICS.cacheBytesWritten,
+        { prefix: keyFamily(key) },
+        Buffer.byteLength(value),
+      )
     } catch (error) {
+      countUsage(USAGE_METRICS.cacheOps, { op: 'set', outcome: 'error', prefix: keyFamily(key) })
       logger.error('Cache setRaw error:', error)
     }
   }

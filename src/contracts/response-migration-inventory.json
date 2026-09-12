@@ -464,6 +464,30 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/reit-valuation/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/reit/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/stock/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/suggestions/admin",
     "owner": "src/controllers/clarezaSuggestionAdmin.controller.ts",
     "currentFamily": "success-data",
@@ -1325,6 +1349,46 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ogi/ferramentas/reit-valuation/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ogi/ferramentas/reit/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ogi/ferramentas/stock/:ticker",
+    "owner": "src/controllers/ogiTools/ferramentas.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ops/capacity",
+    "owner": "src/controllers/ops/capacity.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/ops/capacity/live",
+    "owner": "src/controllers/ops/capacity.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/pages/ops/capacidade/useCapacityReport.ts",
     "status": "complete"
   },
   {
