@@ -6,7 +6,18 @@ import {
   CursEducaMemberWithMetadata
 } from '../../../types/curseduca.types'
 import { getCurseducaRuntimeSettings } from '../../requestDrivenRuntimeConfig'
-export const curseducaApiUrl = () => getCurseducaRuntimeSettings().apiUrl
+/**
+ * A base da API, sempre SEM barra no fim.
+ *
+ * Todos os pedidos sao montados como `${curseducaApiUrl()}/groups`. Se a
+ * configuracao trouxer uma barra no fim, sai `//groups` e a CursEduca
+ * responde 404 "Cannot GET //groups" — foi o que aconteceu entre 04/09 e
+ * 12/09/2026, com o sync a falhar 19 noites. Durante a maior parte desse
+ * tempo o erro estava tapado por um segundo problema, no logger.
+ *
+ * Uma barra a mais na configuracao nao pode partir o sync.
+ */
+export const curseducaApiUrl = () => getCurseducaRuntimeSettings().apiUrl.replace(/\/+$/, '')
 export const CURSEDUCA_CONTENTS_API_URL="https://clas.curseduca.pro"
 export const curseducaApiKey = () => getCurseducaRuntimeSettings().apiKey
 export const curseducaAccessToken = () => getCurseducaRuntimeSettings().accessToken

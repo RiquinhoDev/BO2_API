@@ -1,7 +1,6 @@
 import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'
 import logger from '../../utils/logger'
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
-import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
@@ -123,43 +122,15 @@ export async function executeSyncAndPreparationSteps(
 
     // STEP 3/5: PRÃ‰-CRIAR TAGS BO
     logger.info('   âž¡ï¸  TransiÃ§Ã£o Step 2 â†’ Step 3...')
-    const step3Start = Date.now()
-    logStep(3, 'Pre-create Tags', 'START')
 
-    try {
-      logger.info('   ðŸ“¦ Chamando tagPreCreationService.preCreateBOTags()...')
-      const preCreateResult = await tagPreCreationService.preCreateBOTags()
-
-      result.steps.preCreateTags = {
-        success: preCreateResult.success,
-        duration: Math.floor((Date.now() - step3Start) / 1000),
-        stats: {
-          totalTags: preCreateResult.totalTags,
-          created: preCreateResult.created,
-          existing: preCreateResult.existing,
-          cached: preCreateResult.tagCache.size,
-          failed: preCreateResult.failed.length
-        }
-      }
-
-      if (preCreateResult.failed.length > 0) {
-        logger.warn(`âš ï¸  ${preCreateResult.failed.length} tags falharam: ${preCreateResult.failed.join(', ')}`)
-      }
-
-      logStep(3, 'Pre-create Tags', 'DONE', `${preCreateResult.totalTags} tags, ${result.steps.preCreateTags.duration}s`)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
-      errors.push(`Pre-create Tags: ${message}`)
-
-      result.success = false
-      result.steps.preCreateTags = {
-        ...(result.steps.preCreateTags as PipelineStepResult),
-        success: false,
-        error: message
-      }
-
-      logStep(3, 'Pre-create Tags', 'ERROR', message)
-    }
+    // O passo 3, 'Pre-create Tags', saiu a 12/09/2026. Chamava
+    // `getOrCreateTag` e CRIAVA tags na ActiveCampaign, a partir das
+    // `actions.addTag` das regras — ou seja, existia so para alimentar o
+    // passo 5, que era o motor de tags de Janeiro e ja tinha sido removido.
+    //
+    // Alem de orfao, contrariava a regra 5.9 do documento que a chefia
+    // aprovou: "nunca se cria uma tag na AC". As tags sao criadas a mao por
+    // quem gere as turmas, e o sistema so aplica as que ja existem.
 
     // STEP 4/5: RECALC ENGAGEMENT
     logger.info('   âž¡ï¸  TransiÃ§Ã£o Step 3 â†’ Step 4...')

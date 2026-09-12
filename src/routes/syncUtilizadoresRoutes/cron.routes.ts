@@ -109,16 +109,9 @@ router.get('/status', cronController.getSchedulerStatus)
 
 router.get('/tag-rules', cronController.getAvailableTagRules)
 
-/**
- * @route   POST /api/cron/tag-rules-only
- * @desc    Executar APENAS os steps de tags (sem sync Hotmart/CursEduca)
- *          Steps: Pre-create Tags → Recalc Engagement → Evaluate Tag Rules
- * @access  Private (Admin)
- */
-router.post(
-  '/tag-rules-only',
-  withValidatedInput(cronEmptyInput, (input, _req, res, next) =>
-    cronController.triggerTagRulesOnly(input, res, next)),
-)
+// A rota POST /tag-rules-only saiu a 12/09/2026. Corria o motor de tags de
+// Janeiro a pedido — pre-criar tags na AC, avaliar as regras, aplicar e
+// remover. Esse sistema foi parado em Janeiro e nao volta; o Front nunca a
+// chamou. Ver tres-sistemas-nao-confundir na memoria do projecto.
 
 export default router

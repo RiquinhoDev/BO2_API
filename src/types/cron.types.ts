@@ -97,13 +97,18 @@ export interface DailyPipelineResult {
   success: boolean
   duration: number
   completedAt: Date
+  /**
+   * O que o "1o" faz hoje: le as plataformas e recalcula metricas.
+   *
+   * Ja teve mais tres passos — preCreateTags, evaluateTagRules e
+   * syncTestimonialTags — que eram o motor de tags de Janeiro. Sairam a 11 e
+   * 12/09/2026 e nao voltam. Quem trata de tags e o renewalPipeline, e so a
+   * quem tem um acontecimento por tratar.
+   */
   steps: {
     syncHotmart: PipelineStepResult
     syncCursEduca: PipelineStepResult
-    preCreateTags: PipelineStepResult
     recalcEngagement: PipelineStepResult
-    evaluateTagRules: PipelineStepResult
-    syncTestimonialTags: PipelineStepResult
   }
   errors: string[]
   summary: {

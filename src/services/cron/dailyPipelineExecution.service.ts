@@ -45,10 +45,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     steps: {
       syncHotmart: { success: false, duration: 0, stats: {} },
       syncCursEduca: { success: false, duration: 0, stats: {} },
-      preCreateTags: { success: false, duration: 0, stats: {} },
-      recalcEngagement: { success: false, duration: 0, stats: {} },
-      evaluateTagRules: { success: false, duration: 0, stats: {} },
-      syncTestimonialTags: { success: false, duration: 0, stats: {} }
+      recalcEngagement: { success: false, duration: 0, stats: {} }
     },
     errors: [],
     summary: {
@@ -98,7 +95,6 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     logger.info('ðŸ“Š RESUMO:')
     logger.info(`   STEP 1 - Hotmart:           ${result.steps.syncHotmart.duration}s | ${result.steps.syncHotmart.stats?.total || 0} users`)
     logger.info(`   STEP 2 - CursEduca:         ${result.steps.syncCursEduca.duration}s | ${result.steps.syncCursEduca.stats?.total || 0} users`)
-    logger.info(`   STEP 3 - Pre-create:        ${result.steps.preCreateTags.duration}s | ${result.steps.preCreateTags.stats?.totalTags || 0} tags`)
     logger.info(`   STEP 4 - Engagement:        ${result.steps.recalcEngagement.duration}s | ${result.steps.recalcEngagement.stats?.updated || 0} atualizados`)
     logger.info('')
     logger.info(`ðŸ“ˆ Total: ${result.summary.totalUsers} users | ${result.summary.totalUserProducts} UserProducts | ${result.summary.tagsApplied} tags aplicadas`)
