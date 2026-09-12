@@ -26,7 +26,28 @@ const PROTECTED_JOB_NAMES = new Set(['ClarezaDailyRefresh'])
 // IN-MEMORY SCHEDULER REGISTRY
 // ─────────────────────────────────────────────────────────────
 
-const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
+/**
+ * Estes NÃO são jobs — são interruptores.
+ *
+ * Vivem na mesma colecção que os jobs porque é ali que o backoffice os mostra
+ * e liga, mas o `schedule.enabled` deles é lido de dentro do
+ * renewalPipeline (`runGatedStep`), e a `cronExpression` não devia disparar
+ * nada.
+ *
+ * Se forem registados no agendador, o despachante manda-os por
+ * `syncType: 'hotmart'` para o `executePlatformSync` — que corre um sync
+ * INTEIRO da Hotmart e, no fim, puxa a cadeia das renovações. Aconteceu a
+ * 11/09/2026, quando foram ligados: o AcTurmaTagSync e o AcRefundHandler
+ * correram os dois às 09:00, 4435 utilizadores e duas horas e meia cada, e
+ * puxaram a cadeia duas vezes. Não escreveram nada na AC — as guardas
+ * seguraram — mas foram quatro syncs num dia em vez de um.
+ */
+const INTERRUPTORES_SEM_CRON = new Set([
+  'RenewalPipeline',
+  'AcExpirationSync',
+  'AcTurmaTagSync',
+  'AcRefundHandler',
+])
 const registry = new SchedulerRegistry()
 const notificationPort = createLoggingCronNotification(logger)
 const defaultCronJobExecutor = new CronJobExecutor({
@@ -307,13 +328,12 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
-    // O RenewalPipeline nao tem cron proprio de proposito: corre EM CIMA do
-    // "1o" (HotmartSync), encadeado no fim dele — ver jobDispatcher. E o "1o"
-    // que actualiza as turmas dos alunos, e as renovacoes leem-nas para
-    // decidir a tag; a horas fixas comecavam a meio e liam turmas
-    // incompletas. O `schedule.enabled` dele e so o interruptor.
-    if (job.name === RENEWAL_PIPELINE_JOB_NAME) {
-      logger.info(`🔗 ${job.name}: sem cron proprio — corre no fim do "1o" quando o interruptor esta ligado`)
+    // A cadeia das renovacoes corre EM CIMA do "1o" (HotmartSync), encadeada
+    // no fim dele — ver jobDispatcher. E o "1o" que actualiza as turmas dos
+    // alunos, e as renovacoes leem-nas para decidir a tag; a horas fixas
+    // comecavam a meio e liam turmas incompletas.
+    if (INTERRUPTORES_SEM_CRON.has(job.name)) {
+      logger.warn(`🔗 ${job.name}: e um interruptor, nao um job — nao se agenda`)
       return
     }
 
