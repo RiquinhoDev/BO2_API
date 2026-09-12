@@ -71,7 +71,14 @@ export function parseOptionalUrl(value: string | undefined, name: string): strin
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
       throw new Error('unsupported URL')
     }
-    return parsed.toString()
+    // SEM barra no fim. `new URL('https://x.pro').toString()` devolve
+    // 'https://x.pro/' — a norma WHATWG acrescenta-a — e todos os consumidores
+    // montam os pedidos como `${base}/caminho`, o que dava '//caminho'.
+    //
+    // A CursEduca respondia 404 "Cannot GET //groups" e o sync falhou 19
+    // noites em 253. A ActiveCampaign e o Discord toleram a barra a dobrar,
+    // por isso o defeito so se via de um lado — mas estava em todos.
+    return parsed.toString().replace(/\/+$/, '')
   } catch {
     throw new Error(`CONFIG_INVALIDA: ${name} deve ser um URL HTTP(S) valido`)
   }
